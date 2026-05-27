@@ -16,13 +16,15 @@ interface SpeechRecognitionLike {
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
 type LogType = 'sleep' | 'feed' | 'pee' | 'poop' | 'cry' | 'walk';
-type Page = 'home' | 'timeline' | 'schedule' | 'health' | 'chat';
+type Page = 'home' | 'timeline' | 'schedule' | 'health' | 'chat' | 'info';
 type ModalState = 'setup' | 'addLog' | 'healthLog' | 'logDetail' | null;
 type TodoCat = 'vaccine' | 'formula' | 'solid' | 'other';
 type TodoFilter = 'all' | TodoCat;
-type HealthTab = 'development' | 'logs' | 'medication';
+type HealthTab = 'development' | 'logs' | 'medication' | 'report';
 type HealthLogType = 'temp' | 'rash' | 'symptom' | 'other';
 type HealthModalMode = 'health' | 'medication';
+type ReportMode = 'week' | 'month';
+type GrowthMetric = 'height' | 'weight';
 
 interface Baby { name: string; birthDate: string; gender: 'boy' | 'girl'; }
 interface Log {
@@ -33,6 +35,7 @@ interface Log {
 interface Todo { id: string; text: string; category: TodoCat; completed: boolean; createdAt: number; }
 interface HealthLog { id: string; type: HealthLogType; detail: string; date: string; time: string; }
 interface Medication { id: string; name: string; dose: string; freq: string; note: string; date: string; }
+interface Growth { id: string; date: string; height?: number; weight?: number; }
 interface AppState {
   babyId: number | null;
   baby: Baby | null;
@@ -40,6 +43,7 @@ interface AppState {
   todos: Todo[];
   health: { logs: HealthLog[]; medications: Medication[]; };
   development: Record<string, boolean>;
+  growth: Growth[];
 }
 interface ChatMsg { id: string; role: 'user' | 'bot'; html: string; isTyping?: boolean; }
 interface MilestoneItem { id: string; text: string; }
@@ -94,7 +98,74 @@ function escHtml(s: string) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function defaultState(): AppState {
-  return { babyId:null, baby:null, logs:{}, todos:[], health:{logs:[],medications:[]}, development:{} };
+  return { babyId:null, baby:null, logs:{}, todos:[], health:{logs:[],medications:[]}, development:{}, growth:[] };
+}
+
+// ── WHO Growth Standards P3/P50/P97 (0-24 months) ────────────
+const GROWTH_DATA = {
+  boy:  { height:{P3:[46.1,50.2,53.2,55.3,57.0,58.4,59.7,60.9,62.1,63.3,64.5,65.6,66.7,67.7,68.7,69.7,70.6,71.5,72.4,73.3,74.2,75.1,75.9,76.8,77.7],P50:[49.9,54.7,58.4,61.4,63.9,65.9,67.6,69.2,70.6,72.0,73.3,74.5,75.7,76.9,78.0,79.1,80.2,81.2,82.3,83.2,84.2,85.1,86.0,86.9,87.8],P97:[53.4,59.0,63.2,66.8,69.4,71.9,74.0,75.9,77.7,79.3,80.9,82.4,83.8,85.1,86.4,87.7,88.9,90.1,91.3,92.5,93.7,94.9,96.0,97.2,98.3]}, weight:{P3:[2.5,3.4,4.4,5.1,5.6,6.1,6.4,6.7,7.0,7.2,7.4,7.6,7.8,8.0,8.2,8.4,8.6,8.7,8.9,9.1,9.2,9.4,9.5,9.7,9.8],P50:[3.3,4.5,5.6,6.4,7.0,7.5,7.9,8.3,8.6,8.9,9.2,9.4,9.6,9.9,10.1,10.3,10.5,10.7,10.9,11.1,11.3,11.5,11.8,12.0,12.2],P97:[4.4,5.8,7.1,8.0,8.7,9.3,9.8,10.3,10.7,11.0,11.4,11.7,12.0,12.3,12.6,12.9,13.2,13.5,13.8,14.1,14.4,14.7,15.0,15.3,15.6]} },
+  girl: { height:{P3:[45.6,49.2,52.1,54.2,55.9,57.4,58.7,59.9,61.0,62.2,63.3,64.4,65.4,66.4,67.4,68.3,69.3,70.2,71.1,72.0,72.8,73.7,74.5,75.4,76.2],P50:[49.1,53.7,57.1,59.8,62.1,64.0,65.7,67.3,68.7,70.1,71.5,72.8,74.0,75.2,76.4,77.5,78.6,79.7,80.7,81.7,82.7,83.7,84.6,85.5,86.4],P97:[52.9,58.1,62.1,65.2,67.8,70.0,71.9,73.7,75.3,76.9,78.4,79.9,81.3,82.7,84.0,85.3,86.6,87.9,89.1,90.3,91.5,92.6,93.7,94.8,95.9]}, weight:{P3:[2.4,3.2,4.0,4.7,5.1,5.5,5.8,6.1,6.3,6.5,6.7,6.9,7.1,7.2,7.4,7.6,7.8,7.9,8.1,8.2,8.4,8.6,8.7,8.9,9.0],P50:[3.2,4.2,5.1,5.8,6.4,6.9,7.3,7.6,7.9,8.2,8.5,8.7,9.0,9.2,9.4,9.6,9.8,10.0,10.2,10.4,10.6,10.9,11.1,11.3,11.5],P97:[4.2,5.5,6.6,7.5,8.2,8.8,9.3,9.8,10.2,10.5,10.9,11.2,11.5,11.8,12.1,12.4,12.7,13.0,13.2,13.5,13.8,14.0,14.3,14.6,14.8]} },
+};
+
+function calcPercentile(value: number, ageMonths: number, metric: GrowthMetric, gender: 'boy'|'girl') {
+  const d = GROWTH_DATA[gender][metric];
+  const m = Math.max(0, Math.min(24, Math.round(ageMonths)));
+  const p3=d.P3[m], p50=d.P50[m], p97=d.P97[m];
+  let pct: number;
+  if(value<=p3) pct=3;
+  else if(value>=p97) pct=97;
+  else if(value<=p50) pct=Math.round(3+(value-p3)/(p50-p3)*47);
+  else pct=Math.round(50+(value-p50)/(p97-p50)*47);
+  const emoji = pct<=15?'⬇️':pct>=85?'⬆️':'✅';
+  const label = pct<=15?`하위 ${pct}%`:pct>=85?`상위 ${100-pct}%`:`중간 범위 (${pct}번째 백분위)`;
+  return { pct, emoji, label };
+}
+
+function buildGrowthSVG(records: Growth[], metric: GrowthMetric, gender: 'boy'|'girl'): string {
+  const gd = GROWTH_DATA[gender][metric];
+  const months = Array.from({length:25},(_,i)=>i);
+  const L=38,T=14,R=12,B=22,W=300,H=180;
+  const cW=W-L-R, cH=H-T-B;
+  const yRange = metric==='height'?{min:43,max:101}:{min:2,max:16};
+  const xS=(m:number)=>L+(m/24)*cW;
+  const yS=(v:number)=>T+cH-((v-yRange.min)/(yRange.max-yRange.min))*cH;
+  const pl=(arr:number[],color:string,dash:string,sw=1.5)=>{
+    const pts=months.map(m=>`${xS(m).toFixed(1)},${yS(arr[m]).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-dasharray="${dash}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  };
+  const bandPts=[...months.map(m=>`${xS(m).toFixed(1)},${yS(gd.P97[m]).toFixed(1)}`), ...months.slice().reverse().map(m=>`${xS(m).toFixed(1)},${yS(gd.P3[m]).toFixed(1)}`)].join(' ');
+  const xLabels=[0,6,12,18,24].map(m=>`<text x="${xS(m).toFixed(1)}" y="${(T+cH+14).toFixed(1)}" text-anchor="middle" font-size="8" fill="#aaa">${m}m</text>`).join('');
+  const yTicks=metric==='height'?[50,60,70,80,90,100]:[4,6,8,10,12,14];
+  const yLabels=yTicks.map(v=>`<line x1="${L}" y1="${yS(v).toFixed(1)}" x2="${(L+cW).toFixed(1)}" y2="${yS(v).toFixed(1)}" stroke="#f0f0f0" stroke-width="1"/><text x="${(L-3).toFixed(1)}" y="${(yS(v)+3).toFixed(1)}" text-anchor="end" font-size="7.5" fill="#bbb">${v}</text>`).join('');
+  return `<svg viewBox="0 0 300 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
+    ${yLabels}${xLabels}
+    <polygon points="${bandPts}" fill="rgba(255,128,64,.08)"/>
+    ${pl(gd.P3,'#FFD0A8','4 3')} ${pl(gd.P50,'#FF8040','',2)} ${pl(gd.P97,'#FFD0A8','4 3')}
+  </svg>`;
+}
+
+function buildActivityChartHTML(logs: Record<string, Log[]>, mode: ReportMode): string {
+  const days = mode==='week'?7:30;
+  const raw: {label:string;sleepMin:number;feedCount:number;diaperCount:number}[] = [];
+  for(let i=days-1;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key=localDateStr(d);
+    const ls=logs[key]||[];
+    const sleepMin=ls.filter(l=>l.type==='sleep'&&l.endTime).reduce((acc,l)=>{let dur=hmToMin(l.endTime!)-hmToMin(l.startTime||'00:00');if(dur<0)dur+=1440;return acc+dur;},0);
+    raw.push({label:['일','월','화','수','목','금','토'][d.getDay()],sleepMin,feedCount:ls.filter(l=>l.type==='feed').length,diaperCount:ls.filter(l=>l.type==='pee'||l.type==='poop').length});
+  }
+  const summary = mode==='week'?raw:[{label:'평균',sleepMin:raw.reduce((s,d)=>s+d.sleepMin,0)/days,feedCount:raw.reduce((s,d)=>s+d.feedCount,0)/days,diaperCount:raw.reduce((s,d)=>s+d.diaperCount,0)/days}];
+  const maxSleep=Math.max(...summary.map(d=>d.sleepMin),60);
+  const maxFeed=Math.max(...summary.map(d=>d.feedCount),1);
+  const maxDiaper=Math.max(...summary.map(d=>d.diaperCount),1);
+  return summary.map(d=>{
+    const sw=Math.round((d.sleepMin/maxSleep)*55);
+    const fw=Math.round((d.feedCount/maxFeed)*25);
+    const dw=Math.round((d.diaperCount/maxDiaper)*20);
+    const sleepH=`${Math.floor(d.sleepMin/60)}h${d.sleepMin%60>0?Math.round(d.sleepMin%60)+'m':''}`;
+    const tip=`${sleepH} · 수유 ${typeof d.feedCount==='number'?d.feedCount.toFixed(mode==='week'?0:1):d.feedCount}회 · 기저귀 ${typeof d.diaperCount==='number'?d.diaperCount.toFixed(mode==='week'?0:1):d.diaperCount}회`;
+    return `<div class="act-row"><div class="act-day">${d.label}</div><div class="act-bar-track" title="${tip}"><div class="act-bar-seg act-sleep-seg" style="width:${sw}%"></div><div class="act-bar-seg act-feed-seg" style="width:${fw}%"></div><div class="act-bar-seg act-diaper-seg" style="width:${dw}%"></div></div><div class="act-label">${tip}</div></div>`;
+  }).join('');
 }
 
 // ── Milestones ───────────────────────────────────────────────────
@@ -109,6 +180,74 @@ const MILESTONES: MilestoneGroup[] = [
   { minM:18, maxM:25, title:'18~24개월',   icon:'🏃', items:[{id:'ms_1824_1',text:'뛰기 시작해요'},{id:'ms_1824_2',text:'두 단어를 조합해요 (엄마 줘, 아빠 가)'},{id:'ms_1824_3',text:'계단을 기어오르거나 올라가요'},{id:'ms_1824_4',text:'20개 이상의 단어를 사용해요'},{id:'ms_1824_5',text:'혼자 숟가락을 사용해요'}] },
 ];
 function getMilestones(months: number) { return MILESTONES.filter(g => months>=g.minM && months<g.maxM); }
+
+// ── Vaccine/food/check milestones for calendar ───────────────────
+interface CalMilestone { m: number; label: string; sub: string; type: 'vaccine'|'food'|'check'; }
+const CAL_MILESTONES: CalMilestone[] = [
+  { m:0,  label:'BCG 접종',                       sub:'출생 후 4주 이내',              type:'vaccine' },
+  { m:0,  label:'B형간염 1차',                    sub:'출생 직후',                     type:'vaccine' },
+  { m:1,  label:'B형간염 2차',                    sub:'생후 1개월',                    type:'vaccine' },
+  { m:1,  label:'영유아검진 1차',                  sub:'생후 1개월',                    type:'check' },
+  { m:2,  label:'DTaP·Hib·PCV·폴리오 1차',        sub:'생후 2개월 — 4종 동시접종',     type:'vaccine' },
+  { m:2,  label:'로타바이러스 1차',                sub:'생후 2개월',                    type:'vaccine' },
+  { m:2,  label:'영유아검진 2차',                  sub:'생후 2개월',                    type:'check' },
+  { m:4,  label:'DTaP·Hib·PCV·폴리오 2차',        sub:'생후 4개월 — 4종 동시접종',     type:'vaccine' },
+  { m:4,  label:'로타바이러스 2차',                sub:'생후 4개월',                    type:'vaccine' },
+  { m:4,  label:'영유아검진 3차',                  sub:'생후 4개월',                    type:'check' },
+  { m:6,  label:'DTaP·Hib·PCV·폴리오·HepB 3차',   sub:'생후 6개월 — 5종 동시접종',     type:'vaccine' },
+  { m:6,  label:'로타바이러스 3차',                sub:'생후 6개월 (해당 제품만)',       type:'vaccine' },
+  { m:6,  label:'이유식 시작',                     sub:'쌀미음부터 권고, 1일 1회',       type:'food' },
+  { m:6,  label:'영유아검진 4차',                  sub:'생후 6개월',                    type:'check' },
+  { m:7,  label:'중기 이유식',                     sub:'7~9개월, 다양한 식재료 도입',    type:'food' },
+  { m:9,  label:'영유아검진 5차',                  sub:'생후 9개월',                    type:'check' },
+  { m:10, label:'후기 이유식',                     sub:'10~12개월, 죽→진밥 전환',       type:'food' },
+  { m:12, label:'MMR·수두·Hib·PCV 4차',           sub:'생후 12~15개월',                type:'vaccine' },
+  { m:12, label:'A형간염 1차',                     sub:'생후 12~23개월',                type:'vaccine' },
+  { m:12, label:'일본뇌염 1차',                    sub:'생후 12개월',                   type:'vaccine' },
+  { m:12, label:'완료기 이유식',                   sub:'12개월~, 가족 식사 함께 시작',   type:'food' },
+  { m:12, label:'영유아검진 6차',                  sub:'생후 12개월',                   type:'check' },
+  { m:15, label:'DTaP 4차',                        sub:'생후 15~18개월',                type:'vaccine' },
+  { m:18, label:'영유아검진 7차',                  sub:'생후 18개월',                   type:'check' },
+  { m:24, label:'A형간염 2차',                     sub:'1차 접종 후 6개월',             type:'vaccine' },
+  { m:24, label:'일본뇌염 2차',                    sub:'1차 접종 후 1개월',             type:'vaccine' },
+  { m:24, label:'영유아검진 8차',                  sub:'생후 24개월',                   type:'check' },
+  { m:36, label:'영유아검진 9차',                  sub:'생후 36개월',                   type:'check' },
+  { m:48, label:'DTaP 5차·폴리오 4차',             sub:'만 4~6세',                      type:'vaccine' },
+  { m:48, label:'영유아검진 10차',                 sub:'생후 48개월',                   type:'check' },
+  { m:54, label:'영유아검진 11차',                 sub:'생후 54개월',                   type:'check' },
+  { m:60, label:'MMR 2차',                         sub:'만 4~6세',                      type:'vaccine' },
+  { m:66, label:'영유아검진 12차',                 sub:'생후 66개월',                   type:'check' },
+];
+
+function getMilestonesForMonth(birthDateStr: string, year: number, month: number) {
+  const events: (CalMilestone & { date: Date })[] = [];
+  for (const ms of CAL_MILESTONES) {
+    const d = new Date(birthDateStr);
+    d.setMonth(d.getMonth() + ms.m);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      events.push({ ...ms, date: new Date(d) });
+    }
+  }
+  return events.sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+// ── Shop keywords ────────────────────────────────────────────────
+const SHOP_KEYWORDS: Record<string, string[]> = {
+  newborn: ['황달 케어', '신생아 목욕', '배앓이 달래기', '수유 자세', '태열', '영아산통', '모유수유', '신생아 모빌'],
+  '1-3':   ['흑백 모빌', '딸랑이', '배앓이', '목 가누기', '사회적 미소', '소프트 토이', '스와들링', '배 놀이'],
+  '4-6':   ['이앓이', '치발기', '촉감 놀이', '이유식 준비', '뒤집기 연습', '배 놀이 매트', '오감 장난감', '목욕 장난감'],
+  '7-9':   ['이유식', '집게 잡기', '기기 연습', '낯가림', '소리 장난감', '손잡이 컵', '범퍼 침대', '오뚝이'],
+  '10-12': ['걸음마 보조', '첫 단어', '컵 연습', '소프트 퍼즐', '잡고 서기', '끌차', '잇몸 간식'],
+  toddler: ['역할 놀이', '끌차', '큰 블록', '유아 크레용', '어린이집 가방', '유아 의자', '놀이 매트'],
+};
+function getShopKeywordsForAge(months: number): string[] {
+  if (months < 1)  return SHOP_KEYWORDS.newborn;
+  if (months <= 3) return SHOP_KEYWORDS['1-3'];
+  if (months <= 6) return SHOP_KEYWORDS['4-6'];
+  if (months <= 9) return SHOP_KEYWORDS['7-9'];
+  if (months <= 12) return SHOP_KEYWORDS['10-12'];
+  return SHOP_KEYWORDS.toddler;
+}
 
 // ── Bot helpers ──────────────────────────────────────────────────
 function makeExtLinks(q: string) {
@@ -261,6 +400,17 @@ export default function BabyApp() {
   const [healthTab, setHealthTab] = useState<HealthTab>('development');
   const todoInputRef = useRef<HTMLInputElement>(null);
 
+  // Report
+  const [reportMode, setReportMode] = useState<ReportMode>('week');
+  const [growthMetric, setGrowthMetric] = useState<GrowthMetric>('height');
+  const [showGrowthForm, setShowGrowthForm] = useState(false);
+  const [gDate, setGDate] = useState('');
+  const [gHeight, setGHeight] = useState('');
+  const [gWeight, setGWeight] = useState('');
+
+  // Voice overlay
+  const [voiceOverlay, setVoiceOverlay] = useState(false);
+
   // Chat
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -274,6 +424,18 @@ export default function BabyApp() {
   // OpenAI API key
   const [openAiKey, setOpenAiKey] = useState('');
   const [keyInput, setKeyInput] = useState('');
+
+  // Calendar
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
+
+  // Keyword picker overlay
+  const [kwPickerOpen, setKwPickerOpen] = useState(false);
+  const [kwPickerKeyword, setKwPickerKeyword] = useState('');
+
+  // Voice processing (GPT intent routing)
+  const [voiceProcessing, setVoiceProcessing] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
 
   const startVoiceRecognition = useCallback(() => {
     const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
@@ -488,6 +650,31 @@ export default function BabyApp() {
     fetch(`/api/todos/${id}`, { method:'DELETE' }).catch(console.error);
   };
 
+  // ── Growth ───────────────────────────────────────────────────
+  const saveGrowth = () => {
+    if (!gDate) { showToast('날짜를 입력해주세요'); return; }
+    const h = parseFloat(gHeight), w = parseFloat(gWeight);
+    if (isNaN(h) && isNaN(w)) { showToast('키 또는 몸무게를 입력해주세요'); return; }
+    const ns = { ...appState };
+    const existing = ns.growth.find(r => r.date === gDate);
+    if (existing) {
+      if (!isNaN(h)) existing.height = h;
+      if (!isNaN(w)) existing.weight = w;
+    } else {
+      ns.growth = [...ns.growth, { id: uid(), date: gDate, height: isNaN(h)?undefined:h, weight: isNaN(w)?undefined:w }];
+    }
+    saveAppState(ns);
+    setShowGrowthForm(false); setGHeight(''); setGWeight('');
+    showToast('📏 성장 기록이 저장됐어요!');
+    const rec = ns.growth.find(r => r.date === gDate) || { id: uid(), date: gDate, height: isNaN(h)?undefined:h, weight: isNaN(w)?undefined:w };
+    fetch('/api/growth', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...rec, babyId: ns.babyId }) }).catch(console.error);
+  };
+  const deleteGrowth = (id: string) => {
+    const ns = { ...appState, growth: appState.growth.filter(r => r.id !== id) };
+    saveAppState(ns);
+    fetch(`/api/growth/${id}`, { method:'DELETE' }).catch(console.error);
+  };
+
   // ── Development ──────────────────────────────────────────────
   const toggleMilestone = (id: string) => {
     const ns = { ...appState };
@@ -566,6 +753,97 @@ export default function BabyApp() {
       setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html }]);
     } catch {
       setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html: getBotResponse(text, months, name) }]);
+    }
+  };
+
+  // ── Calendar navigation ──────────────────────────────────────
+  const prevCalMonth = () => {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  };
+  const nextCalMonth = () => {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  };
+
+  // ── Voice GPT intent routing ──────────────────────────────────
+  const handleVoiceRecord = (args: { type: LogType; time?: string; endTime?: string; amount?: number; feedType?: string; note?: string }) => {
+    const dateKey = todayStr();
+    const time = args.time || nowHHMM();
+    const log: Log = { id: uid(), type: args.type, date: dateKey, note: args.note || '' };
+    if (args.type === 'sleep' || args.type === 'cry' || args.type === 'walk') {
+      log.startTime = time;
+      if (args.endTime) log.endTime = args.endTime;
+    } else {
+      log.time = time; log.startTime = time;
+    }
+    if (args.type === 'feed') { log.amount = args.amount || null; log.feedType = args.feedType || '분유'; }
+    const ns = { ...appState };
+    if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
+    ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
+    saveAppState(ns);
+    showToast(`🎤 ${TYPE_ICONS[args.type]} ${TYPE_LABELS[args.type]} 기록 완료!`);
+    navigate('timeline');
+    fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error);
+  };
+
+  const handleVoiceSchedule = (args: { text: string; category: string }) => {
+    const catMap: Record<string, TodoCat> = { health:'vaccine', food:'solid', play:'other', etc:'other' };
+    const cat: TodoCat = (catMap[args.category] as TodoCat) || 'other';
+    const newTodo: Todo = { id:uid(), text:args.text, category:cat, completed:false, createdAt:Date.now() };
+    const ns = { ...appState };
+    ns.todos = [newTodo, ...ns.todos];
+    saveAppState(ns);
+    showToast(`🎤 스케줄에 추가됐어요: ${args.text}`);
+    navigate('schedule');
+    fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newTodo, babyId: appState.babyId }) }).catch(console.error);
+  };
+
+  const processVoiceInput = async (transcript: string) => {
+    if (!openAiKey) {
+      setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false);
+      navigate('chat');
+      setTimeout(() => sendChat(transcript), 200);
+      showToast('💬 챗봇으로 전달했어요 (API 키 미설정)');
+      return;
+    }
+    const voiceTools = [
+      { type:'function', function:{ name:'record_activity', description:'아기의 활동(수유, 수면, 기저귀, 산책, 울음)을 시간표에 기록합니다.', parameters:{ type:'object', properties:{ type:{type:'string',enum:['feed','sleep','pee','poop','cry','walk'],description:'활동 유형'}, time:{type:'string',description:'시작 시간 HH:MM'}, endTime:{type:'string',description:'종료 시간 HH:MM'}, amount:{type:'number',description:'수유량(ml)'}, feedType:{type:'string',enum:['분유','모유','혼합']}, note:{type:'string',description:'메모'} }, required:['type'] } } },
+      { type:'function', function:{ name:'save_schedule', description:'할일이나 예약 일정을 스케줄에 저장합니다.', parameters:{ type:'object', properties:{ text:{type:'string',description:'할일 내용'}, category:{type:'string',enum:['health','food','play','etc'],description:'health=건강/병원/접종, food=이유식, play=놀이, etc=기타'} }, required:['text','category'] } } },
+      { type:'function', function:{ name:'chat_response', description:'아기 육아 정보 질문, 조언 요청, 일반 대화에 답변합니다.', parameters:{ type:'object', properties:{ message:{type:'string',description:'사용자 메시지'} }, required:['message'] } } },
+    ];
+    try {
+      setVoiceProcessing(true);
+      setVoiceTranscript(`"${transcript}"`);
+      const babyMonths = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 5;
+      const babyName = appState.baby?.name || '아기';
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method:'POST',
+        headers:{ 'Authorization':`Bearer ${openAiKey}`, 'Content-Type':'application/json' },
+        body:JSON.stringify({
+          model:'gpt-4o-mini',
+          messages:[
+            { role:'system', content:`너는 아기 육아 앱의 음성 명령 분류기야. 아기 이름: ${babyName}, 월령: ${babyMonths}개월, 현재 시각: ${nowHHMM()}. 사용자 음성 입력을 보고 반드시 아래 중 하나의 함수를 호출해:\n- 수유/수면/기저귀/산책/울음 내용 → record_activity\n- 할일/예약/일정 저장 요청 → save_schedule\n- 질문/대화/정보 요청 → chat_response\n시간 표현("방금", "지금", "30분 전" 등)은 HH:MM으로 변환해서 넣어줘.` },
+            { role:'user', content:transcript }
+          ],
+          tools:voiceTools,
+          tool_choice:'required'
+        })
+      });
+      const data = await res.json();
+      const tcall = data.choices?.[0]?.message?.tool_calls?.[0];
+      if (!tcall) throw new Error('no tool_call');
+      const fn = tcall.function.name;
+      const args = JSON.parse(tcall.function.arguments);
+      setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false);
+      if (fn === 'record_activity') handleVoiceRecord(args as Parameters<typeof handleVoiceRecord>[0]);
+      else if (fn === 'save_schedule') handleVoiceSchedule(args as { text: string; category: string });
+      else { navigate('chat'); setTimeout(() => sendChat(transcript), 200); }
+    } catch {
+      setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false);
+      navigate('chat');
+      setTimeout(() => sendChat(transcript), 200);
+      showToast('💬 챗봇으로 연결했어요');
     }
   };
 
@@ -906,13 +1184,49 @@ export default function BabyApp() {
         {/* ❶ HOME */}
         <section id="page-home" className={`page${currentPage==='home'?' active':''}`}>
           <div className="page-scroll">
+            {/* Baby Hero Card */}
+            <div className="baby-hero-card">
+              <div className="baby-hero-top">
+                <div className="baby-face">{appState.baby?.gender==='boy'?'👦':'👧'}</div>
+                <div className="baby-hero-info">
+                  <div className="baby-hero-name" role="button" tabIndex={0} onClick={()=>{setModal('setup');}}>{appState.baby?.name||'베이비'}</div>
+                  <div className="baby-hero-pills">
+                    {ageInfo ? (
+                      <>
+                        <span className="hero-pill">{ageInfo.months<1?`D+${ageInfo.diffDays}`:`${ageInfo.months}개월 ${ageInfo.monthRemDays}일`}</span>
+                        <span className="hero-pill">{appState.baby?.gender==='boy'?'남아':'여아'}</span>
+                      </>
+                    ) : <span className="hero-pill">정보 설정 필요</span>}
+                  </div>
+                </div>
+                <button className="hero-edit-btn" onClick={()=>setModal('setup')} aria-label="아기 정보 수정">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16l-1 4z"/></svg>
+                </button>
+              </div>
+              <div className="baby-hero-stats">
+                <div className="bhs-item"><div className="bhs-val">{feedCount>0?`${feedCount}회`:'—'}</div><div className="bhs-lbl">수유</div></div>
+                <div className="bhs-divider"/>
+                <div className="bhs-item"><div className="bhs-val">{sleepMin===0?'—':sleepMin>=60?`${Math.floor(sleepMin/60)}h${sleepMin%60>0?` ${sleepMin%60}m`:''}`:` ${sleepMin}m`}</div><div className="bhs-lbl">수면</div></div>
+                <div className="bhs-divider"/>
+                <div className="bhs-item"><div className="bhs-val">{diaperCount>0?`${diaperCount}회`:'—'}</div><div className="bhs-lbl">기저귀</div></div>
+              </div>
+            </div>
+
+            {/* 다가오는 일정 */}
             <div className="section-card">
-              <h3 className="section-title">오늘의 요약</h3>
-              <div className="stats-grid">
-                <div className="stat-item sleep-item"><div className="stat-icon">😴</div><div className="stat-value">{sleepMin===0?'—':sleepMin>=60?`${Math.floor(sleepMin/60)}h ${sleepMin%60}m`:`${sleepMin}m`}</div><div className="stat-label">수면</div></div>
-                <div className="stat-item feed-item"><div className="stat-icon">🍼</div><div className="stat-value">{feedCount>0?`${feedCount}회`:'—'}</div><div className="stat-label">수유</div></div>
-                <div className="stat-item diaper-item"><div className="stat-icon">🩹</div><div className="stat-value">{diaperCount>0?`${diaperCount}회`:'—'}</div><div className="stat-label">기저귀</div></div>
-                <div className="stat-item walk-item"><div className="stat-icon">🌿</div><div className="stat-value">{walkCount>0?`${walkCount}회`:'—'}</div><div className="stat-label">산책</div></div>
+              <div className="section-header">
+                <h3 className="section-title">다가오는 일정</h3>
+                <button className="see-all-btn" onClick={()=>navigate('schedule')}>전체 →</button>
+              </div>
+              <div className="home-upcoming-list">
+                {appState.todos.filter(t=>!t.completed).slice(0,3).length===0 ? (
+                  <div className="empty-state" style={{padding:'12px'}}><div className="empty-icon" style={{fontSize:'28px'}}>📅</div><p style={{fontSize:'12px'}}>스케줄에서 항목을 추가해보세요</p></div>
+                ) : appState.todos.filter(t=>!t.completed).slice(0,3).map(t=>(
+                  <div key={t.id} className="upcoming-item">
+                    <div className={`upcoming-cat-icon cat-${t.category}`}>{t.category==='vaccine'?'💉':t.category==='formula'?'🍼':t.category==='solid'?'🥣':'📌'}</div>
+                    <div className="upcoming-text"><div className="upcoming-title">{t.text}</div><div className="upcoming-cat">{CAT_LABELS[t.category]}</div></div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1072,13 +1386,113 @@ export default function BabyApp() {
                 </div>
               ))}
             </div>
+
+            {/* 맞춤 키워드 카드 */}
+            <div className="section-card">
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}}>
+                <h3 className="section-title" style={{margin:0}}>🛒 맞춤 키워드 확인</h3>
+                {ageInfo && <span className="shop-age-badge">{ageInfo.months}개월 맞춤</span>}
+              </div>
+              <div className="shop-flow-desc">키워드를 눌러 YouTube, 당근마켓, 맘가이드에서 검색해보세요</div>
+              <div className="kw-chips">
+                {(ageInfo ? getShopKeywordsForAge(ageInfo.months) : SHOP_KEYWORDS['4-6']).map(kw=>(
+                  <button key={kw} className="kw-chip" onClick={()=>{ setKwPickerKeyword(kw); setKwPickerOpen(true); }}>{kw}</button>
+                ))}
+              </div>
+              <div className="shop-grid">
+                {[
+                  { icon:'🎬', name:'YouTube', desc:'키워드로 육아 영상 검색', cls:'shop-yt', href:`https://www.youtube.com/results?search_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기 `:'아기 ')+'육아 정보')}` },
+                  { icon:'🥕', name:'당근마켓', desc:'중고 장난감·아이템 검색', cls:'shop-dg', href:`https://www.daangn.com/search/${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기 `:'아기 ')+'장난감')}` },
+                  { icon:'🧴', name:'맘가이드', desc:'성분 안전성 확인', cls:'shop-mg', href:`https://momguide.co.kr/search/?q=${encodeURIComponent('아기')}` },
+                ].map(({icon,name,desc,cls,href})=>(
+                  <a key={name} className="shop-item" href={href} target="_blank" rel="noopener noreferrer">
+                    <div className={`shop-item-icon ${cls}`}>{icon}</div>
+                    <div className="shop-item-info"><div className="shop-item-name">{name}</div><div className="shop-item-desc">{desc}</div></div>
+                    <svg className="shop-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 6l6 6-6 6"/></svg>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* 육아 달력 */}
+            <div className="section-card">
+              <h3 className="section-title">📅 육아 달력</h3>
+              <div className="cal-legend-row" style={{marginBottom:'12px'}}>
+                <div className="cal-legend-dot dot-vaccine"></div><span>접종</span>
+                <div className="cal-legend-dot dot-food" style={{marginLeft:'8px'}}></div><span>이유식</span>
+                <div className="cal-legend-dot dot-check" style={{marginLeft:'8px'}}></div><span>검진</span>
+              </div>
+              <div className="cal-nav">
+                <button className="cal-nav-btn" onClick={prevCalMonth}>‹</button>
+                <span className="cal-month-label">{calYear}년 {calMonth+1}월</span>
+                <button className="cal-nav-btn" onClick={nextCalMonth}>›</button>
+              </div>
+              <div className="cal-grid-header">
+                {['일','월','화','수','목','금','토'].map(d=><span key={d}>{d}</span>)}
+              </div>
+              <div className="cal-grid">
+                {(() => {
+                  const today = new Date();
+                  const firstDow = new Date(calYear, calMonth, 1).getDay();
+                  const daysInMon = new Date(calYear, calMonth+1, 0).getDate();
+                  const daysInPrev = new Date(calYear, calMonth, 0).getDate();
+                  const birthStr = appState.baby?.birthDate || null;
+                  const eventsThisMonth = birthStr ? getMilestonesForMonth(birthStr, calYear, calMonth) : [];
+                  const dayEventsMap: Record<number, Set<string>> = {};
+                  for (const ev of eventsThisMonth) {
+                    const d = ev.date.getDate();
+                    if (!dayEventsMap[d]) dayEventsMap[d] = new Set();
+                    dayEventsMap[d].add(ev.type);
+                  }
+                  const cells: React.ReactElement[] = [];
+                  for (let i=firstDow-1;i>=0;i--) cells.push(<div key={`prev-${i}`} className="cal-cell other-month">{daysInPrev-i}</div>);
+                  for (let d=1;d<=daysInMon;d++) {
+                    const dow = new Date(calYear,calMonth,d).getDay();
+                    const isToday = today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
+                    const cls = ['cal-cell',isToday?'today':'',dow===0?'sun':dow===6?'sat':''].filter(Boolean).join(' ');
+                    cells.push(
+                      <div key={d} className={cls}>
+                        {d}
+                        {dayEventsMap[d] && <div className="cal-dots">{[...dayEventsMap[d]].map(t=><div key={t} className={`cal-dot dot-${t}`}/>)}</div>}
+                      </div>
+                    );
+                  }
+                  const filled = firstDow+daysInMon;
+                  const tail = (7-(filled%7))%7;
+                  for (let d=1;d<=tail;d++) cells.push(<div key={`next-${d}`} className="cal-cell other-month">{d}</div>);
+                  return cells;
+                })()}
+              </div>
+              <div className="cal-events">
+                {!appState.baby?.birthDate ? (
+                  <div className="cal-no-baby">아기 정보를 먼저 등록해주세요 👶</div>
+                ) : (() => {
+                  const evs = getMilestonesForMonth(appState.baby.birthDate, calYear, calMonth);
+                  if (evs.length===0) return <div className="cal-events-empty">이 달에는 일정이 없어요 🌱</div>;
+                  const typeLabel: Record<string,string> = { vaccine:'💉 접종', food:'🥣 이유식', check:'🏥 검진' };
+                  return <>
+                    <div className="cal-events-title">이달의 일정 ({evs.length}건)</div>
+                    {evs.map((ev,i)=>(
+                      <div key={i} className="cal-event-item">
+                        <div className={`cal-event-date type-${ev.type}`}>{ev.date.getMonth()+1}월<br/>{ev.date.getDate()}일</div>
+                        <div className="cal-event-info">
+                          <div className="cal-event-label">{ev.label}</div>
+                          <div className="cal-event-sub">{ev.sub}</div>
+                        </div>
+                        <div className={`cal-event-badge type-${ev.type}`}>{typeLabel[ev.type]}</div>
+                      </div>
+                    ))}
+                  </>;
+                })()}
+              </div>
+            </div>
           </div>
         </section>
 
         {/* ❹ HEALTH */}
         <section id="page-health" className={`page${currentPage==='health'?' active':''}`} style={{display:'flex',flexDirection:'column'}}>
           <div className="h-tabs" role="tablist">
-            {([['development','발달체크'],['logs','건강기록'],['medication','복약정보']] as [HealthTab,string][]).map(([tab,label])=>(
+            {([['development','발달체크'],['logs','건강기록'],['medication','복약정보'],['report','리포트']] as [HealthTab,string][]).map(([tab,label])=>(
               <button key={tab} className={`h-tab${healthTab===tab?' active':''}`} role="tab" onClick={()=>setHealthTab(tab)}>{label}</button>
             ))}
           </div>
@@ -1162,6 +1576,124 @@ export default function BabyApp() {
               </div>
             </div>
           </div>
+          {/* Report Tab */}
+          <div className={`h-section${healthTab==='report'?' active':''} page-scroll`}>
+            {/* Hero card */}
+            <div className="section-card rpt-hero">
+              <div className="rpt-title-row">
+                <div>
+                  <div className="rpt-title">📊 육아 리포트</div>
+                  <div className="rpt-baby-info">
+                    {appState.baby ? `${appState.baby.name} · ${ageInfo?.months??0}개월` : '아기 정보 없음'}
+                  </div>
+                </div>
+              </div>
+              <div style={{marginTop:'12px'}}>
+                <div className="rpt-seg">
+                  <button className={`rpt-seg-btn${reportMode==='week'?' active':''}`} onClick={()=>setReportMode('week')}>주간</button>
+                  <button className={`rpt-seg-btn${reportMode==='month'?' active':''}`} onClick={()=>setReportMode('month')}>월간</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Activity chart */}
+            <div className="section-card">
+              <div className="section-header">
+                <h3 className="section-title">생활 패턴</h3>
+              </div>
+              <div className="activity-legend">
+                <div className="act-legend-item"><div className="act-legend-dot act-sleep-dot"/><span>수면</span></div>
+                <div className="act-legend-item"><div className="act-legend-dot act-feed-dot"/><span>수유</span></div>
+                <div className="act-legend-item"><div className="act-legend-dot act-diaper-dot"/><span>기저귀</span></div>
+              </div>
+              <div className="activity-chart" dangerouslySetInnerHTML={{__html: buildActivityChartHTML(appState.logs, reportMode)}} />
+            </div>
+
+            {/* Growth chart */}
+            <div className="section-card">
+              <div className="section-header">
+                <h3 className="section-title">성장 곡선</h3>
+                <button className="btn-secondary" onClick={()=>{ setGDate(todayStr()); setGHeight(''); setGWeight(''); setShowGrowthForm(v=>!v); }}>
+                  {showGrowthForm ? '닫기' : '+ 기록'}
+                </button>
+              </div>
+
+              {/* Growth metric toggle */}
+              <div className="rpt-seg" style={{marginBottom:'12px'}}>
+                <button className={`rpt-seg-btn${growthMetric==='height'?' active':''}`} onClick={()=>setGrowthMetric('height')}>키</button>
+                <button className={`rpt-seg-btn${growthMetric==='weight'?' active':''}`} onClick={()=>setGrowthMetric('weight')}>몸무게</button>
+              </div>
+
+              {showGrowthForm && (
+                <div className="growth-form">
+                  <div className="growth-input-row">
+                    <input type="date" className="growth-in" value={gDate} onChange={e=>setGDate(e.target.value)} style={{flex:'1.2'}} />
+                    <input type="number" className="growth-in" placeholder="키 (cm)" value={gHeight} onChange={e=>setGHeight(e.target.value)} step="0.1" min="30" max="120" />
+                    <input type="number" className="growth-in" placeholder="몸무게 (kg)" value={gWeight} onChange={e=>setGWeight(e.target.value)} step="0.01" min="1" max="20" />
+                    <button className="btn-primary" style={{padding:'8px 12px',fontSize:'12px'}} onClick={saveGrowth}>저장</button>
+                  </div>
+                </div>
+              )}
+
+              {/* SVG growth chart */}
+              <div className="growth-chart-wrap">
+                <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, growthMetric, appState.baby?.gender || 'girl')}} />
+              </div>
+
+              {/* Latest percentile */}
+              {(() => {
+                const sorted = [...appState.growth].filter(r => growthMetric==='height'?r.height!=null:r.weight!=null).sort((a,b)=>b.date.localeCompare(a.date));
+                const latest = sorted[0];
+                if (!latest || !ageInfo) return null;
+                const val = growthMetric==='height' ? latest.height! : latest.weight!;
+                const result = calcPercentile(val, ageInfo.months, growthMetric, appState.baby?.gender || 'girl');
+                return (
+                  <div className="growth-percentile-badge">
+                    <div className="growth-pct-row">
+                      <div className="growth-pct-icon">{result.emoji}</div>
+                      <div>
+                        <div className="growth-pct-label">{growthMetric==='height'?`${val}cm`:`${val}kg`} — {result.label}</div>
+                        <div className="growth-pct-sub">WHO 성장 기준 (P3/P50/P97)</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Record list */}
+              {appState.growth.length > 0 && (
+                <div className="growth-records">
+                  {[...appState.growth].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(r=>(
+                    <div key={r.id} className="growth-rec-row">
+                      <span className="growth-rec-date">{r.date}</span>
+                      <span className="growth-rec-vals">{r.height!=null?`${r.height}cm`:''}{r.height!=null&&r.weight!=null?' · ':''}{r.weight!=null?`${r.weight}kg`:''}</span>
+                      <button className="growth-rec-del" onClick={()=>deleteGrowth(r.id)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Health issues */}
+            <div className="section-card">
+              <h3 className="section-title">🩺 최근 건강 이슈</h3>
+              {(!appState.health.logs || appState.health.logs.length === 0) ? (
+                <div className="rpt-empty">건강 기록이 없어요</div>
+              ) : (
+                <div className="rpt-issues">
+                  {[...appState.health.logs].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,5).map(l=>(
+                    <div key={l.id} className="rpt-issue-card">
+                      <div className="rpt-issue-top">
+                        <span className="rpt-issue-type">{{temp:'체온',rash:'피부',symptom:'증상',other:'기타'}[l.type]}</span>
+                        <span className="rpt-issue-date">{l.date} {l.time}</span>
+                      </div>
+                      <div className="rpt-issue-detail">{l.detail}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </section>
 
         {/* ❺ CHAT */}
@@ -1214,11 +1746,137 @@ export default function BabyApp() {
           </div>
         </section>
 
+        {/* ❻ INFO */}
+        <section id="page-info" className={`page${currentPage==='info'?' active':''}`}>
+          <div className="page-scroll">
+            <div className="section-card">
+              <h3 className="section-title">📺 육아 유튜브</h3>
+              <p className="info-note">전문 소아과 의사와 육아 전문가의 영상을 참고해보세요</p>
+              <div className="info-open-wrap" style={{padding:'16px 0 8px'}}>
+                <a className="info-open-btn"
+                  href={`https://www.youtube.com/results?search_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기`:'아기')+ ' 육아 소아과')}`}
+                  target="_blank" rel="noopener noreferrer">
+                  <span style={{fontSize:'28px'}}>▶</span>
+                  <span>YouTube에서 보기</span>
+                </a>
+                <p className="info-open-hint">{ageInfo?`${ageInfo.months}개월 아기 관련 영상을 검색해요`:''}</p>
+              </div>
+            </div>
+            <div className="section-card">
+              <h3 className="section-title">🔍 관련 검색</h3>
+              <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                {[
+                  {label:'🥕 당근마켓 — 육아용품', href:`https://www.daangn.com/search/${encodeURIComponent('육아용품')}`, bg:'#fff3eb', color:'#e85c00'},
+                  {label:'🧴 맘가이드 — 제품 리뷰', href:'https://momguide.co.kr', bg:'var(--lime-pale)', color:'#3a8033'},
+                  {label:'💉 예방접종도우미', href:'https://nip.kdca.go.kr', bg:'#e9f2ff', color:'#2255cc'},
+                ].map(({label, href, bg, color})=>(
+                  <a key={href} href={href} target="_blank" rel="noopener noreferrer"
+                    style={{display:'flex',alignItems:'center',gap:'10px',padding:'12px',borderRadius:'var(--r-md)',background:bg,color,fontWeight:700,fontSize:'13px',textDecoration:'none'}}>
+                    {label}
+                    <span style={{marginLeft:'auto',opacity:.5}}>›</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="section-card">
+              <h3 className="section-title">ℹ️ 앱 정보</h3>
+              <p className="info-note" style={{marginBottom:0}}>
+                베이비로그 v1.0<br/>
+                수면, 수유, 기저귀, 건강, 발달을 기록하는 스마트 육아 일지입니다.<br/>
+                RAG 기반 AI 챗봇으로 육아 전문 정보를 제공해요.
+              </p>
+            </div>
+          </div>
+        </section>
+
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Keyword Picker Overlay */}
+      {kwPickerOpen && (
+        <div className="kw-picker-overlay" onClick={()=>setKwPickerOpen(false)}>
+          <div className="kw-picker-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="kw-picker-keyword">"{kwPickerKeyword}" 검색하기</div>
+            <div className="kw-picker-btns">
+              <a className="kw-picker-btn kw-yt" href={`https://www.youtube.com/results?search_query=${encodeURIComponent(kwPickerKeyword+' 아기')}`} target="_blank" rel="noopener noreferrer" onClick={()=>setTimeout(()=>setKwPickerOpen(false),200)}>
+                🎬 <span>YouTube에서 검색</span>
+              </a>
+              <a className="kw-picker-btn kw-dg" href={`https://www.daangn.com/search/${encodeURIComponent(kwPickerKeyword)}`} target="_blank" rel="noopener noreferrer" onClick={()=>setTimeout(()=>setKwPickerOpen(false),200)}>
+                🥕 <span>당근마켓에서 검색</span>
+              </a>
+              <a className="kw-picker-btn kw-mg" href={`https://momguide.co.kr/search/?q=${encodeURIComponent(kwPickerKeyword)}`} target="_blank" rel="noopener noreferrer" onClick={()=>setTimeout(()=>setKwPickerOpen(false),200)}>
+                🧴 <span>맘가이드에서 검색</span>
+              </a>
+            </div>
+            <button className="kw-picker-cancel" onClick={()=>setKwPickerOpen(false)}>취소</button>
+          </div>
+        </div>
+      )}
+
+      {/* Voice Overlay */}
+      {voiceOverlay && (
+        <div className="voice-overlay" onClick={()=>{ recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>
+          <div className="voice-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="voice-header">
+              <div className="voice-icon">{voiceProcessing ? '🧠' : isRecording ? '🎙️' : '🎤'}</div>
+              <div className="voice-status">{voiceProcessing ? '분석 중...' : isRecording ? '듣고 있어요...' : '음성 인식 준비 중'}</div>
+            </div>
+            <div className="voice-wave">
+              {[1,2,3,4,5].map(i=><div key={i} className="voice-bar" style={{height:`${isRecording&&!voiceProcessing?Math.random()*32+6:6}px`}}/>)}
+            </div>
+            <div className="voice-transcript">{voiceTranscript || voiceProcessing ? voiceTranscript : '말씀해 주세요'}</div>
+            <button className="voice-cancel" onClick={()=>{ recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>취소</button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Navigation — 7-col grid with center FAB mic */}
       <nav className="bottom-nav" role="navigation">
-        {([['home','🏠','홈'],['timeline','📅','시간표'],['schedule','✅','스케줄'],['health','❤️','건강'],['chat','💬','챗봇']] as [Page,string,string][]).map(([page,icon,label])=>(
+        {([['home','🏠','홈'],['timeline','📅','타임라인'],['schedule','✅','스케줄']] as [Page,string,string][]).map(([page,icon,label])=>(
+          <button key={page} className={`nav-item${currentPage===page?' active':''}`}
+            onClick={()=>navigate(page)}
+            aria-label={label} aria-current={currentPage===page?'page':undefined}>
+            <span className="nav-icon">{icon}</span>
+            <span className="nav-label">{label}</span>
+          </button>
+        ))}
+
+        {/* Center FAB mic */}
+        <div className="nav-center-area">
+          <button className={`nav-fab-mic${isRecording?' listening':''}`} aria-label="음성 입력"
+            onClick={()=>{
+              const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
+              if (!SpeechRecognition) { alert('이 브라우저는 음성 인식을 지원하지 않습니다.'); return; }
+              if (isRecording) { recognitionRef.current?.stop(); setVoiceOverlay(false); setVoiceProcessing(false); return; }
+              const recognition = new SpeechRecognition();
+              recognition.lang = 'ko-KR'; recognition.interimResults = true; recognition.maxAlternatives = 1;
+              recognition.onresult = (e: SpeechRecognitionEvent) => {
+                const interim = Array.from(e.results).map(r => r[0].transcript).join('');
+                setVoiceTranscript(interim);
+                if (e.results[e.results.length-1].isFinal) {
+                  recognitionRef.current?.stop();
+                  processVoiceInput(interim);
+                }
+              };
+              recognition.onerror = (e) => {
+                const errMsg = (e as {error?: string}).error;
+                setIsRecording(false); setVoiceOverlay(false); setVoiceProcessing(false);
+                if (errMsg === 'no-speech') showToast('🎤 음성이 감지되지 않았어요');
+                else if (errMsg === 'not-allowed') showToast('🎤 마이크 권한을 허용해주세요');
+              };
+              recognition.onend = () => { if (!voiceProcessing) { setIsRecording(false); } };
+              recognitionRef.current = recognition;
+              recognition.start();
+              setVoiceTranscript('');
+              setIsRecording(true); setVoiceOverlay(true);
+            }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="1" width="6" height="11" rx="3"/>
+              <path d="M5 10a7 7 0 0014 0M12 19v4M8 23h8"/>
+            </svg>
+          </button>
+        </div>
+
+        {([['health','❤️','건강'],['chat','💬','챗봇'],['info','ℹ️','정보']] as [Page,string,string][]).map(([page,icon,label])=>(
           <button key={page} className={`nav-item${currentPage===page?' active':''}`}
             onClick={()=>navigate(page)}
             aria-label={label} aria-current={currentPage===page?'page':undefined}>
