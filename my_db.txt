@@ -1,0 +1,105 @@
+-- =====================================================================
+-- BabyLog MariaDB Schema
+-- Database: babylog
+-- =====================================================================
+
+CREATE DATABASE IF NOT EXISTS babylog
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE babylog;
+
+-- ── 아기 정보 ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS babies (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  name         VARCHAR(100)          NOT NULL,
+  birth_date   DATE                  NOT NULL,
+  gender       ENUM('boy', 'girl')   NOT NULL,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── 일일 활동 로그 (수면, 수유, 소변, 대변, 울음, 산책) ─────────────
+CREATE TABLE IF NOT EXISTS logs (
+  id           VARCHAR(20)   PRIMARY KEY,
+  baby_id      INT           NOT NULL,
+  type         ENUM('sleep','feed','pee','poop','cry','walk') NOT NULL,
+  log_date     DATE          NOT NULL,
+  start_time   TIME          DEFAULT NULL,
+  end_time     TIME          DEFAULT NULL,
+  log_time     TIME          DEFAULT NULL,   -- feed/pee/poop 단일 시각
+  amount       SMALLINT      DEFAULT NULL,   -- ml (feed)
+  feed_type    VARCHAR(20)   DEFAULT NULL,   -- 분유/모유/혼합
+  color        VARCHAR(30)   DEFAULT NULL,   -- 대변 색상
+  reason       VARCHAR(50)   DEFAULT NULL,   -- 울음 원인
+  note         TEXT          DEFAULT NULL,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_baby_date (baby_id, log_date),
+  FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── 스케줄 / 할 일 ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS todos (
+  id           VARCHAR(20)   PRIMARY KEY,
+  baby_id      INT           NOT NULL,
+  text         TEXT          NOT NULL,
+  category     ENUM('vaccine','formula','solid','other') NOT NULL DEFAULT 'other',
+  completed    TINYINT(1)    NOT NULL DEFAULT 0,
+  created_at   BIGINT        NOT NULL,       -- JS Date.now() 값
+  INDEX idx_baby (baby_id),
+  FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── 건강 기록 (체온, 발진, 증상 등) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS health_logs (
+  id           VARCHAR(20)   PRIMARY KEY,
+  baby_id      INT           NOT NULL,
+  type         ENUM('temp','rash','symptom','other') NOT NULL,
+  detail       TEXT          NOT NULL,
+  log_date     DATE          NOT NULL,
+  log_time     TIME          NOT NULL,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_baby (baby_id),
+  FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── 복약 정보 ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS medications (
+  id              VARCHAR(20)   PRIMARY KEY,
+  baby_id         INT           NOT NULL,
+  name            VARCHAR(200)  NOT NULL,
+  dose            VARCHAR(100)  DEFAULT NULL,
+  freq            VARCHAR(100)  DEFAULT NULL,
+  note            TEXT          DEFAULT NULL,
+  prescribed_date DATE          DEFAULT NULL,
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_baby (baby_id),
+  FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── 발달 체크리스트 ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS developments (
+  baby_id       INT           NOT NULL,
+  milestone_id  VARCHAR(50)   NOT NULL,
+  completed     TINYINT(1)    NOT NULL DEFAULT 0,
+  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (baby_id, milestone_id),
+  FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── 성장 기록 (키·몸무게) ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS growth_records (
+  id           VARCHAR(20)   PRIMARY KEY,
+  baby_id      INT           NOT NULL,
+  record_date  DATE          NOT NULL,
+  height       DECIMAL(5,2)  DEFAULT NULL,   -- cm
+  weight       DECIMAL(5,3)  DEFAULT NULL,   -- kg
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_baby_date (baby_id, record_date),
+  FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- =====================================================================
+-- 샘플 데이터 (선택 사항 – 테스트용)
+-- =====================================================================
+-- INSERT INTO babies (name, birth_date, gender) VALUES ('지우', '2024-06-01', 'girl');
