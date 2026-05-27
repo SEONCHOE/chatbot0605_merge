@@ -51,11 +51,77 @@ interface MilestoneGroup { minM: number; maxM: number; title: string; icon: stri
 interface RagChunkMeta { source: string; page?: number; }
 interface RagChunk { text: string; metadata: RagChunkMeta; }
 interface RagFigure { title: string; image?: string; metadata: { source: string; page?: number; }; }
+interface YtVideo { id:string; title:string; thumbnail:string; channelTitle:string; publishedAt:string; viewCount:string; duration:string; }
+interface YtCat { id:string; label:string; desc:string; emoji:string; tone:string; text:string; queries:string[]; sortOrder:string; }
 
 // ── Constants ────────────────────────────────────────────────────
 const TYPE_LABELS: Record<LogType, string> = { sleep:'수면', feed:'수유', pee:'소변', poop:'대변', cry:'울음', walk:'산책' };
 const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿' };
 const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접종', formula:'분유', solid:'이유식', other:'기타' };
+
+// ── YouTube Categories & Stage Map ───────────────────────────────
+const YT_CATS: YtCat[] = [
+  { id:'age',   label:'우리아이는 지금', desc:'발달단계에 따른 특징',       emoji:'👶', tone:'#FFE4CF', text:'#B85617',
+    queries:['아기 개월수별 발달 특징','신생아 황달 증상 대처','배앓이 달래기 방법','이앓이 시기 증상','뒤집기 시작 시기','아기 성장 마일스톤'], sortOrder:'relevance' },
+  { id:'feed',  label:'먹기',           desc:'수유 · 이유식 · 분유량',     emoji:'🍼', tone:'#FFF1C9', text:'#8B6F00',
+    queries:['초기 이유식 만들기','이유식 시작 시기','모유수유 자세 방법','월령별 분유량','이유식 거부 대처법','중기 후기 이유식 레시피'], sortOrder:'viewCount' },
+  { id:'play',  label:'놀기',           desc:'발달 놀이 · 장난감',         emoji:'🧸', tone:'#E2F1C4', text:'#5C8629',
+    queries:['개월수별 발달 놀이','아기 오감 놀이','터미타임 방법','개월별 장난감 추천','DIY 아기 놀잇감','인지 발달 놀이'], sortOrder:'relevance' },
+  { id:'sleep', label:'자기',           desc:'수면교육 · 통잠',             emoji:'😴', tone:'#DCE7F8', text:'#3A5E9C',
+    queries:['아기 수면교육 방법','퍼버법 수면훈련','통잠 만들기','낮잠 스케줄','잠투정 달래기','야간 수유 끊기'], sortOrder:'relevance' },
+  { id:'health',label:'건강',           desc:'예방접종 · 감염병 · 응급처치', emoji:'🩺', tone:'#FFD8DE', text:'#A33B53',
+    queries:['영유아 예방접종 종류','아기 발열 대처법','영유아 검진 준비','수족구 RSV 대처','아기 응급처치','소아과 방문 기준'], sortOrder:'relevance' },
+  { id:'etc',   label:'기타',           desc:'육아 정책 · 지원금 · 보험',   emoji:'📋', tone:'#EADBFA', text:'#6A4DAA',
+    queries:['2026 첫만남이용권','부모급여 신청 방법','육아휴직 급여','아기보험 추천','산후도우미 지원','보육료 지원 신청'], sortOrder:'date' },
+];
+
+const YT_STAGE_MAP: Record<string, {label:string; primary:string[]}> = {
+  newborn: { label:'신생아',     primary:['age','feed','sleep'] },
+  '1-3m':  { label:'1~3개월',   primary:['feed','sleep','age'] },
+  '4-6m':  { label:'4~6개월',   primary:['feed','play','sleep'] },
+  '7-9m':  { label:'7~9개월',   primary:['feed','play','health'] },
+  '10-12m':{ label:'10~12개월', primary:['play','feed','health'] },
+  toddler: { label:'12개월+',   primary:['play','feed','health'] },
+};
+
+function ytAgeStage(months: number): string {
+  if (months < 1)  return 'newborn';
+  if (months <= 3)  return '1-3m';
+  if (months <= 6)  return '4-6m';
+  if (months <= 9)  return '7-9m';
+  if (months <= 12) return '10-12m';
+  return 'toddler';
+}
+function ytFmtViews(n: string) {
+  const v = parseInt(n, 10);
+  if (isNaN(v) || v === 0) return '';
+  if (v >= 100_000_000) return `${(v/100_000_000).toFixed(1)}억회`;
+  if (v >= 10_000) return `${(v/10_000).toFixed(1)}만회`;
+  return `${v.toLocaleString()}회`;
+}
+function ytFmtDate(iso: string) {
+  if (!iso) return '';
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days < 1) return '오늘';
+  if (days < 7) return `${days}일 전`;
+  if (days < 30) return `${Math.floor(days/7)}주 전`;
+  if (days < 365) return `${Math.floor(days/30)}개월 전`;
+  return new Date(iso).toLocaleDateString('ko');
+}
+const YT_CACHE_TTL = 30 * 60 * 1000;
+function ytGetCache(key: string) {
+  try {
+    const raw = sessionStorage.getItem('yt_' + key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > YT_CACHE_TTL) return null;
+    return data;
+  } catch { return null; }
+}
+function ytSetCache(key: string, data: unknown) {
+  try { sessionStorage.setItem('yt_' + key, JSON.stringify({ ts: Date.now(), data })); }
+  catch { /* quota */ }
+}
 
 // ── Utilities ────────────────────────────────────────────────────
 function localDateStr(d: Date) {
@@ -421,9 +487,18 @@ export default function BabyApp() {
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
-  // YouTube videos (info page)
-  const [ytVideos, setYtVideos] = useState<{id:{videoId:string};snippet:{title:string;channelTitle:string;thumbnails:{medium:{url:string}}}}[]>([]);
-  const [ytLoading, setYtLoading] = useState(false);
+  // YouTube (info page)
+  const [ytView, setYtView] = useState<'home'|'list'>('home');
+  const [ytSelectedCat, setYtSelectedCat] = useState<YtCat|null>(null);
+  const [ytRepVideos, setYtRepVideos] = useState<Record<string,YtVideo>>({});
+  const [ytRepLoading, setYtRepLoading] = useState(false);
+  const [ytListVideos, setYtListVideos] = useState<YtVideo[]>([]);
+  const [ytListLoading, setYtListLoading] = useState(false);
+  const [ytListMoreLoading, setYtListMoreLoading] = useState(false);
+  const [ytListNextPage, setYtListNextPage] = useState<string|null>(null);
+  const [ytListQuery, setYtListQuery] = useState('');
+  const [ytListSort, setYtListSort] = useState('relevance');
+  const ytSentinelRef = useRef<HTMLDivElement|null>(null);
 
   // Weather
   const [weather, setWeather] = useState<{temp:number;desc:string;icon:string;humidity:number|null;city:string;aqi:number|null;pm25:number|null;pm10:number|null}|null>(null);
@@ -520,20 +595,87 @@ export default function BabyApp() {
       .catch(() => {});
   }, []);
 
-  // YouTube video fetch when info page opens
+  // YouTube: load representative videos when info home opens
   useEffect(() => {
-    if (currentPage !== 'info') return;
-    if (ytVideos.length > 0) return;
-    setYtLoading(true);
-    const q = appState.baby
-      ? `${getAgeInfo(appState.baby.birthDate).months}개월 아기 육아 소아과`
-      : '신생아 아기 육아';
-    fetch(`/api/youtube?q=${encodeURIComponent(q)}`)
+    if (currentPage !== 'info' || ytView !== 'home') return;
+    if (Object.keys(ytRepVideos).length > 0) return;
+    const stage = appState.baby ? ytAgeStage(getAgeInfo(appState.baby.birthDate).months) : '4-6m';
+    setYtRepLoading(true);
+    let done = 0;
+    YT_CATS.forEach(cat => {
+      const cacheKey = `rep_${cat.id}_${stage}`;
+      const cached = ytGetCache(cacheKey);
+      if (cached) {
+        setYtRepVideos(prev => ({ ...prev, [cat.id]: cached as YtVideo }));
+        done++;
+        if (done === YT_CATS.length) setYtRepLoading(false);
+        return;
+      }
+      fetch(`/api/youtube?q=${encodeURIComponent(cat.queries[0])}&maxResults=1&order=${cat.sortOrder}`)
+        .then(r => r.json())
+        .then(data => {
+          const v = (data.videos as YtVideo[])?.[0];
+          if (v) { ytSetCache(cacheKey, v); setYtRepVideos(prev => ({ ...prev, [cat.id]: v })); }
+        })
+        .catch(() => {})
+        .finally(() => { done++; if (done === YT_CATS.length) setYtRepLoading(false); });
+    });
+  }, [currentPage, ytView]);
+
+  // YouTube: fetch category video list
+  const ytFetchList = useCallback((cat: YtCat, query: string, sort: string, pageToken?: string) => {
+    const cacheKey = `list_${cat.id}_${query}_${sort}`;
+    if (!pageToken) {
+      const cached = ytGetCache(cacheKey) as { videos: YtVideo[]; nextPageToken: string|null } | null;
+      if (cached) {
+        setYtListVideos(cached.videos);
+        setYtListNextPage(cached.nextPageToken);
+        setYtListLoading(false);
+        return;
+      }
+      setYtListLoading(true);
+      setYtListVideos([]);
+    }
+    const url = `/api/youtube?q=${encodeURIComponent(query)}&maxResults=12&order=${sort}${pageToken ? `&pageToken=${pageToken}` : ''}`;
+    fetch(url)
       .then(r => r.json())
-      .then(data => setYtVideos(data.items || []))
+      .then(data => {
+        const videos = (data.videos as YtVideo[]) || [];
+        const next = (data.nextPageToken as string|null) || null;
+        if (!pageToken) {
+          ytSetCache(cacheKey, { videos, nextPageToken: next });
+          setYtListVideos(videos);
+        } else {
+          setYtListVideos(prev => [...prev, ...videos]);
+        }
+        setYtListNextPage(next);
+      })
       .catch(() => {})
-      .finally(() => setYtLoading(false));
-  }, [currentPage]);
+      .finally(() => { setYtListLoading(false); setYtListMoreLoading(false); });
+  }, []);
+
+  // YouTube: infinite scroll
+  useEffect(() => {
+    if (!ytSentinelRef.current || !ytListNextPage || ytListMoreLoading || !ytSelectedCat) return;
+    const cat = ytSelectedCat;
+    const io = new IntersectionObserver(entries => {
+      if (!entries[0].isIntersecting) return;
+      setYtListMoreLoading(true);
+      ytFetchList(cat, ytListQuery, ytListSort, ytListNextPage);
+    }, { threshold: 0.1 });
+    io.observe(ytSentinelRef.current);
+    return () => io.disconnect();
+  }, [ytListNextPage, ytListMoreLoading, ytListQuery, ytListSort, ytSelectedCat, ytFetchList]);
+
+  const ytOpenCategory = useCallback((cat: YtCat) => {
+    const q = cat.queries[0];
+    setYtSelectedCat(cat);
+    setYtListQuery(q);
+    setYtListSort(cat.sortOrder);
+    setYtListNextPage(null);
+    setYtView('list');
+    ytFetchList(cat, q, cat.sortOrder);
+  }, [ytFetchList]);
 
   // ── Helpers ──────────────────────────────────────────────────
   const saveAppState = useCallback((s: AppState) => {
@@ -1772,43 +1914,194 @@ export default function BabyApp() {
         {/* ❻ INFO */}
         <section id="page-info" className={`page${currentPage==='info'?' active':''}`}>
           <div className="page-scroll">
-            <div style={{padding:'20px 20px 4px'}}>
-              <div className="screen-title hand">정보</div>
-              <div className="screen-sub">육아 관련 YouTube 추천 영상</div>
-            </div>
-            <div className="info-open-wrap" style={{padding:'16px 20px'}}>
-              <a className="info-open-btn"
-                href={`https://www.youtube.com/results?search_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기`:'아기')+ ' 육아 소아과')}`}
-                target="_blank" rel="noopener noreferrer">
-                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 0 0023 12a29 29 0 00-.46-5.58z"/>
-                  <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="white" stroke="none"/>
-                </svg>
-                YouTube 추천 영상 보기
-              </a>
-              <p className="info-open-hint">새 탭에서 열립니다</p>
+
+            {/* Header */}
+            <div className="yt-page-header">
+              {ytView === 'list' && ytSelectedCat && (
+                <button className="yt-back-btn" onClick={() => { setYtView('home'); setYtSelectedCat(null); }}>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+              )}
+              <div>
+                <div className="screen-title hand">{ytView === 'list' && ytSelectedCat ? ytSelectedCat.label : '정보'}</div>
+                <div className="screen-sub">{ytView === 'list' && ytSelectedCat ? ytSelectedCat.desc : '육아 YouTube 추천 영상'}</div>
+              </div>
             </div>
 
-            {/* YouTube 영상 목록 */}
-            <div style={{padding:'0 16px 16px'}}>
-              {ytLoading ? (
-                <div style={{textAlign:'center',padding:'24px',color:'var(--text-light)',fontSize:'13px'}}>영상을 불러오는 중...</div>
-              ) : ytVideos.length > 0 ? (
-                <div className="yt-video-list">
-                  {ytVideos.map(v => (
-                    <a key={v.id.videoId} className="yt-video-card"
-                      href={`https://www.youtube.com/watch?v=${v.id.videoId}`}
-                      target="_blank" rel="noopener noreferrer">
-                      <img className="yt-video-thumb" src={v.snippet.thumbnails.medium.url} alt={v.snippet.title} loading="lazy" />
-                      <div className="yt-video-info">
-                        <div className="yt-video-title">{v.snippet.title}</div>
-                        <div className="yt-video-channel">{v.snippet.channelTitle}</div>
+            {ytView === 'home' ? (
+              <>
+                {/* Stage Banner */}
+                {ageInfo && appState.baby && (
+                  <div className="yt-stage-banner">
+                    <div className="yt-stage-glow" />
+                    <div className="yt-stage-content">
+                      <div className="yt-stage-avatar">{appState.baby.gender === 'boy' ? '👦' : '👧'}</div>
+                      <div className="yt-stage-text">
+                        <div className="yt-stage-label">맞춤 추천</div>
+                        <div className="yt-stage-title">
+                          <span className="yt-stage-name">{appState.baby.name}</span>를 위한{' '}
+                          {YT_STAGE_MAP[ytAgeStage(ageInfo.months)]?.label} 영상
+                        </div>
+                        <div className="yt-stage-sub">{ageInfo.months}개월 · 발달에 맞는 영상부터 보여드려요</div>
+                      </div>
+                    </div>
+                    <div className="yt-stage-tags">
+                      {['먹기','놀기','자기','크기','건강하기'].map(tag => (
+                        <div key={tag} className="yt-stage-tag">{tag}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Category Grid */}
+                <div className="yt-section">
+                  <div className="yt-section-row">
+                    <span className="yt-section-title">카테고리</span>
+                    {ageInfo && <span className="yt-section-sub">{ageInfo.months}개월 맞춤 추천순</span>}
+                  </div>
+                  <div className="yt-cat-grid">
+                    {YT_CATS.map(cat => {
+                      const stage = ageInfo ? ytAgeStage(ageInfo.months) : '4-6m';
+                      const isPrimary = YT_STAGE_MAP[stage]?.primary.includes(cat.id);
+                      return (
+                        <button key={cat.id} className="yt-cat-card" onClick={() => ytOpenCategory(cat)}>
+                          {isPrimary && <div className="yt-cat-badge">추천</div>}
+                          <div className="yt-cat-icon" style={{background: cat.tone}}>{cat.emoji}</div>
+                          <div className="yt-cat-label" style={{color: cat.text}}>{cat.label}</div>
+                          <div className="yt-cat-desc">{cat.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Representative videos per category */}
+                <div className="yt-section">
+                  <div className="yt-section-row">
+                    <span className="yt-section-title">카테고리별 인기 영상</span>
+                  </div>
+                  <div className="yt-section-hint">카테고리를 클릭하면 더 많은 영상을 볼 수 있어요</div>
+                </div>
+
+                {ytRepLoading && Object.keys(ytRepVideos).length === 0 ? (
+                  <div className="yt-skeleton-list">
+                    {[1,2,3].map(i => <div key={i} className="yt-skeleton-card" />)}
+                  </div>
+                ) : (
+                  <div className="yt-rep-list">
+                    {YT_CATS.map(cat => {
+                      const v = ytRepVideos[cat.id];
+                      if (!v) return null;
+                      return (
+                        <div key={cat.id} className="yt-rep-item">
+                          <button className="yt-rep-cat-row" onClick={() => ytOpenCategory(cat)}>
+                            <div className="yt-rep-cat-left">
+                              <div className="yt-rep-cat-icon" style={{background: cat.tone}}>{cat.emoji}</div>
+                              <span className="yt-rep-cat-label" style={{color: cat.text}}>{cat.label}</span>
+                            </div>
+                            <div className="yt-rep-cat-more">
+                              더보기
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 6l6 6-6 6"/></svg>
+                            </div>
+                          </button>
+                          <a className="yt-video-card" href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noopener noreferrer">
+                            <img className="yt-video-thumb" src={v.thumbnail} alt={v.title} loading="lazy" />
+                            <div className="yt-video-info">
+                              <div className="yt-video-title">{v.title}</div>
+                              <div className="yt-video-meta">
+                                <span>{v.channelTitle}</span>
+                                {ytFmtViews(v.viewCount) && <><span> · </span><span>{ytFmtViews(v.viewCount)}</span></>}
+                              </div>
+                            </div>
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : ytSelectedCat ? (
+              <>
+                {/* Category banner */}
+                <div className="yt-list-banner" style={{background: ytSelectedCat.tone}}>
+                  <div className="yt-list-banner-emoji">{ytSelectedCat.emoji}</div>
+                  <div className="yt-list-banner-title" style={{color: ytSelectedCat.text}}>{ytSelectedCat.label}</div>
+                  <div className="yt-list-banner-desc">{ytSelectedCat.desc}</div>
+                </div>
+
+                {/* Keyword chips + sort */}
+                <div className="yt-keyword-wrap">
+                  <div className="yt-keyword-label">키워드 선택</div>
+                  <div className="yt-keyword-scroll">
+                    {ytSelectedCat.queries.map(q => (
+                      <button
+                        key={q}
+                        className={`yt-keyword-chip${ytListQuery === q ? ' active' : ''}`}
+                        onClick={() => {
+                          setYtListQuery(q);
+                          setYtListNextPage(null);
+                          ytFetchList(ytSelectedCat!, q, ytListSort);
+                        }}
+                      >{q}</button>
+                    ))}
+                  </div>
+                  <div className="yt-sort-row">
+                    <select
+                      className="yt-sort-select"
+                      value={ytListSort}
+                      onChange={e => {
+                        const s = e.target.value;
+                        setYtListSort(s);
+                        setYtListNextPage(null);
+                        ytFetchList(ytSelectedCat!, ytListQuery, s);
+                      }}
+                    >
+                      <option value="relevance">관련성순</option>
+                      <option value="viewCount">조회수순</option>
+                      <option value="date">최신순</option>
+                      <option value="rating">평점순</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Video list */}
+                <div className="yt-list-videos">
+                  {ytListLoading ? (
+                    <div className="yt-skeleton-list">
+                      {[1,2,3].map(i => <div key={i} className="yt-skeleton-full" />)}
+                    </div>
+                  ) : ytListVideos.length === 0 ? (
+                    <div className="yt-empty">
+                      <div style={{fontSize:'2.5rem',marginBottom:'8px'}}>🎬</div>
+                      <div className="yt-empty-title">영상이 없어요</div>
+                      <div className="yt-empty-sub">다른 키워드를 선택해보세요</div>
+                    </div>
+                  ) : ytListVideos.map((v, i) => (
+                    <a key={v.id + i} className="yt-full-card" href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noopener noreferrer">
+                      <div className="yt-full-thumb-wrap">
+                        <img className="yt-full-thumb" src={v.thumbnail} alt={v.title} loading="lazy" />
+                        {v.duration && <span className="yt-full-duration">{v.duration}</span>}
+                      </div>
+                      <div className="yt-full-info">
+                        <div className="yt-full-title">{v.title}</div>
+                        <div className="yt-video-meta">
+                          <span>{v.channelTitle}</span>
+                          {ytFmtViews(v.viewCount) && <><span> · </span><span>{ytFmtViews(v.viewCount)}</span></>}
+                          {v.publishedAt && <><span> · </span><span>{ytFmtDate(v.publishedAt)}</span></>}
+                        </div>
                       </div>
                     </a>
                   ))}
+                  <div ref={ytSentinelRef} style={{padding:'4px'}}>
+                    {ytListMoreLoading && <div className="yt-skeleton-full" style={{margin:'8px 16px'}} />}
+                    {!ytListLoading && !ytListNextPage && ytListVideos.length > 0 && (
+                      <div className="yt-end-msg">모든 결과를 봤어요 🌱</div>
+                    )}
+                  </div>
                 </div>
-              ) : null}
-            </div>
+              </>
+            ) : null}
+
           </div>
         </section>
 

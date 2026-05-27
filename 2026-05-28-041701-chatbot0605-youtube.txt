@@ -1,0 +1,1217 @@
+ ▐▛███▜▌   Claude Code v2.1.152
+▝▜█████▛▘  Sonnet 4.6 · Claude Pro
+  ▘▘ ▝▝    /…/ssunn/OneDrive/Documents/GitHub/chatbot0605_merge/my-baby
+
+
+❯ 이 폴더에서 작업한 내용은, ../../chatbot0605 의 ux ui 구성과 vibe_baby의 db   
+  파트를 함께 포함하고 있어. 기존 작업 히스토리를 복기해봐                      
+
+● 기존 작업 히스토리를 파악해볼게요. git 로그, 현재 파일 구조, 그리고 관련
+  디렉토리를 함께 살펴볼게요.
+
+  Read 1 file, listed 6 directories, ran 3 shell commands (ctrl+o to expand)
+
+● 이제 전체 그림이 잡혔습니다. 작업 히스토리를 정리해드릴게요.
+
+  ---
+  작업 히스토리 복기
+
+  프로젝트 구조
+
+  chatbot0605_merge/my-baby는 두 개의 기존 프로젝트를 합친 Next.js 앱입니다.
+
+  ┌─────────────────────────────┬───────────────────────────────────────────┐
+  │            출처             │                 가져온 것                 │
+  ├─────────────────────────────┼───────────────────────────────────────────┤
+  │ chatbot0605/ (vanilla JS)   │ UI 디자인/UX 패턴, 채팅 인터페이스,       │
+  │                             │ 날씨/YouTube API 연동                     │
+  ├─────────────────────────────┼───────────────────────────────────────────┤
+  │ vibe-baby/my-baby/ (vibe    │ MariaDB 스키마 + API Routes + React       │
+  │ coding)                     │ 컴포넌트 뼈대                             │
+  └─────────────────────────────┴───────────────────────────────────────────┘
+
+  ---
+  커밋 1: first commit (2026-05-27 14:16)
+
+  vibe-baby 쪽에서 가져온 전체 구조를 최초 커밋:
+  - DB 연결: lib/db.ts — mysql2/promise pool, VIBE_BABY MariaDB (외부 서버
+  49.247.44.195)
+  - 스키마 (my_db.txt): babies, logs, todos, health_logs, medications,
+  developments, growth_records 7개 테이블
+  - API Routes: /api/baby, /api/logs, /api/todos, /api/health/logs,
+  /api/health/medications, /api/developments, /api/growth, /api/search,
+  /api/state
+  - 신규 API (untracked 상태): /api/chat (OpenAI GPT 프록시), /api/weather
+  (OpenWeather + 대기질), /api/youtube
+  - RAG 데이터: data_for_RAG/processed/ — 육아 관련 PDF를 청크 분할한
+  rag_chunks.json + 이미지들
+  - BabyApp.tsx: 1900줄짜리 단일 컴포넌트, 6개 페이지 (home, timeline, schedule,
+   health, chat, info)
+
+  커밋 2: similar UXUI with chatbot0605 (2026-05-27 17:29)
+
+  chatbot0605의 UX/UI를 참고해서 BabyApp.tsx와 globals.css를 대폭 업데이트:
+  - 새 타입 추가: 'info' 페이지, 'report' 건강탭, ReportMode, GrowthMetric,
+  Growth 인터페이스
+  - WHO 성장 표준 데이터 내장 (P3/P50/P97, 남아/여아, 0-24개월)
+  - 성장 SVG 차트 (buildGrowthSVG): 백분위 구간 밴드 + 실제 기록 점 표시
+  - 활동 리포트 차트 (buildActivityChartHTML): 주간/월간 수면·수유·기저귀 통계
+  - CSS 대규모 개편: chatbot0605 스타일에 맞게 색상/레이아웃 정렬
+
+  ---
+  현재 미커밋 상태
+
+  M  app/components/BabyApp.tsx   ← 추가 수정 중
+  M  app/globals.css              ← 추가 수정 중
+  ?? app/api/chat/                ← 아직 커밋 안 됨
+  ?? app/api/weather/             ← 아직 커밋 안 됨
+  ?? app/api/youtube/             ← 아직 커밋 안 됨
+
+  chat/weather/youtube API 세 개가 아직 스테이징 안 된 상태입니다. 계속 작업이
+  진행 중인 거죠. 어떤 부분을 이어서 작업할까요?
+
+✻ Worked for 56s
+
+❯ 세가지에 api 추가하는 작업 해줘  YOUTUBE_API_KEY                              
+  AIzaSyCP24-2I7J9cbbq4jbwAhY5-lPecQsYilQ                                       
+                                                                                
+  OPENAI_API_KEY                                                                
+  sk-proj-iJhmubjFaBNaUJ8te22XOMJ5SuvY5MfEQm_9UlNJhU6vBX2buuI_nL2lMZw4SQeydhO5J 
+  Yw9v9T3BlbkFJxKI5fvG1FC6A9cfwlyPW0v0m3RxLc6hzvETWT2sko8wWs_5GhOnKXFhfX11vxOLX 
+  4LGOfqEsUA                                                                    
+                                                                                
+  OPENWEATHER_API_KEY                                                           
+  d25842f7d38d23c3f7b0395d17413653                                              
+
+● 세 API 파일을 먼저 확인할게요.
+
+  Read 2 files (ctrl+o to expand)
+
+❯ 그리고, 
+
+● .env.local에 세 키가 이미 들어 있고 API 파일도 모두 존재합니다.
+  BabyApp.tsx에서 실제로 이 엔드포인트들을 호출하는지 확인할게요.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● 이미 모두 완비되어 있습니다.
+
+  현재 상태 요약
+
+  ┌──────────────────────────┬─────────────────────────────────────┐
+  │           항목           │                상태                 │
+  ├──────────────────────────┼─────────────────────────────────────┤
+  │ .env.local — 세 키 모두  │ ✅ 이미 설정됨                      │
+  ├──────────────────────────┼─────────────────────────────────────┤
+  │ app/api/chat/route.ts    │ ✅ 파일 존재, OpenAI 프록시 완성    │
+  ├──────────────────────────┼─────────────────────────────────────┤
+  │ app/api/weather/route.ts │ ✅ 파일 존재, 날씨+대기질 완성      │
+  ├──────────────────────────┼─────────────────────────────────────┤
+  │ app/api/youtube/route.ts │ ✅ 파일 존재, 육아 동영상 검색 완성 │
+  ├──────────────────────────┼─────────────────────────────────────┤
+  │ BabyApp.tsx 연결         │ ✅ 세 엔드포인트 모두 호출 중       │
+  └──────────────────────────┴─────────────────────────────────────┘
+
+  BabyApp.tsx에서의 연결 위치:
+  - line 517 → /api/weather?city=Seoul
+  - line 531 → /api/youtube?q=...
+  - line 764, 832 → /api/chat (RAG 채팅)
+
+  다만 세 API 파일이 아직 git에 커밋되지 않은 untracked 상태입니다. 커밋이
+  필요하면 말씀해주세요.
+
+  "그리고," — 뒷말이 끊겼는데, 이어서 말씀해주세요!
+
+✻ Brewed for 36s
+
+❯ chatbot0605의 정보탭인 youtube_trend 부분의 구성과 동일하게                   
+  chatbot0605_merge의 my-baby도 수정해줘                                        
+
+● chatbot0605의 YouTube 트렌드 구성을 먼저 살펴볼게요.
+
+  Read 1 file, listed 1 directory (ctrl+o to expand)
+
+● 빌드된 파일이라 소스를 직접 봐야겠습니다.
+
+  Searched for 6 patterns, listed 4 directories, ran 1 shell command (ctrl+o to expand)
+
+● 별도 youtube_trend 프로젝트가 있네요. 소스를 확인할게요.
+
+  Searched for 1 pattern, read 6 files, listed 2 directories (ctrl+o to expand)
+
+● 현재 info 페이지 구현을 확인할게요.
+
+  Searched for 2 patterns, read 2 files (ctrl+o to expand)
+
+● 전체 구조를 파악했습니다. 이제 구현을 시작할게요.
+
+  변경 내용:
+  1. /api/youtube/route.ts → 통계/재생시간 포함한 상세 데이터 반환
+  2. BabyApp.tsx → info 페이지를 youtube_trend와 동일한 구조로 전면 교체
+  (스테이지 배너 + 카테고리 그리드 + 카테고리별 대표영상 + 목록 뷰)
+  3. globals.css → 관련 스타일 추가
+
+  Read 2 files (ctrl+o to expand)
+
+● 이제 전체 구현을 시작할게요. 먼저 API route, 그 다음 BabyApp.tsx를 순서대로
+  수정합니다.
+● Write(app/api/youtube/route.ts)
+  ⎿  Error writing file
+
+  Read 1 file (ctrl+o to expand)
+
+● Write(app/api/youtube/route.ts)
+  ⎿  Added 70 lines, removed 15 lines
+       1  import { NextRequest, NextResponse } from 'next/server';
+       2  
+       3 +function parseDuration(iso: string) {                          
+       4 +  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);  
+       5 +  if (!m) return '';                                           
+       6 +  const h = parseInt(m[1] || '0'), mn = parseInt(m[2] || '0'), 
+         +s = parseInt(m[3] || '0');                                     
+       7 +  if (h > 0) return `${h}:${String(mn).padStart(2, '0')}:${Stri
+         +ng(s).padStart(2, '0')}`;                                      
+       8 +  return `${mn}:${String(s).padStart(2, '0')}`;                
+       9 +}                                                              
+      10 +                                                               
+      11  export async function GET(req: NextRequest) {
+      12    const apiKey = process.env.YOUTUBE_API_KEY;
+       5 -  if (!apiKey) {                                               
+       6 -    return NextResponse.json({ items: [] });                   
+       7 -  }                                                            
+       8 -  const q = req.nextUrl.searchParams.get('q') || '아기 육아';  
+      13 +  if (!apiKey) return NextResponse.json({ videos: [], nextPageT
+         +oken: null });                                                 
+      14 +                                                               
+      15 +  const sp = req.nextUrl.searchParams;                         
+      16 +  const q = sp.get('q') || '아기 육아';                        
+      17 +  const maxResults = Math.min(parseInt(sp.get('maxResults') || 
+         +'12'), 25);                                                    
+      18 +  const order = sp.get('order') || 'relevance';                
+      19 +  const pageToken = sp.get('pageToken') || '';                 
+      20 +                                                               
+      21    try {
+      10 -    const url = new URL('https://www.googleapis.com/youtube/v3/
+         -search');                                                      
+      11 -    url.searchParams.set('part', 'snippet');                   
+      12 -    url.searchParams.set('q', q);                              
+      13 -    url.searchParams.set('type', 'video');                     
+      14 -    url.searchParams.set('maxResults', '6');                   
+      15 -    url.searchParams.set('relevanceLanguage', 'ko');           
+      16 -    url.searchParams.set('key', apiKey);                       
+      22 +    const searchUrl = new URL('https://www.googleapis.com/youtu
+         +be/v3/search');                                                
+      23 +    const searchParams: Record<string, string> = {             
+      24 +      part: 'snippet', q, type: 'video',                       
+      25 +      maxResults: String(maxResults),                          
+      26 +      relevanceLanguage: 'ko', regionCode: 'KR',               
+      27 +      order, key: apiKey,                                      
+      28 +    };                                                         
+      29 +    if (pageToken) searchParams.pageToken = pageToken;         
+      30 +    Object.entries(searchParams).forEach(([k, v]) => searchUrl.
+         +searchParams.set(k, v));                                       
+      31  
+      18 -    const res = await fetch(url.toString());                   
+      19 -    const data = await res.json();                             
+      20 -    return NextResponse.json(data);                            
+      32 +    const searchRes = await fetch(searchUrl.toString());       
+      33 +    const searchData = await searchRes.json();                 
+      34 +    if (searchData.error) {                                    
+      35 +      return NextResponse.json({ videos: [], error: searchData.
+         +error.message }, { status: 400 });                             
+      36 +    }                                                          
+      37 +                                                               
+      38 +    const items: Record<string, unknown>[] = searchData.items |
+         +| [];                                                          
+      39 +    const videoIds = items                                     
+      40 +      .map(i => (i.id as Record<string, string>)?.videoId)     
+      41 +      .filter(Boolean).join(',');                              
+      42 +                                                               
+      43 +    let detailsMap: Record<string, Record<string, unknown>> = {
+         +};                                                             
+      44 +    if (videoIds) {                                            
+      45 +      const detailsUrl = new URL('https://www.googleapis.com/yo
+         +utube/v3/videos');                                             
+      46 +      Object.entries({ part: 'statistics,contentDetails', id: v
+         +ideoIds, key: apiKey })                                        
+      47 +        .forEach(([k, v]) => detailsUrl.searchParams.set(k, v))
+         +;                                                              
+      48 +      const detailsRes = await fetch(detailsUrl.toString());   
+      49 +      const detailsData = await detailsRes.json();             
+      50 +      (detailsData.items || []).forEach((i: Record<string, unkn
+         +own>) => {                                                     
+      51 +        detailsMap[i.id as string] = i;                        
+      52 +      });                                                      
+      53 +    }                                                          
+      54 +                                                               
+      55 +    const videos = items.map(item => {                         
+      56 +      const vid = (item.id as Record<string, string>)?.videoId 
+         +|| '';                                                         
+      57 +      const sn = (item.snippet as Record<string, unknown>) || {
+         +};                                                             
+      58 +      const d = detailsMap[vid] || {};                         
+      59 +      const thumbs = (sn.thumbnails as Record<string, Record<st
+         +ring, string>>) || {};                                         
+      60 +      return {                                                 
+      61 +        id: vid,                                               
+      62 +        title: (sn.title as string) || '',                     
+      63 +        thumbnail: thumbs.medium?.url || thumbs.default?.url ||
+         + '',                                                           
+      64 +        channelTitle: (sn.channelTitle as string) || '',       
+      65 +        publishedAt: (sn.publishedAt as string) || '',         
+      66 +        viewCount: ((d.statistics as Record<string, string>)?.v
+         +iewCount) || '0',                                              
+      67 +        duration: parseDuration(((d.contentDetails as Record<st
+         +ring, string>)?.duration) || ''),                              
+      68 +      };                                                       
+      69 +    });                                                        
+      70 +                                                               
+      71 +    return NextResponse.json({                                 
+      72 +      videos,                                                  
+      73 +      nextPageToken: searchData.nextPageToken || null,         
+      74 +      totalResults: searchData.pageInfo?.totalResults || 0,    
+      75 +    });                                                        
+      76    } catch (err) {
+      22 -    return NextResponse.json({ error: String(err), items: [] },
+         - { status: 500 });                                             
+      77 +    return NextResponse.json({ videos: [], error: String(err) }
+         +, { status: 500 });                                            
+      78    }
+      79  }
+
+● 이제 BabyApp.tsx를 수정합니다. 인터페이스 추가부터 시작할게요.
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 66 lines
+       51  interface RagChunkMeta { source: string; page?: number; }
+       52  interface RagChunk { text: string; metadata: RagChunkMeta; }
+       53  interface RagFigure { title: string; image?: string; metadata:
+            { source: string; page?: number; }; }
+       54 +interface YtVideo { id:string; title:string; thumbnail:string;
+          + channelTitle:string; publishedAt:string; viewCount:string; du
+          +ration:string; }                                              
+       55 +interface YtCat { id:string; label:string; desc:string; emoji:
+          +string; tone:string; text:string; queries:string[]; sortOrder:
+          +string; }                                                     
+       56  
+       57  // ── Constants ──────────────────────────────────────────────
+           ──────
+       58  const TYPE_LABELS: Record<LogType, string> = { sleep:'수면', f
+           eed:'수유', pee:'소변', poop:'대변', cry:'울음', walk:'산책' }
+           ;
+       59  const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', fee
+           d:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿' };
+       60  const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접
+           종', formula:'분유', solid:'이유식', other:'기타' };
+       61  
+       62 +// ── YouTube Categories & Stage Map ─────────────────────────
+          +──────                                                        
+       63 +const YT_CATS: YtCat[] = [                                    
+       64 +  { id:'age',   label:'우리아이는 지금', desc:'발달단계에 따른
+          + 특징',       emoji:'👶', tone:'#FFE4CF', text:'#B85617',     
+       65 +    queries:['아기 개월수별 발달 특징','신생아 황달 증상 대처'
+          +,'배앓이 달래기 방법','이앓이 시기 증상','뒤집기 시작 시기',' 
+          +아기 성장 마일스톤'], sortOrder:'relevance' },                
+       66 +  { id:'feed',  label:'먹기',           desc:'수유 · 이유식 · 
+          +분유량',     emoji:'🍼', tone:'#FFF1C9', text:'#8B6F00',      
+       67 +    queries:['초기 이유식 만들기','이유식 시작 시기','모유수유
+          + 자세 방법','월령별 분유량','이유식 거부 대처법','중기 후기 이
+          +유식 레시피'], sortOrder:'viewCount' },                       
+       68 +  { id:'play',  label:'놀기',           desc:'발달 놀이 · 장난
+          +감',         emoji:'🧸', tone:'#E2F1C4', text:'#5C8629',      
+       69 +    queries:['개월수별 발달 놀이','아기 오감 놀이','터미타임  
+          +방법','개월별 장난감 추천','DIY 아기 놀잇감','인지 발달 놀이']
+          +, sortOrder:'relevance' },                                    
+       70 +  { id:'sleep', label:'자기',           desc:'수면교육 · 통잠'
+          +,             emoji:'😴', tone:'#DCE7F8', text:'#3A5E9C',     
+       71 +    queries:['아기 수면교육 방법','퍼버법 수면훈련','통잠 만들
+          +기','낮잠 스케줄','잠투정 달래기','야간 수유 끊기'], sortOrder
+          +:'relevance' },                                               
+       72 +  { id:'health',label:'건강',           desc:'예방접종 · 감염 
+          +병 · 응급처치', emoji:'🩺', tone:'#FFD8DE', text:'#A33B53',   
+       73 +    queries:['영유아 예방접종 종류','아기 발열 대처법','영유아
+          + 검진 준비','수족구 RSV 대처','아기 응급처치','소아과 방문 기 
+          +준'], sortOrder:'relevance' },                                
+       74 +  { id:'etc',   label:'기타',           desc:'육아 정책 · 지원
+          +금 · 보험',   emoji:'📋', tone:'#EADBFA', text:'#6A4DAA',     
+       75 +    queries:['2026 첫만남이용권','부모급여 신청 방법','육아휴 
+          +직 급여','아기보험 추천','산후도우미 지원','보육료 지원 신청']
+          +, sortOrder:'date' },                                         
+       76 +];                                                            
+       77 +                                                              
+       78 +const YT_STAGE_MAP: Record<string, {label:string; primary:stri
+          +ng[]}> = {                                                    
+       79 +  newborn: { label:'신생아',     primary:['age','feed','sleep'
+          +] },                                                          
+       80 +  '1-3m':  { label:'1~3개월',   primary:['feed','sleep','age']
+          + },                                                           
+       81 +  '4-6m':  { label:'4~6개월',   primary:['feed','play','sleep'
+          +] },                                                          
+       82 +  '7-9m':  { label:'7~9개월',   primary:['feed','play','health
+          +'] },                                                         
+       83 +  '10-12m':{ label:'10~12개월', primary:['play','feed','health
+          +'] },                                                         
+       84 +  toddler: { label:'12개월+',   primary:['play','feed','health
+          +'] },                                                         
+       85 +};                                                            
+       86 +                                                              
+       87 +function ytAgeStage(months: number): string {                 
+       88 +  if (months < 1)  return 'newborn';                          
+       89 +  if (months <= 3)  return '1-3m';                            
+       90 +  if (months <= 6)  return '4-6m';                            
+       91 +  if (months <= 9)  return '7-9m';                            
+       92 +  if (months <= 12) return '10-12m';                          
+       93 +  return 'toddler';                                           
+       94 +}                                                             
+       95 +function ytFmtViews(n: string) {                              
+       96 +  const v = parseInt(n, 10);                                  
+       97 +  if (isNaN(v) || v === 0) return '';                         
+       98 +  if (v >= 100_000_000) return `${(v/100_000_000).toFixed(1)} 
+          +억회`;                                                        
+       99 +  if (v >= 10_000) return `${(v/10_000).toFixed(1)}만회`;     
+      100 +  return `${v.toLocaleString()}회`;                           
+      101 +}                                                             
+      102 +function ytFmtDate(iso: string) {                             
+      103 +  if (!iso) return '';                                        
+      104 +  const days = Math.floor((Date.now() - new Date(iso).getTime(
+          +)) / 86400000);                                               
+      105 +  if (days < 1) return '오늘';                                
+      106 +  if (days < 7) return `${days}일 전`;                        
+      107 +  if (days < 30) return `${Math.floor(days/7)}주 전`;         
+      108 +  if (days < 365) return `${Math.floor(days/30)}개월 전`;     
+      109 +  return new Date(iso).toLocaleDateString('ko');              
+      110 +}                                                             
+      111 +const YT_CACHE_TTL = 30 * 60 * 1000;                          
+      112 +function ytGetCache(key: string) {                            
+      113 +  try {                                                       
+      114 +    const raw = sessionStorage.getItem('yt_' + key);          
+      115 +    if (!raw) return null;                                    
+      116 +    const { ts, data } = JSON.parse(raw);                     
+      117 +    if (Date.now() - ts > YT_CACHE_TTL) return null;          
+      118 +    return data;                                              
+      119 +  } catch { return null; }                                    
+      120 +}                                                             
+      121 +function ytSetCache(key: string, data: unknown) {             
+      122 +  try { sessionStorage.setItem('yt_' + key, JSON.stringify({ t
+          +s: Date.now(), data })); }                                    
+      123 +  catch { /* quota */ }                                       
+      124 +}                                                             
+      125 +                                                              
+      126  // ── Utilities ──────────────────────────────────────────────
+           ──────
+      127  function localDateStr(d: Date) {
+      128    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart
+           (2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 12 lines, removed 3 lines
+      487    const [isRecording, setIsRecording] = useState(false);
+      488    const recognitionRef = useRef<SpeechRecognitionLike | null>(
+           null);
+      489  
+      490 -  // YouTube videos (info page)                               
+      491 -  const [ytVideos, setYtVideos] = useState<{id:{videoId:string
+          -};snippet:{title:string;channelTitle:string;thumbnails:{medium
+          -:{url:string}}}}[]>([]);                                      
+      492 -  const [ytLoading, setYtLoading] = useState(false);          
+      490 +  // YouTube (info page)                                      
+      491 +  const [ytView, setYtView] = useState<'home'|'list'>('home');
+      492 +  const [ytSelectedCat, setYtSelectedCat] = useState<YtCat|nul
+          +l>(null);                                                     
+      493 +  const [ytRepVideos, setYtRepVideos] = useState<Record<string
+          +,YtVideo>>({});                                               
+      494 +  const [ytRepLoading, setYtRepLoading] = useState(false);    
+      495 +  const [ytListVideos, setYtListVideos] = useState<YtVideo[]>(
+          +[]);                                                          
+      496 +  const [ytListLoading, setYtListLoading] = useState(false);  
+      497 +  const [ytListMoreLoading, setYtListMoreLoading] = useState(f
+          +alse);                                                        
+      498 +  const [ytListNextPage, setYtListNextPage] = useState<string|
+          +null>(null);                                                  
+      499 +  const [ytListQuery, setYtListQuery] = useState('');         
+      500 +  const [ytListSort, setYtListSort] = useState('relevance');  
+      501 +  const ytSentinelRef = useRef<HTMLDivElement|null>(null);    
+      502  
+      503    // Weather
+      504    const [weather, setWeather] = useState<{temp:number;desc:str
+           ing;icon:string;humidity:number|null;city:string;aqi:number|nu
+           ll;pm25:number|null;pm10:number|null}|null>(null);
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 78 lines, removed 11 lines
+      595        .catch(() => {});
+      596    }, []);
+      597  
+      598 -  // YouTube video fetch when info page opens                 
+      598 +  // YouTube: load representative videos when info home opens 
+      599    useEffect(() => {
+      600 -    if (currentPage !== 'info') return;                       
+      601 -    if (ytVideos.length > 0) return;                          
+      602 -    setYtLoading(true);                                       
+      603 -    const q = appState.baby                                   
+      604 -      ? `${getAgeInfo(appState.baby.birthDate).months}개월 아 
+          -기 육아 소아과`                                               
+      605 -      : '신생아 아기 육아';                                   
+      606 -    fetch(`/api/youtube?q=${encodeURIComponent(q)}`)          
+      600 +    if (currentPage !== 'info' || ytView !== 'home') return;  
+      601 +    if (Object.keys(ytRepVideos).length > 0) return;          
+      602 +    const stage = appState.baby ? ytAgeStage(getAgeInfo(appSta
+          +te.baby.birthDate).months) : '4-6m';                          
+      603 +    setYtRepLoading(true);                                    
+      604 +    let done = 0;                                             
+      605 +    YT_CATS.forEach(cat => {                                  
+      606 +      const cacheKey = `rep_${cat.id}_${stage}`;              
+      607 +      const cached = ytGetCache(cacheKey);                    
+      608 +      if (cached) {                                           
+      609 +        setYtRepVideos(prev => ({ ...prev, [cat.id]: cached as
+          + YtVideo }));                                                 
+      610 +        done++;                                               
+      611 +        if (done === YT_CATS.length) setYtRepLoading(false);  
+      612 +        return;                                               
+      613 +      }                                                       
+      614 +      fetch(`/api/youtube?q=${encodeURIComponent(cat.queries[0
+          +])}&maxResults=1&order=${cat.sortOrder}`)                     
+      615 +        .then(r => r.json())                                  
+      616 +        .then(data => {                                       
+      617 +          const v = (data.videos as YtVideo[])?.[0];          
+      618 +          if (v) { ytSetCache(cacheKey, v); setYtRepVideos(pre
+          +v => ({ ...prev, [cat.id]: v })); }                           
+      619 +        })                                                    
+      620 +        .catch(() => {})                                      
+      621 +        .finally(() => { done++; if (done === YT_CATS.length) 
+          +setYtRepLoading(false); });                                   
+      622 +    });                                                       
+      623 +  }, [currentPage, ytView]);                                  
+      624 +                                                              
+      625 +  // YouTube: fetch category video list                       
+      626 +  const ytFetchList = useCallback((cat: YtCat, query: string, 
+          +sort: string, pageToken?: string) => {                        
+      627 +    const cacheKey = `list_${cat.id}_${query}_${sort}`;       
+      628 +    if (!pageToken) {                                         
+      629 +      const cached = ytGetCache(cacheKey) as { videos: YtVideo
+          +[]; nextPageToken: string|null } | null;                      
+      630 +      if (cached) {                                           
+      631 +        setYtListVideos(cached.videos);                       
+      632 +        setYtListNextPage(cached.nextPageToken);              
+      633 +        setYtListLoading(false);                              
+      634 +        return;                                               
+      635 +      }                                                       
+      636 +      setYtListLoading(true);                                 
+      637 +      setYtListVideos([]);                                    
+      638 +    }                                                         
+      639 +    const url = `/api/youtube?q=${encodeURIComponent(query)}&m
+          +axResults=12&order=${sort}${pageToken ? `&pageToken=${pageToke
+          +n}` : ''}`;                                                   
+      640 +    fetch(url)                                                
+      641        .then(r => r.json())
+      608 -      .then(data => setYtVideos(data.items || []))            
+      642 +      .then(data => {                                         
+      643 +        const videos = (data.videos as YtVideo[]) || [];      
+      644 +        const next = (data.nextPageToken as string|null) || nu
+          +ll;                                                           
+      645 +        if (!pageToken) {                                     
+      646 +          ytSetCache(cacheKey, { videos, nextPageToken: next }
+          +);                                                            
+      647 +          setYtListVideos(videos);                            
+      648 +        } else {                                              
+      649 +          setYtListVideos(prev => [...prev, ...videos]);      
+      650 +        }                                                     
+      651 +        setYtListNextPage(next);                              
+      652 +      })                                                      
+      653        .catch(() => {})
+      610 -      .finally(() => setYtLoading(false));                    
+      611 -  }, [currentPage]);                                          
+      654 +      .finally(() => { setYtListLoading(false); setYtListMoreL
+          +oading(false); });                                            
+      655 +  }, []);                                                     
+      656  
+      657 +  // YouTube: infinite scroll                                 
+      658 +  useEffect(() => {                                           
+      659 +    if (!ytSentinelRef.current || !ytListNextPage || ytListMor
+          +eLoading || !ytSelectedCat) return;                           
+      660 +    const cat = ytSelectedCat;                                
+      661 +    const io = new IntersectionObserver(entries => {          
+      662 +      if (!entries[0].isIntersecting) return;                 
+      663 +      setYtListMoreLoading(true);                             
+      664 +      ytFetchList(cat, ytListQuery, ytListSort, ytListNextPage
+          +);                                                            
+      665 +    }, { threshold: 0.1 });                                   
+      666 +    io.observe(ytSentinelRef.current);                        
+      667 +    return () => io.disconnect();                             
+      668 +  }, [ytListNextPage, ytListMoreLoading, ytListQuery, ytListSo
+          +rt, ytSelectedCat, ytFetchList]);                             
+      669 +                                                              
+      670 +  const ytOpenCategory = useCallback((cat: YtCat) => {        
+      671 +    const q = cat.queries[0];                                 
+      672 +    setYtSelectedCat(cat);                                    
+      673 +    setYtListQuery(q);                                        
+      674 +    setYtListSort(cat.sortOrder);                             
+      675 +    setYtListNextPage(null);                                  
+      676 +    setYtView('list');                                        
+      677 +    ytFetchList(cat, q, cat.sortOrder);                       
+      678 +  }, [ytFetchList]);                                          
+      679 +                                                              
+      680    // ── Helpers ──────────────────────────────────────────────
+           ────
+      681    const saveAppState = useCallback((s: AppState) => {
+      682      setAppState(s);
+
+● 이제 info 섹션 JSX를 교체할게요.
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 182 lines, removed 31 lines
+      1914          {/* ❻ INFO */}
+      1915          <section id="page-info" className={`page${currentPage
+            ==='info'?' active':''}`}>
+      1916            <div className="page-scroll">
+      1917 -            <div style={{padding:'20px 20px 4px'}}>          
+      1918 -              <div className="screen-title hand">정보</div>  
+      1919 -              <div className="screen-sub">육아 관련 YouTube  
+           -추천 영상</div>                                              
+      1917 +                                                             
+      1918 +            {/* Header */}                                   
+      1919 +            <div className="yt-page-header">                 
+      1920 +              {ytView === 'list' && ytSelectedCat && (       
+      1921 +                <button className="yt-back-btn" onClick={() =
+           +> { setYtView('home'); setYtSelectedCat(null); }}>           
+      1922 +                  <svg viewBox="0 0 24 24" width="20" height=
+           +"20" fill="none" stroke="currentColor" strokeWidth="2.5" stro
+           +keLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6
+           + 6-6"/></svg>                                                
+      1923 +                </button>                                    
+      1924 +              )}                                             
+      1925 +              <div>                                          
+      1926 +                <div className="screen-title hand">{ytView ==
+           += 'list' && ytSelectedCat ? ytSelectedCat.label : '정보'}</di
+           +v>                                                           
+      1927 +                <div className="screen-sub">{ytView === 'list
+           +' && ytSelectedCat ? ytSelectedCat.desc : '육아 YouTube 추천 
+           +영상'}</div>                                                 
+      1928 +              </div>                                         
+      1929              </div>
+      1921 -            <div className="info-open-wrap" style={{padding:'
+           -16px 20px'}}>                                                
+      1922 -              <a className="info-open-btn"                   
+      1923 -                href={`https://www.youtube.com/results?search
+           -_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월  
+           -아기`:'아기')+ ' 육아 소아과')}`}                            
+      1924 -                target="_blank" rel="noopener noreferrer">   
+      1925 -                <svg viewBox="0 0 24 24" width="30" height="3
+           -0" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap
+           -="round">                                                    
+      1926 -                  <path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.
+           -96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 
+           -29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.1
+           -2 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 2
+           -9 0 0023 12a29 29 0 00-.46-5.58z"/>                          
+      1927 -                  <polygon points="9.75 15.02 15.5 12 9.75 8.
+           -98 9.75 15.02" fill="white" stroke="none"/>                  
+      1928 -                </svg>                                       
+      1929 -                YouTube 추천 영상 보기                       
+      1930 -              </a>                                           
+      1931 -              <p className="info-open-hint">새 탭에서 열립니 
+           -다</p>                                                       
+      1932 -            </div>                                           
+      1930  
+      1934 -            {/* YouTube 영상 목록 */}                        
+      1935 -            <div style={{padding:'0 16px 16px'}}>            
+      1936 -              {ytLoading ? (                                 
+      1937 -                <div style={{textAlign:'center',padding:'24px
+           -',color:'var(--text-light)',fontSize:'13px'}}>영상을 불러오는
+           - 중...</div>                                                 
+      1938 -              ) : ytVideos.length > 0 ? (                    
+      1939 -                <div className="yt-video-list">              
+      1940 -                  {ytVideos.map(v => (                       
+      1941 -                    <a key={v.id.videoId} className="yt-video
+           --card"                                                       
+      1942 -                      href={`https://www.youtube.com/watch?v=
+           -${v.id.videoId}`}                                            
+      1943 -                      target="_blank" rel="noopener noreferre
+           -r">                                                          
+      1944 -                      <img className="yt-video-thumb" src={v.
+           -snippet.thumbnails.medium.url} alt={v.snippet.title} loading=
+           -"lazy" />                                                    
+      1945 -                      <div className="yt-video-info">        
+      1946 -                        <div className="yt-video-title">{v.sn
+           -ippet.title}</div>                                           
+      1947 -                        <div className="yt-video-channel">{v.
+           -snippet.channelTitle}</div>                                  
+      1931 +            {ytView === 'home' ? (                           
+      1932 +              <>                                             
+      1933 +                {/* Stage Banner */}                         
+      1934 +                {ageInfo && appState.baby && (               
+      1935 +                  <div className="yt-stage-banner">          
+      1936 +                    <div className="yt-stage-glow" />        
+      1937 +                    <div className="yt-stage-content">       
+      1938 +                      <div className="yt-stage-avatar">{appSt
+           +ate.baby.gender === 'boy' ? '👦' : '👧'}</div>               
+      1939 +                      <div className="yt-stage-text">        
+      1940 +                        <div className="yt-stage-label">맞춤 
+           +추천</div>                                                   
+      1941 +                        <div className="yt-stage-title">     
+      1942 +                          <span className="yt-stage-name">{ap
+           +pState.baby.name}</span>를 위한{' '}                         
+      1943 +                          {YT_STAGE_MAP[ytAgeStage(ageInfo.mo
+           +nths)]?.label} 영상                                          
+      1944 +                        </div>                               
+      1945 +                        <div className="yt-stage-sub">{ageInf
+           +o.months}개월 · 발달에 맞는 영상부터 보여드려요</div>        
+      1946                        </div>
+      1947 +                    </div>                                   
+      1948 +                    <div className="yt-stage-tags">          
+      1949 +                      {['먹기','놀기','자기','크기','건강하기
+           +'].map(tag => (                                              
+      1950 +                        <div key={tag} className="yt-stage-ta
+           +g">{tag}</div>                                               
+      1951 +                      ))}                                    
+      1952 +                    </div>                                   
+      1953 +                  </div>                                     
+      1954 +                )}                                           
+      1955 +                                                             
+      1956 +                {/* Category Grid */}                        
+      1957 +                <div className="yt-section">                 
+      1958 +                  <div className="yt-section-row">           
+      1959 +                    <span className="yt-section-title">카테고
+           +리</span>                                                    
+      1960 +                    {ageInfo && <span className="yt-section-s
+           +ub">{ageInfo.months}개월 맞춤 추천순</span>}                 
+      1961 +                  </div>                                     
+      1962 +                  <div className="yt-cat-grid">              
+      1963 +                    {YT_CATS.map(cat => {                    
+      1964 +                      const stage = ageInfo ? ytAgeStage(ageI
+           +nfo.months) : '4-6m';                                        
+      1965 +                      const isPrimary = YT_STAGE_MAP[stage]?.
+           +primary.includes(cat.id);                                    
+      1966 +                      return (                               
+      1967 +                        <button key={cat.id} className="yt-ca
+           +t-card" onClick={() => ytOpenCategory(cat)}>                 
+      1968 +                          {isPrimary && <div className="yt-ca
+           +t-badge">추천</div>}                                         
+      1969 +                          <div className="yt-cat-icon" style=
+           +{{background: cat.tone}}>{cat.emoji}</div>                   
+      1970 +                          <div className="yt-cat-label" style
+           +={{color: cat.text}}>{cat.label}</div>                       
+      1971 +                          <div className="yt-cat-desc">{cat.d
+           +esc}</div>                                                   
+      1972 +                        </button>                            
+      1973 +                      );                                     
+      1974 +                    })}                                      
+      1975 +                  </div>                                     
+      1976 +                </div>                                       
+      1977 +                                                             
+      1978 +                {/* Representative videos per category */}   
+      1979 +                <div className="yt-section">                 
+      1980 +                  <div className="yt-section-row">           
+      1981 +                    <span className="yt-section-title">카테고
+           +리별 인기 영상</span>                                        
+      1982 +                  </div>                                     
+      1983 +                  <div className="yt-section-hint">카테고리를
+           + 클릭하면 더 많은 영상을 볼 수 있어요</div>                  
+      1984 +                </div>                                       
+      1985 +                                                             
+      1986 +                {ytRepLoading && Object.keys(ytRepVideos).len
+           +gth === 0 ? (                                                
+      1987 +                  <div className="yt-skeleton-list">         
+      1988 +                    {[1,2,3].map(i => <div key={i} className=
+           +"yt-skeleton-card" />)}                                      
+      1989 +                  </div>                                     
+      1990 +                ) : (                                        
+      1991 +                  <div className="yt-rep-list">              
+      1992 +                    {YT_CATS.map(cat => {                    
+      1993 +                      const v = ytRepVideos[cat.id];         
+      1994 +                      if (!v) return null;                   
+      1995 +                      return (                               
+      1996 +                        <div key={cat.id} className="yt-rep-i
+           +tem">                                                        
+      1997 +                          <button className="yt-rep-cat-row" 
+           +onClick={() => ytOpenCategory(cat)}>                         
+      1998 +                            <div className="yt-rep-cat-left">
+      1999 +                              <div className="yt-rep-cat-icon
+           +" style={{background: cat.tone}}>{cat.emoji}</div>           
+      2000 +                              <span className="yt-rep-cat-lab
+           +el" style={{color: cat.text}}>{cat.label}</span>             
+      2001 +                            </div>                           
+      2002 +                            <div className="yt-rep-cat-more">
+      2003 +                              더보기                         
+      2004 +                              <svg viewBox="0 0 24 24" width=
+           +"13" height="13" fill="none" stroke="currentColor" strokeWidt
+           +h="2" strokeLinecap="round" strokeLinejoin="round"><path d="M
+           +10 6l6 6-6 6"/></svg>                                        
+      2005 +                            </div>                           
+      2006 +                          </button>                          
+      2007 +                          <a className="yt-video-card" href={
+           +`https://www.youtube.com/watch?v=${v.id}`} target="_blank" re
+           +l="noopener noreferrer">                                     
+      2008 +                            <img className="yt-video-thumb" s
+           +rc={v.thumbnail} alt={v.title} loading="lazy" />             
+      2009 +                            <div className="yt-video-info">  
+      2010 +                              <div className="yt-video-title"
+           +>{v.title}</div>                                             
+      2011 +                              <div className="yt-video-meta">
+      2012 +                                <span>{v.channelTitle}</span>
+      2013 +                                {ytFmtViews(v.viewCount) && <
+           +><span> · </span><span>{ytFmtViews(v.viewCount)}</span></>}  
+      2014 +                              </div>                         
+      2015 +                            </div>                           
+      2016 +                          </a>                               
+      2017 +                        </div>                               
+      2018 +                      );                                     
+      2019 +                    })}                                      
+      2020 +                  </div>                                     
+      2021 +                )}                                           
+      2022 +              </>                                            
+      2023 +            ) : ytSelectedCat ? (                            
+      2024 +              <>                                             
+      2025 +                {/* Category banner */}                      
+      2026 +                <div className="yt-list-banner" style={{backg
+           +round: ytSelectedCat.tone}}>                                 
+      2027 +                  <div className="yt-list-banner-emoji">{ytSe
+           +lectedCat.emoji}</div>                                       
+      2028 +                  <div className="yt-list-banner-title" style
+           +={{color: ytSelectedCat.text}}>{ytSelectedCat.label}</div>   
+      2029 +                  <div className="yt-list-banner-desc">{ytSel
+           +ectedCat.desc}</div>                                         
+      2030 +                </div>                                       
+      2031 +                                                             
+      2032 +                {/* Keyword chips + sort */}                 
+      2033 +                <div className="yt-keyword-wrap">            
+      2034 +                  <div className="yt-keyword-label">키워드 선
+           +택</div>                                                     
+      2035 +                  <div className="yt-keyword-scroll">        
+      2036 +                    {ytSelectedCat.queries.map(q => (        
+      2037 +                      <button                                
+      2038 +                        key={q}                              
+      2039 +                        className={`yt-keyword-chip${ytListQu
+           +ery === q ? ' active' : ''}`}                                
+      2040 +                        onClick={() => {                     
+      2041 +                          setYtListQuery(q);                 
+      2042 +                          setYtListNextPage(null);           
+      2043 +                          ytFetchList(ytSelectedCat!, q, ytLi
+           +stSort);                                                     
+      2044 +                        }}                                   
+      2045 +                      >{q}</button>                          
+      2046 +                    ))}                                      
+      2047 +                  </div>                                     
+      2048 +                  <div className="yt-sort-row">              
+      2049 +                    <select                                  
+      2050 +                      className="yt-sort-select"             
+      2051 +                      value={ytListSort}                     
+      2052 +                      onChange={e => {                       
+      2053 +                        const s = e.target.value;            
+      2054 +                        setYtListSort(s);                    
+      2055 +                        setYtListNextPage(null);             
+      2056 +                        ytFetchList(ytSelectedCat!, ytListQue
+           +ry, s);                                                      
+      2057 +                      }}                                     
+      2058 +                    >                                        
+      2059 +                      <option value="relevance">관련성순</opt
+           +ion>                                                         
+      2060 +                      <option value="viewCount">조회수순</opt
+           +ion>                                                         
+      2061 +                      <option value="date">최신순</option>   
+      2062 +                      <option value="rating">평점순</option> 
+      2063 +                    </select>                                
+      2064 +                  </div>                                     
+      2065 +                </div>                                       
+      2066 +                                                             
+      2067 +                {/* Video list */}                           
+      2068 +                <div className="yt-list-videos">             
+      2069 +                  {ytListLoading ? (                         
+      2070 +                    <div className="yt-skeleton-list">       
+      2071 +                      {[1,2,3].map(i => <div key={i} classNam
+           +e="yt-skeleton-full" />)}                                    
+      2072 +                    </div>                                   
+      2073 +                  ) : ytListVideos.length === 0 ? (          
+      2074 +                    <div className="yt-empty">               
+      2075 +                      <div style={{fontSize:'2.5rem',marginBo
+           +ttom:'8px'}}>🎬</div>                                        
+      2076 +                      <div className="yt-empty-title">영상이 
+           +없어요</div>                                                 
+      2077 +                      <div className="yt-empty-sub">다른 키워
+           +드를 선택해보세요</div>                                      
+      2078 +                    </div>                                   
+      2079 +                  ) : ytListVideos.map((v, i) => (           
+      2080 +                    <a key={v.id + i} className="yt-full-card
+           +" href={`https://www.youtube.com/watch?v=${v.id}`} target="_b
+           +lank" rel="noopener noreferrer">                             
+      2081 +                      <div className="yt-full-thumb-wrap">   
+      2082 +                        <img className="yt-full-thumb" src={v
+           +.thumbnail} alt={v.title} loading="lazy" />                  
+      2083 +                        {v.duration && <span className="yt-fu
+           +ll-duration">{v.duration}</span>}                            
+      2084 +                      </div>                                 
+      2085 +                      <div className="yt-full-info">         
+      2086 +                        <div className="yt-full-title">{v.tit
+           +le}</div>                                                    
+      2087 +                        <div className="yt-video-meta">      
+      2088 +                          <span>{v.channelTitle}</span>      
+      2089 +                          {ytFmtViews(v.viewCount) && <><span
+           +> · </span><span>{ytFmtViews(v.viewCount)}</span></>}        
+      2090 +                          {v.publishedAt && <><span> · </span
+           +><span>{ytFmtDate(v.publishedAt)}</span></>}                 
+      2091 +                        </div>                               
+      2092 +                      </div>                                 
+      2093                      </a>
+      2094                    ))}
+      2095 +                  <div ref={ytSentinelRef} style={{padding:'4
+           +px'}}>                                                       
+      2096 +                    {ytListMoreLoading && <div className="yt-
+           +skeleton-full" style={{margin:'8px 16px'}} />}               
+      2097 +                    {!ytListLoading && !ytListNextPage && ytL
+           +istVideos.length > 0 && (                                    
+      2098 +                      <div className="yt-end-msg">모든 결과를
+           + 봤어요 🌱</div>                                             
+      2099 +                    )}                                       
+      2100 +                  </div>                                     
+      2101                  </div>
+      1952 -              ) : null}                                      
+      1953 -            </div>                                           
+      2102 +              </>                                            
+      2103 +            ) : null}                                        
+      2104 +                                                             
+      2105            </div>
+      2106          </section>
+      2107  
+
+● 이제 CSS를 업데이트할게요.
+
+● Update(app/globals.css)
+  ⎿  Added 163 lines, removed 25 lines
+      1055  /* ── INFO PAGE ─────────────────────────────────────────────
+            ─── */
+      1056  .screen-title { font-size: 22px; font-weight: 700; color: var
+            (--text); }
+      1057  .screen-sub   { font-size: 13px; color: var(--text-mid); marg
+            in-top: 2px; }
+      1058 -.info-open-wrap {                                            
+      1059 -  display: flex; flex-direction: column; align-items: center;
+      1060 -  justify-content: center; gap: 14px;                        
+      1058 +                                                             
+      1059 +/* Header */                                                 
+      1060 +.yt-page-header {                                            
+      1061 +  display: flex; align-items: center; gap: 10px;             
+      1062 +  padding: 20px 20px 8px;                                    
+      1063  }
+      1062 -.info-open-btn {                                             
+      1063 -  display: flex; align-items: center; gap: 14px;             
+      1064 -  background: linear-gradient(135deg, #FF0000 0%, #CC0000 100
+           -%);                                                          
+      1065 -  color: white; text-decoration: none;                       
+      1066 -  font-size: 16px; font-weight: 700;                         
+      1067 -  padding: 18px 28px; border-radius: 18px;                   
+      1068 -  box-shadow: 0 6px 20px rgba(200,0,0,.3);                   
+      1069 -  transition: transform .18s, box-shadow .18s;               
+      1070 -  width: 100%; justify-content: center;                      
+      1064 +.yt-back-btn {                                               
+      1065 +  display: flex; align-items: center; justify-content: center
+           +;                                                            
+      1066 +  width: 32px; height: 32px; border-radius: var(--r-pill);   
+      1067 +  background: var(--surface); box-shadow: var(--sh-sm);      
+      1068 +  flex-shrink: 0; color: var(--text);                        
+      1069  }
+      1072 -.info-open-btn:hover  { transform: translateY(-2px); box-shad
+           -ow: 0 8px 24px rgba(200,0,0,.4); }                           
+      1073 -.info-open-btn:active { transform: translateY(0) scale(.97); 
+           -}                                                            
+      1074 -.info-open-hint { font-size: 12px; color: var(--text-mid); } 
+      1070  
+      1076 -/* YouTube video list */                                     
+      1077 -.yt-video-list { display: flex; flex-direction: column; gap: 
+           -10px; }                                                      
+      1071 +/* Stage Banner */                                           
+      1072 +.yt-stage-banner {                                           
+      1073 +  margin: 8px 16px 0; border-radius: var(--r-lg);            
+      1074 +  padding: 16px; position: relative; overflow: hidden;       
+      1075 +  background: linear-gradient(135deg, #FFF3EB 0%, #EDFAEC 100
+           +%);                                                          
+      1076 +  border: 1px solid var(--border);                           
+      1077 +}                                                            
+      1078 +.yt-stage-glow {                                             
+      1079 +  position: absolute; right: -16px; top: -24px;              
+      1080 +  width: 112px; height: 112px; border-radius: 50%;           
+      1081 +  background: rgba(255,255,255,.5); filter: blur(24px);      
+      1082 +  pointer-events: none;                                      
+      1083 +}                                                            
+      1084 +.yt-stage-content { display: flex; align-items: center; gap: 
+           +12px; position: relative; }                                  
+      1085 +.yt-stage-avatar {                                           
+      1086 +  width: 48px; height: 48px; border-radius: 50%;             
+      1087 +  background: var(--surface); box-shadow: var(--sh-sm);      
+      1088 +  display: flex; align-items: center; justify-content: center
+           +;                                                            
+      1089 +  font-size: 24px; flex-shrink: 0;                           
+      1090 +}                                                            
+      1091 +.yt-stage-text { flex: 1; min-width: 0; }                    
+      1092 +.yt-stage-label { font-size: 10px; font-weight: 800; color: v
+           +ar(--orange); letter-spacing: .06em; text-transform: uppercas
+           +e; }                                                         
+      1093 +.yt-stage-title { font-size: 16px; font-weight: 700; color: v
+           +ar(--text); line-height: 1.3; margin-top: 1px; }             
+      1094 +.yt-stage-name  { color: var(--orange); }                    
+      1095 +.yt-stage-sub   { font-size: 11.5px; color: var(--text-mid); 
+           +margin-top: 3px; }                                           
+      1096 +.yt-stage-tags  { display: flex; gap: 6px; margin-top: 12px; 
+           +flex-wrap: wrap; position: relative; }                       
+      1097 +.yt-stage-tag {                                              
+      1098 +  font-size: 11px; font-weight: 700; padding: 4px 10px;      
+      1099 +  border-radius: var(--r-pill); background: rgba(255,255,255,
+           +.7);                                                         
+      1100 +  color: var(--text-mid);                                    
+      1101 +}                                                            
+      1102 +                                                             
+      1103 +/* Section headers */                                        
+      1104 +.yt-section      { padding: 20px 16px 0; }                   
+      1105 +.yt-section-row  { display: flex; align-items: baseline; just
+           +ify-content: space-between; margin-bottom: 4px; }            
+      1106 +.yt-section-title{ font-size: 15px; font-weight: 700; color: 
+           +var(--text); }                                               
+      1107 +.yt-section-sub  { font-size: 11px; color: var(--text-light);
+           + }                                                           
+      1108 +.yt-section-hint { font-size: 11.5px; color: var(--text-light
+           +); padding: 0 16px 4px; }                                    
+      1109 +                                                             
+      1110 +/* Category Grid */                                          
+      1111 +.yt-cat-grid {                                               
+      1112 +  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;  
+      1113 +  margin-top: 10px;                                          
+      1114 +}                                                            
+      1115 +.yt-cat-card {                                               
+      1116 +  background: var(--surface); border: 1px solid var(--border)
+           +;                                                            
+      1117 +  border-radius: var(--r-lg); padding: 14px; text-align: left
+           +;                                                            
+      1118 +  position: relative; transition: transform .15s; box-shadow:
+           + var(--sh-sm);                                               
+      1119 +}                                                            
+      1120 +.yt-cat-card:active { transform: scale(.97); }               
+      1121 +.yt-cat-badge {                                              
+      1122 +  position: absolute; top: 8px; right: 8px;                  
+      1123 +  font-size: 9px; font-weight: 700; padding: 2px 6px;        
+      1124 +  border-radius: var(--r-pill); background: var(--orange); co
+           +lor: white;                                                  
+      1125 +}                                                            
+      1126 +.yt-cat-icon {                                               
+      1127 +  width: 40px; height: 40px; border-radius: 12px;            
+      1128 +  display: flex; align-items: center; justify-content: center
+           +;                                                            
+      1129 +  font-size: 20px; margin-bottom: 10px;                      
+      1130 +}                                                            
+      1131 +.yt-cat-label { font-size: 13px; font-weight: 700; }         
+      1132 +.yt-cat-desc  { font-size: 11px; color: var(--text-mid); marg
+           +in-top: 2px; line-height: 1.4; }                             
+      1133 +                                                             
+      1134 +/* Rep video list */                                         
+      1135 +.yt-rep-list  { margin-top: 4px; padding-bottom: 24px; }     
+      1136 +.yt-rep-item  { border-top: 1px solid var(--border); }       
+      1137 +.yt-rep-cat-row {                                            
+      1138 +  width: 100%; display: flex; align-items: center; justify-co
+           +ntent: space-between;                                        
+      1139 +  padding: 10px 16px 4px;                                    
+      1140 +}                                                            
+      1141 +.yt-rep-cat-row:active { background: var(--orange-pale); }   
+      1142 +.yt-rep-cat-left  { display: flex; align-items: center; gap: 
+           +8px; }                                                       
+      1143 +.yt-rep-cat-icon  { width: 28px; height: 28px; border-radius:
+           + 8px; display: flex; align-items: center; justify-content: ce
+           +nter; font-size: 14px; }                                     
+      1144 +.yt-rep-cat-label { font-size: 13px; font-weight: 700; }     
+      1145 +.yt-rep-cat-more  { display: flex; align-items: center; gap: 
+           +2px; font-size: 11px; color: var(--text-light); }            
+      1146 +                                                             
+      1147 +/* Shared video card (horizontal - rep) */                   
+      1148  .yt-video-card {
+      1149    display: flex; gap: 12px; align-items: flex-start;
+      1080 -  background: var(--surface); border-radius: var(--r-md);    
+      1081 -  padding: 10px; text-decoration: none; color: var(--text);  
+      1082 -  box-shadow: var(--sh-sm); transition: transform .15s;      
+      1150 +  padding: 8px 16px 12px; text-decoration: none; color: var(-
+           +-text);                                                      
+      1151 +  transition: background .12s;                               
+      1152  }
+      1084 -.yt-video-card:active { transform: scale(.98); }             
+      1153 +.yt-video-card:active { background: var(--orange-pale); }    
+      1154  .yt-video-thumb {
+      1155    width: 110px; height: 62px; border-radius: var(--r-sm);
+      1087 -  object-fit: cover; flex-shrink: 0; background: var(--bg);  
+      1156 +  object-fit: cover; flex-shrink: 0; background: var(--border
+           +);                                                           
+      1157  }
+      1158  .yt-video-info { flex: 1; min-width: 0; }
+      1159  .yt-video-title {
+      1091 -  font-size: 12.5px; font-weight: 700; color: var(--text);   
+      1092 -  line-height: 1.4;                                          
+      1160 +  font-size: 12.5px; font-weight: 700; color: var(--text); li
+           +ne-height: 1.4;                                              
+      1161    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-or
+            ient: vertical; overflow: hidden;
+      1162  }
+      1095 -.yt-video-channel { font-size: 11px; color: var(--text-light)
+           -; margin-top: 4px; }                                         
+      1163 +.yt-video-meta { font-size: 11px; color: var(--text-light); m
+           +argin-top: 4px; }                                            
+      1164  
+      1165 +/* Category list view */                                     
+      1166 +.yt-list-banner { padding: 16px; border-bottom: 1px solid var
+           +(--border); }                                                
+      1167 +.yt-list-banner-emoji { font-size: 2rem; margin-bottom: 4px; 
+           +}                                                            
+      1168 +.yt-list-banner-title { font-size: 17px; font-weight: 700; } 
+      1169 +.yt-list-banner-desc  { font-size: 12px; color: var(--text-mi
+           +d); margin-top: 2px; }                                       
+      1170 +                                                             
+      1171 +.yt-keyword-wrap { padding: 12px 16px 8px; background: var(--
+           +surface); border-bottom: 1px solid var(--border); }          
+      1172 +.yt-keyword-label{ font-size: 11px; font-weight: 700; color: 
+           +var(--text-light); margin-bottom: 8px; }                     
+      1173 +.yt-keyword-scroll {                                         
+      1174 +  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 
+           +6px;                                                         
+      1175 +  scrollbar-width: none;                                     
+      1176 +}                                                            
+      1177 +.yt-keyword-scroll::-webkit-scrollbar { display: none; }     
+      1178 +.yt-keyword-chip {                                           
+      1179 +  flex-shrink: 0; padding: 6px 12px; border-radius: var(--r-p
+           +ill);                                                        
+      1180 +  font-size: 12px; font-weight: 500; border: 1px solid var(--
+           +border);                                                     
+      1181 +  background: var(--bg); color: var(--text-mid); transition: 
+           +background .12s, color .12s;                                 
+      1182 +}                                                            
+      1183 +.yt-keyword-chip.active { background: var(--orange); color: w
+           +hite; border-color: var(--orange); }                         
+      1184 +.yt-sort-row { display: flex; justify-content: flex-end; marg
+           +in-top: 8px; }                                               
+      1185 +.yt-sort-select {                                            
+      1186 +  font-size: 11px; color: var(--text-mid); background: var(--
+           +bg);                                                         
+      1187 +  border: 1px solid var(--border); border-radius: 8px; paddin
+           +g: 4px 8px; cursor: pointer;                                 
+      1188 +}                                                            
+      1189 +                                                             
+      1190 +/* Full-width video card (list view) */                      
+      1191 +.yt-list-videos { padding-bottom: 16px; }                    
+      1192 +.yt-full-card {                                              
+      1193 +  display: block; text-decoration: none; color: var(--text); 
+      1194 +  border-bottom: 1px solid var(--border); transition: backgro
+           +und .12s;                                                    
+      1195 +}                                                            
+      1196 +.yt-full-card:active { background: var(--orange-pale); }     
+      1197 +.yt-full-thumb-wrap { position: relative; }                  
+      1198 +.yt-full-thumb {                                             
+      1199 +  width: 100%; aspect-ratio: 16/9; object-fit: cover;        
+      1200 +  display: block; background: var(--border);                 
+      1201 +}                                                            
+      1202 +.yt-full-duration {                                          
+      1203 +  position: absolute; bottom: 6px; right: 6px;               
+      1204 +  background: rgba(0,0,0,.8); color: white;                  
+      1205 +  font-size: 11px; font-weight: 500; padding: 2px 5px;       
+      1206 +  border-radius: 4px; font-variant-numeric: tabular-nums;    
+      1207 +}                                                            
+      1208 +.yt-full-info  { padding: 10px 16px 12px; }                  
+      1209 +.yt-full-title {                                             
+      1210 +  font-size: 13px; font-weight: 700; line-height: 1.4; color:
+           + var(--text);                                                
+      1211 +  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-or
+           +ient: vertical; overflow: hidden;                            
+      1212 +  margin-bottom: 4px;                                        
+      1213 +}                                                            
+      1214 +                                                             
+      1215 +/* Skeletons */                                              
+      1216 +.yt-skeleton-list { padding: 0 16px; display: flex; flex-dire
+           +ction: column; gap: 12px; margin-top: 8px; }                 
+      1217 +.yt-skeleton-card {                                          
+      1218 +  height: 76px; border-radius: var(--r-md);                  
+      1219 +  background: linear-gradient(90deg, var(--border) 25%, var(-
+           +-bg) 50%, var(--border) 75%);                                
+      1220 +  background-size: 200% 100%; animation: ytShimmer 1.4s infin
+           +ite;                                                         
+      1221 +}                                                            
+      1222 +.yt-skeleton-full {                                          
+      1223 +  height: 56px; border-radius: var(--r-md);                  
+      1224 +  background: linear-gradient(90deg, var(--border) 25%, var(-
+           +-bg) 50%, var(--border) 75%);                                
+      1225 +  background-size: 200% 100%; animation: ytShimmer 1.4s infin
+           +ite;                                                         
+      1226 +}                                                            
+      1227 +@keyframes ytShimmer { 0%{background-position:200% 0} 100%{ba
+           +ckground-position:-200% 0} }                                 
+      1228 +                                                             
+      1229 +/* Empty / End */                                            
+      1230 +.yt-empty { text-align: center; padding: 48px 24px; }        
+      1231 +.yt-empty-title { font-size: 15px; font-weight: 700; color: v
+           +ar(--text); margin-bottom: 4px; }                            
+      1232 +.yt-empty-sub   { font-size: 12.5px; color: var(--text-light)
+           +; }                                                          
+      1233 +.yt-end-msg { text-align: center; font-size: 12px; color: var
+           +(--text-light); padding: 12px; }                             
+      1234 +                                                             
+      1235  /* ── WEATHER BAR ───────────────────────────────────────────
+            ─── */
+      1236  .weather-bar {
+      1237    display: flex; align-items: center; justify-content: space-
+            between;
+
+● 이제 빌드가 잘 되는지 확인할게요.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● 빌드 오류는 기존 환경 문제(lightningcss 네이티브 모듈 WSL/Windows
+  불일치)입니다. 코드 자체에 문제가 없는지 TypeScript로 확인됐고 (오류 없음),
+  dev 서버로 확인해볼게요.
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● lightningcss 네이티브 모듈 오류는 node_modules가 Windows에서 설치됐는데
+  WSL에서 실행하는 환경 문제입니다. WSL에서 재설치해볼게요.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● TypeScript 컴파일 에러 0개로 코드는 정상입니다. lightningcss 오류는
+  node_modules가 Windows에서 설치된 상태로 WSL에서 실행하는 기존 환경
+  문제이므로, Windows PowerShell/터미널에서 직접 실행하시면 됩니다.
+
+  변경 사항을 최종 확인할게요.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● 모든 변경이 정상 반영됐습니다. 작업 완료 내용을 정리할게요.
+
+  ---
+  변경 요약
+
+  /api/youtube/route.ts (전면 교체)
+
+  - search API → videos API 2단계 호출로 조회수, 재생시간, 게시일 포함한 상세
+  데이터 반환
+  - maxResults, order, pageToken 파라미터 지원 (페이지네이션)
+  - 응답 구조: { videos: YtVideo[], nextPageToken: string|null }
+
+  BabyApp.tsx (info 페이지 전면 교체)
+
+  ┌────────────────┬────────────────────────────────────────────────────────┐
+  │   구성 요소    │                          내용                          │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ 스테이지 배너  │ 아기 이름·개월수에 맞는 맞춤 추천 배너                 │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ 카테고리       │ 2열 6카테고리 (우리아이는                              │
+  │ 그리드         │ 지금/먹기/놀기/자기/건강/기타), 개월수 기반 "추천"     │
+  │                │ 배지                                                   │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ 카테고리별     │ 각 카테고리 1개 대표 영상 + 카테고리 탭 진입 버튼      │
+  │ 대표 영상      │                                                        │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ 카테고리 목록  │ 키워드 칩 선택, 정렬 옵션(관련성/조회수/최신/평점),    │
+  │ 뷰             │ 무한 스크롤                                            │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ 캐시           │ sessionStorage 30분 TTL (API 할당량 절약)              │
+  └────────────────┴────────────────────────────────────────────────────────┘
+
+  globals.css
+
+  - 스테이지 배너, 카테고리 그리드, 풀사이즈 영상카드, 키워드 칩, 스켈레톤 로딩
+  등 전체 스타일 추가
+
+  실행은 Windows PowerShell에서 npm run dev로 해주세요 (WSL 환경의 lightningcss
+  네이티브 모듈 문제 때문).
+
+✻ Brewed for 12m 7s
