@@ -551,6 +551,10 @@ export default function BabyApp() {
   const [hfMedNote, setHfMedNote] = useState('');
   const [hfMedDate, setHfMedDate] = useState('');
 
+  // Baby photo
+  const [babyPhoto, setBabyPhoto] = useState<string|null>(null);
+  const photoInputRef = useRef<HTMLInputElement|null>(null);
+
   // Setup form
   const [setupGender, setSetupGender] = useState<'boy' | 'girl'>('girl');
   const setupNameRef = useRef<HTMLInputElement>(null);
@@ -650,6 +654,8 @@ export default function BabyApp() {
       .then(data => { if (data) setAppState(Object.assign(defaultState(), data)); })
       .catch(() => {})
       .finally(() => setMounted(true));
+    const saved = localStorage.getItem('baby_photo');
+    if (saved) setBabyPhoto(saved);
   }, []);
 
   // Header date updater
@@ -833,6 +839,31 @@ ${headStyles}
       setShareOverlay(true);
     }
   }, [appState.baby]);
+
+  // ── Baby photo ────────────────────────────────────────────────
+  const handlePhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const src = ev.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 400;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setBabyPhoto(dataUrl);
+        localStorage.setItem('baby_photo', dataUrl);
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, []);
 
   // ── Navigation ────────────────────────────────────────────────
   const navigate = (page: Page) => {
@@ -1242,9 +1273,25 @@ ${headStyles}
             </div>
           )}
           <div className="setup-hero">
-            <div className="setup-icon">👶</div>
-            <h2>베이비로그에 오신 걸<br/>환영해요!</h2>
-            <p>아기 정보를 입력하고 맞춤 정보를 받아보세요</p>
+            <div className="setup-photo-wrap">
+              <div className="setup-photo-circle" onClick={() => photoInputRef.current?.click()}>
+                {babyPhoto
+                  ? <img src={babyPhoto} alt="아기 사진" className="setup-photo-img" />
+                  : <span className="setup-photo-emoji">{setupGender==='boy'?'👦':'👧'}</span>
+                }
+                <div className="setup-photo-overlay">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                </div>
+              </div>
+              <input ref={photoInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handlePhotoChange} />
+              {babyPhoto && (
+                <button type="button" className="setup-photo-remove" onClick={()=>{ setBabyPhoto(null); localStorage.removeItem('baby_photo'); }}>사진 삭제</button>
+              )}
+            </div>
+            {!appState.baby && <p style={{fontSize:'13px',color:'var(--text-mid)',marginTop:'8px'}}>아기 정보를 입력하고 맞춤 정보를 받아보세요</p>}
           </div>
           <form className="setup-form" onSubmit={handleSetup} noValidate>
             <div className="form-group">
@@ -1466,7 +1513,11 @@ ${headStyles}
           <div className="header-baby" role="button" tabIndex={0}
             onClick={()=>{ if(appState.baby&&setupNameRef.current) setupNameRef.current.value=appState.baby.name; if(appState.baby&&setupBirthRef.current) setupBirthRef.current.value=appState.baby.birthDate; if(appState.baby) setSetupGender(appState.baby.gender); setModal('setup'); }}
             onKeyDown={e=>{ if(e.key==='Enter'||e.key===' ') setModal('setup'); }}>
-            <div className="header-avatar">{appState.baby?.gender==='boy'?'👦':'👧'}</div>
+            <div className="header-avatar">
+              {babyPhoto
+                ? <img src={babyPhoto} alt="아기" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}} />
+                : appState.baby?.gender==='boy'?'👦':'👧'}
+            </div>
             <div>
               <div className="header-name">{appState.baby?.name||'베이비'}</div>
               <div className="header-age">
@@ -1487,7 +1538,11 @@ ${headStyles}
             {/* Baby Hero Card */}
             <div className="baby-hero-card">
               <div className="baby-hero-top">
-                <div className="baby-face">{appState.baby?.gender==='boy'?'👦':'👧'}</div>
+                <div className="baby-face">
+                  {babyPhoto
+                    ? <img src={babyPhoto} alt="아기" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}} />
+                    : appState.baby?.gender==='boy'?'👦':'👧'}
+                </div>
                 <div className="baby-hero-info">
                   <div className="baby-hero-name hand" role="button" tabIndex={0} onClick={()=>{setModal('setup');}}>{appState.baby?.name||'베이비'}</div>
                   <div className="baby-hero-pills">
@@ -1909,7 +1964,9 @@ ${headStyles}
                 <div>
                   <div className="rpt-title">📊 육아 리포트</div>
                   <div className="rpt-baby-info">
-                    {appState.baby ? `${appState.baby.name} · ${ageInfo?.months??0}개월` : '아기 정보 없음'}
+                    {appState.baby && ageInfo
+                      ? `${appState.baby.name} · ${ageInfo.months}개월 ${ageInfo.monthRemDays}일`
+                      : appState.baby ? `${appState.baby.name}` : '아기 정보 없음'}
                   </div>
                 </div>
                 <div className="rpt-actions">
@@ -1975,7 +2032,7 @@ ${headStyles}
                 {/* Activity chart */}
                 <div className="section-card">
                   <div className="section-header">
-                    <h3 className="section-title">생활 패턴</h3>
+                    <h3 className="section-title hand rpt-section-title">생활 패턴</h3>
                   </div>
                   <div className="activity-legend">
                     <div className="act-legend-item"><div className="act-legend-dot act-sleep-dot"/><span>수면</span></div>
@@ -1990,7 +2047,7 @@ ${headStyles}
                 {/* Height growth chart */}
                 <div className="section-card">
                   <div className="section-header">
-                    <h3 className="section-title">📏 키 성장 곡선</h3>
+                    <h3 className="section-title hand rpt-section-title">키 성장 곡선</h3>
                     <button className="btn-secondary" onClick={()=>{ setGDate(todayStr()); setGHeight(''); setGWeight(''); setShowGrowthForm(v=>!v); }}>
                       {showGrowthForm ? '닫기' : '+ 기록'}
                     </button>
@@ -2029,7 +2086,7 @@ ${headStyles}
 
                 {/* Weight growth chart */}
                 <div className="section-card">
-                  <h3 className="section-title">⚖️ 몸무게 성장 곡선</h3>
+                  <h3 className="section-title hand rpt-section-title">몸무게 성장 곡선</h3>
                   <div className="growth-chart-wrap">
                     <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'weight', appState.baby?.gender || 'girl')}} />
                   </div>
@@ -2065,7 +2122,7 @@ ${headStyles}
 
                 {/* Health issues */}
                 <div className="section-card">
-                  <h3 className="section-title">🩺 최근 건강 이슈</h3>
+                  <h3 className="section-title hand rpt-section-title">최근 건강 이슈</h3>
                   {(!appState.health.logs || appState.health.logs.length === 0) ? (
                     <div className="rpt-empty">건강 기록이 없어요</div>
                   ) : (
