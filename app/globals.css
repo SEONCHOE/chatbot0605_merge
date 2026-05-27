@@ -1243,6 +1243,7 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .weather-icon-img { width: 32px; height: 32px; margin: -4px; }
 .weather-temp { font-size: 15px; font-weight: 700; color: var(--text); }
 .weather-desc { font-size: 11px; color: var(--text-mid); margin-left: 2px; }
+.weather-humidity { font-size: 11px; color: var(--text-mid); margin-left: 4px; }
 .weather-right { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .dust-badge {
   font-size: 10px; font-weight: 700; padding: 3px 8px;
@@ -1434,4 +1435,97 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .cal-no-baby {
   text-align: center; padding: 20px 0;
   font-size: 13px; color: var(--text-mid); line-height: 1.7;
+}
+
+/* ── Report: compact stats bar ───────────────────────────────── */
+.rpt-stats-bar {
+  display: flex; align-items: center; justify-content: space-around;
+  background: var(--surface); border-radius: var(--r-md);
+  padding: 9px 12px; margin-bottom: 14px;
+  box-shadow: var(--sh-sm);
+}
+.rpt-stat-item { display: flex; align-items: center; gap: 5px; }
+.rpt-stat-icon { font-size: 13px; }
+.rpt-stat-val  { font-size: 13px; font-weight: 900; color: var(--text); }
+.rpt-stat-label{ font-size: 10px; color: var(--text-mid); font-weight: 600; }
+.rpt-stat-div  { width: 1px; height: 18px; background: var(--border); }
+
+/* ── Report: print 2-column layout ──────────────────────────── */
+.rpt-print-cols, .rpt-col-left, .rpt-col-right { display: contents; }
+
+/* ── Report: donut chart ────────────────────────────────────── */
+.donut-wrap {
+  display: flex; align-items: center; gap: 20px;
+  padding: 16px 0 8px;
+}
+.donut-legend { display: flex; flex-direction: column; gap: 7px; }
+.donut-leg {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text);
+}
+.donut-leg b { margin-left: auto; padding-left: 12px; font-size: 13px; font-weight: 700; }
+.donut-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Report: 24h heatmap ────────────────────────────────────── */
+.heatmap-wrap { margin: 8px 0; }
+.heatmap-section-title {
+  font-size: 12px; font-weight: 700; color: var(--text-mid);
+  margin-bottom: 6px;
+}
+.heat-axis {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--text-light);
+  padding-left: 24px; margin-bottom: 3px;
+}
+.heat-row { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+.heat-day { width: 20px; font-size: 11px; color: var(--text-mid); flex-shrink: 0; text-align: center; }
+.heat-cells { display: flex; gap: 1px; flex: 1; }
+.heat-cell {
+  flex: 1; height: 14px; border-radius: 2px;
+  background: #EEEAE6; min-width: 0;
+}
+
+/* ── Share overlay ──────────────────────────────────────────── */
+.share-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fadeIn .18s ease;
+}
+.share-sheet {
+  width: 100%; max-width: 480px;
+  background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding: 20px 20px 32px; box-shadow: var(--sh-lg);
+  animation: slideUp .22s ease;
+}
+.share-sheet-title {
+  text-align: center; font-size: 15px; font-weight: 700;
+  color: var(--text); margin-bottom: 20px;
+}
+.share-sheet-grid { display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; }
+.share-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 20px; border-radius: var(--r-md);
+  background: var(--gradient-soft); font-size: 13px; color: var(--text);
+  font-weight: 600; min-width: 80px;
+  transition: opacity .15s;
+}
+.share-opt:hover { opacity: .8; }
+.share-opt-icon { font-size: 26px; }
+.share-cancel {
+  display: block; width: 100%; padding: 14px;
+  text-align: center; font-size: 14px; font-weight: 600;
+  color: var(--text-mid); background: var(--border);
+  border-radius: var(--r-md);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ── Print (new-window approach — minimal fallback) ─────────── */
+@media print {
+  nav, .h-tab-bar, .rpt-actions, .growth-form,
+  .btn-secondary, .growth-rec-del { display: none !important; }
 }

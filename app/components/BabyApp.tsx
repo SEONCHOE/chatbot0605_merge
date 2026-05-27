@@ -210,6 +210,53 @@ function buildGrowthSVG(records: Growth[], metric: GrowthMetric, gender: 'boy'|'
   </svg>`;
 }
 
+function buildDonutSVG(segments: {label:string;value:number;color:string}[]): string {
+  const total = segments.reduce((s, d) => s + d.value, 0);
+  if (total === 0) return '';
+  const r=37, cx=54, cy=54, circ=2*Math.PI*r;
+  let cum=0;
+  const circles = segments.map(seg => {
+    const pct=seg.value/total, dash=pct*circ, gap=circ-dash;
+    const rot=(cum/total)*360-90; cum+=seg.value;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="15" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" transform="rotate(${rot.toFixed(1)} ${cx} ${cy})" stroke-linecap="butt"/>`;
+  }).join('');
+  const legendRows = segments.map(seg => {
+    const pct=Math.round(seg.value/total*100);
+    if(pct===0) return '';
+    return `<div class="donut-leg"><span class="donut-dot" style="background:${seg.color}"></span>${seg.label}<b>${pct}%</b></div>`;
+  }).join('');
+  return `<div class="donut-wrap"><svg viewBox="0 0 108 108" style="width:108px;height:108px;flex-shrink:0"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#EEEAE6" stroke-width="15"/>${circles}</svg><div class="donut-legend">${legendRows}</div></div>`;
+}
+
+function buildHeatmap(logs: Record<string, Log[]>, days: number): string {
+  const colorMap: Record<string, string> = { sleep:'#4FAACC', feed:'#FF8040', pee:'#E6BC00', poop:'#B97A40', cry:'#E05577', walk:'#78C96E' };
+  const rows: string[] = [];
+  for (let i=days-1;i>=0;i--) {
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key=localDateStr(d);
+    const dayLogs=logs[key]||[];
+    const hourMap: Record<number, string> = {};
+    dayLogs.filter(l=>l.type==='sleep'&&l.startTime&&l.endTime).forEach(l=>{
+      let sh=parseInt(l.startTime!), eh=parseInt(l.endTime!);
+      if(isNaN(sh)||isNaN(eh)) return;
+      if(sh<=eh){for(let h=sh;h<=eh;h++) hourMap[h]='sleep';}
+      else{for(let h=sh;h<24;h++) hourMap[h]='sleep'; for(let h=0;h<=eh;h++) hourMap[h]='sleep';}
+    });
+    dayLogs.filter(l=>l.type!=='sleep').forEach(l=>{
+      const t=(l.startTime||l.time||'').split(':')[0];
+      const h=parseInt(t);
+      if(!isNaN(h)&&hourMap[h]===undefined) hourMap[h]=l.type;
+    });
+    const dow=['일','월','화','수','목','금','토'][d.getDay()];
+    const cells=Array.from({length:24},(_,h)=>{
+      const bg=colorMap[hourMap[h]]||'';
+      return `<div class="heat-cell"${bg?` style="background:${bg}"`:''} ></div>`;
+    }).join('');
+    rows.push(`<div class="heat-row"><span class="heat-day">${dow}</span><div class="heat-cells">${cells}</div></div>`);
+  }
+  return `<div class="heatmap-wrap"><div class="heatmap-section-title">24시간 패턴</div><div class="heat-axis"><span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>23시</span></div>${rows.join('')}</div>`;
+}
+
 function buildActivityChartHTML(logs: Record<string, Log[]>, mode: ReportMode): string {
   const days = mode==='week'?7:30;
   const raw: {label:string;sleepMin:number;feedCount:number;diaperCount:number}[] = [];
@@ -221,10 +268,26 @@ function buildActivityChartHTML(logs: Record<string, Log[]>, mode: ReportMode): 
     raw.push({label:['일','월','화','수','목','금','토'][d.getDay()],sleepMin,feedCount:ls.filter(l=>l.type==='feed').length,diaperCount:ls.filter(l=>l.type==='pee'||l.type==='poop').length});
   }
   const summary = mode==='week'?raw:[{label:'평균',sleepMin:raw.reduce((s,d)=>s+d.sleepMin,0)/days,feedCount:raw.reduce((s,d)=>s+d.feedCount,0)/days,diaperCount:raw.reduce((s,d)=>s+d.diaperCount,0)/days}];
+
+  // Donut
+  const totalSleep=raw.reduce((s,d)=>s+d.sleepMin,0);
+  const totalFeed=raw.reduce((s,d)=>s+d.feedCount,0)*30;
+  const totalDiaper=raw.reduce((s,d)=>s+d.diaperCount,0)*10;
+  const totalAwake=Math.max(0, days*1440-totalSleep-totalFeed-totalDiaper);
+  const donutHTML=buildDonutSVG([
+    {label:'수면',  value:totalSleep,  color:'#4FAACC'},
+    {label:'수유',  value:totalFeed,   color:'#FF8040'},
+    {label:'기저귀',value:totalDiaper, color:'#E6BC00'},
+    {label:'기타',  value:totalAwake,  color:'#E8E0D8'},
+  ]);
+
+  // Heatmap (week only)
+  const heatHTML = mode==='week' ? buildHeatmap(logs, 7) : '';
+
   const maxSleep=Math.max(...summary.map(d=>d.sleepMin),60);
   const maxFeed=Math.max(...summary.map(d=>d.feedCount),1);
   const maxDiaper=Math.max(...summary.map(d=>d.diaperCount),1);
-  return summary.map(d=>{
+  const barHTML = summary.map(d=>{
     const sw=Math.round((d.sleepMin/maxSleep)*55);
     const fw=Math.round((d.feedCount/maxFeed)*25);
     const dw=Math.round((d.diaperCount/maxDiaper)*20);
@@ -232,6 +295,8 @@ function buildActivityChartHTML(logs: Record<string, Log[]>, mode: ReportMode): 
     const tip=`${sleepH} · 수유 ${typeof d.feedCount==='number'?d.feedCount.toFixed(mode==='week'?0:1):d.feedCount}회 · 기저귀 ${typeof d.diaperCount==='number'?d.diaperCount.toFixed(mode==='week'?0:1):d.diaperCount}회`;
     return `<div class="act-row"><div class="act-day">${d.label}</div><div class="act-bar-track" title="${tip}"><div class="act-bar-seg act-sleep-seg" style="width:${sw}%"></div><div class="act-bar-seg act-feed-seg" style="width:${fw}%"></div><div class="act-bar-seg act-diaper-seg" style="width:${dw}%"></div></div><div class="act-label">${tip}</div></div>`;
   }).join('');
+
+  return donutHTML + heatHTML + `<div class="heatmap-section-title" style="margin-top:14px">일별 기록</div>` + barHTML;
 }
 
 // ── Milestones ───────────────────────────────────────────────────
@@ -316,6 +381,38 @@ function getShopKeywordsForAge(months: number): string[] {
 }
 
 // ── Bot helpers ──────────────────────────────────────────────────
+function koWeatherDesc(desc: string): string {
+  const map: Record<string, string> = {
+    'clear sky':'맑음', 'few clouds':'구름 조금', 'scattered clouds':'구름 많음',
+    'broken clouds':'흐림', 'overcast clouds':'흐림',
+    'light rain':'약한 비', 'moderate rain':'비', 'heavy intensity rain':'강한 비',
+    'very heavy rain':'폭우', 'extreme rain':'폭우', 'freezing rain':'진눈깨비',
+    'light intensity shower rain':'소나기', 'shower rain':'소나기', 'heavy intensity shower rain':'강한 소나기',
+    'light drizzle':'이슬비', 'drizzle':'이슬비', 'heavy intensity drizzle':'강한 이슬비',
+    'light intensity drizzle rain':'이슬비', 'drizzle rain':'이슬비',
+    'thunderstorm with light rain':'뇌우', 'thunderstorm with rain':'뇌우',
+    'thunderstorm with heavy rain':'강한 뇌우', 'thunderstorm':'뇌우',
+    'light thunderstorm':'약한 뇌우', 'heavy thunderstorm':'강한 뇌우', 'ragged thunderstorm':'뇌우',
+    'light snow':'약한 눈', 'snow':'눈', 'heavy snow':'폭설', 'sleet':'진눈깨비',
+    'light shower sleet':'약한 진눈깨비', 'shower sleet':'진눈깨비',
+    'light rain and snow':'비와 눈', 'rain and snow':'비와 눈',
+    'light shower snow':'약한 눈 소나기', 'shower snow':'눈 소나기', 'heavy shower snow':'강한 눈 소나기',
+    'mist':'안개', 'smoke':'연기', 'haze':'실안개', 'dust':'먼지',
+    'sand/dust whirls':'먼지바람', 'fog':'짙은 안개', 'sand':'모래바람',
+    'volcanic ash':'화산재', 'squalls':'돌풍', 'tornado':'태풍',
+  };
+  return map[desc.toLowerCase()] ?? desc;
+}
+
+function dustLevel(val: number, type: 'pm25' | 'pm10'): { label: string; cls: string } {
+  const grade = type === 'pm25'
+    ? (val <= 15 ? 0 : val <= 35 ? 1 : val <= 75 ? 2 : 3)
+    : (val <= 30 ? 0 : val <= 80 ? 1 : val <= 150 ? 2 : 3);
+  const labels = ['좋음', '보통', '나쁨', '매우나쁨'];
+  const clss   = ['good', 'normal', 'bad', 'very-bad'];
+  return { label: labels[grade], cls: clss[grade] };
+}
+
 function makeExtLinks(q: string) {
   const yt=encodeURIComponent(q), dg=encodeURIComponent(q), mg=encodeURIComponent(q);
   return `<div class="ext-links"><a class="ext-btn ext-youtube" href="https://www.youtube.com/results?search_query=${yt}" target="_blank" rel="noopener noreferrer">🎬 YouTube</a><a class="ext-btn ext-daangn" href="https://www.daangn.com/search/${dg}" target="_blank" rel="noopener noreferrer">🥕 당근마켓</a><a class="ext-btn ext-momsguide" href="https://momguide.co.kr/search/?q=${mg}" target="_blank" rel="noopener noreferrer">🧴 맘가이드</a></div>`;
@@ -463,16 +560,19 @@ export default function BabyApp() {
   const [timelineDate, setTimelineDate] = useState(() => todayStr());
   const [todoFilter, setTodoFilter] = useState<TodoFilter>('all');
   const [todoCat, setTodoCat] = useState<TodoCat>('vaccine');
-  const [healthTab, setHealthTab] = useState<HealthTab>('development');
+  const [healthTab, setHealthTab] = useState<HealthTab>('report');
   const todoInputRef = useRef<HTMLInputElement>(null);
 
   // Report
   const [reportMode, setReportMode] = useState<ReportMode>('week');
-  const [growthMetric, setGrowthMetric] = useState<GrowthMetric>('height');
+
   const [showGrowthForm, setShowGrowthForm] = useState(false);
   const [gDate, setGDate] = useState('');
   const [gHeight, setGHeight] = useState('');
   const [gWeight, setGWeight] = useState('');
+
+  // Share overlay
+  const [shareOverlay, setShareOverlay] = useState(false);
 
   // Voice overlay
   const [voiceOverlay, setVoiceOverlay] = useState(false);
@@ -687,6 +787,52 @@ export default function BabyApp() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastVisible(false), 2400);
   }, []);
+
+  // ── Report download / share ───────────────────────────────────
+  const handleDownload = useCallback(() => {
+    const el = document.getElementById('rpt-print-area');
+    if (!el) return;
+
+    const headStyles = Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(e => e.outerHTML).join('\n');
+
+    const win = window.open('', '_blank', 'width=960,height=700');
+    if (!win) { window.print(); return; }
+
+    win.document.write(`<!DOCTYPE html><html><head>
+<meta charset="utf-8"><title>육아 리포트</title>
+${headStyles}
+<style>
+  body { background:#fff; margin:0; padding:16px 20px;
+    font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif; }
+  #rpt-print-area { height:auto; overflow:visible; display:flex; flex-direction:column; gap:0; }
+  .rpt-print-cols { display:grid !important; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  .rpt-col-left, .rpt-col-right { display:block !important; }
+  .section-card { box-shadow:none; border:1px solid #e8e0d8; margin-bottom:12px;
+    padding:10px 12px; break-inside:avoid; border-radius:12px; }
+  .rpt-hero { background:linear-gradient(135deg,#FFF3EB 0%,#EDFAEC 100%); }
+  .rpt-actions, .rpt-seg, .growth-form, .btn-secondary,
+  .growth-rec-del, .h-tab-bar { display:none !important; }
+  .donut-wrap { padding:8px 0 4px; }
+  .heatmap-wrap { margin:4px 0; }
+  .heat-cell { height:11px; }
+</style>
+</head><body>${el.outerHTML}</body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 700);
+  }, []);
+
+  const handleShare = useCallback(async () => {
+    const babyName = appState.baby?.name ?? '아기';
+    const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 0;
+    const text = `${babyName} (${months}개월) 육아 리포트\n베이비케어 앱에서 확인해보세요!`;
+    if (navigator.share) {
+      try { await navigator.share({ title: `${babyName} 육아 리포트`, text }); } catch { /* cancelled */ }
+    } else {
+      setShareOverlay(true);
+    }
+  }, [appState.baby]);
 
   // ── Navigation ────────────────────────────────────────────────
   const navigate = (page: Page) => {
@@ -1082,7 +1228,7 @@ export default function BabyApp() {
 
   // ── Render ───────────────────────────────────────────────────
   return (
-    <div id="app">
+    <div id="app" suppressHydrationWarning>
       {/* Toast */}
       <div className={`toast${toastVisible?' show':''}`}>{toast}</div>
 
@@ -1376,20 +1522,18 @@ export default function BabyApp() {
                     alt={weather.desc}
                   />
                   <span className="weather-temp">{weather.temp}°C</span>
-                  <span className="weather-desc">{weather.desc}</span>
+                  <span className="weather-desc">{koWeatherDesc(weather.desc)}</span>
+                  {weather.humidity !== null && (
+                    <span className="weather-humidity">💧 {weather.humidity}%</span>
+                  )}
                 </div>
                 <div className="weather-right">
-                  {weather.pm25 !== null && (
-                    <span className={`dust-badge dust-${weather.pm25<=15?'good':weather.pm25<=35?'normal':weather.pm25<=75?'bad':'very-bad'}`}>
-                      PM2.5 {weather.pm25}
-                      {weather.pm25<=15?' 좋음':weather.pm25<=35?' 보통':weather.pm25<=75?' 나쁨':' 매우나쁨'}
-                    </span>
-                  )}
-                  {weather.pm10 !== null && (
-                    <span className={`dust-badge dust-${weather.pm10<=30?'good':weather.pm10<=80?'normal':weather.pm10<=150?'bad':'very-bad'}`}>
-                      PM10 {weather.pm10}
-                    </span>
-                  )}
+                  {weather.pm10 !== null && (() => { const d=dustLevel(weather.pm10,'pm10'); return (
+                    <span className={`dust-badge dust-${d.cls}`}>미세먼지 {d.label}</span>
+                  ); })()}
+                  {weather.pm25 !== null && (() => { const d=dustLevel(weather.pm25,'pm25'); return (
+                    <span className={`dust-badge dust-${d.cls}`}>초미세먼지 {d.label}</span>
+                  ); })()}
                 </div>
               </div>
             )}
@@ -1687,7 +1831,6 @@ export default function BabyApp() {
                   <div className="dev-age-banner">
                     <h3>현재 {ageInfo.months}개월 ({ageInfo.weeks}주)</h3>
                     <p>{appState.baby?.name}{koreanParticle(appState.baby?.name||'','이의','의')} 발달 체크리스트예요</p>
-                    <div dangerouslySetInnerHTML={{__html: makeExtLinks(`${ageInfo.months}개월 아기 발달 장난감`)}} />
                   </div>
                   {getMilestones(ageInfo.months).map(group=>(
                     <div key={group.title} className="milestone-group">
@@ -1759,7 +1902,7 @@ export default function BabyApp() {
             </div>
           </div>
           {/* Report Tab */}
-          <div className={`h-section${healthTab==='report'?' active':''} page-scroll`}>
+          <div id="rpt-print-area" className={`h-section${healthTab==='report'?' active':''} page-scroll`}>
             {/* Hero card */}
             <div className="section-card rpt-hero">
               <div className="rpt-title-row">
@@ -1768,6 +1911,14 @@ export default function BabyApp() {
                   <div className="rpt-baby-info">
                     {appState.baby ? `${appState.baby.name} · ${ageInfo?.months??0}개월` : '아기 정보 없음'}
                   </div>
+                </div>
+                <div className="rpt-actions">
+                  <button className="rpt-act-btn" onClick={handleDownload} title="다운로드">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                  </button>
+                  <button className="rpt-act-btn" onClick={handleShare} title="공유">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  </button>
                 </div>
               </div>
               <div style={{marginTop:'12px'}}>
@@ -1778,103 +1929,161 @@ export default function BabyApp() {
               </div>
             </div>
 
-            {/* Activity chart */}
-            <div className="section-card">
-              <div className="section-header">
-                <h3 className="section-title">생활 패턴</h3>
-              </div>
-              <div className="activity-legend">
-                <div className="act-legend-item"><div className="act-legend-dot act-sleep-dot"/><span>수면</span></div>
-                <div className="act-legend-item"><div className="act-legend-dot act-feed-dot"/><span>수유</span></div>
-                <div className="act-legend-item"><div className="act-legend-dot act-diaper-dot"/><span>기저귀</span></div>
-              </div>
-              <div className="activity-chart" dangerouslySetInnerHTML={{__html: buildActivityChartHTML(appState.logs, reportMode)}} />
-            </div>
-
-            {/* Growth chart */}
-            <div className="section-card">
-              <div className="section-header">
-                <h3 className="section-title">성장 곡선</h3>
-                <button className="btn-secondary" onClick={()=>{ setGDate(todayStr()); setGHeight(''); setGWeight(''); setShowGrowthForm(v=>!v); }}>
-                  {showGrowthForm ? '닫기' : '+ 기록'}
-                </button>
-              </div>
-
-              {/* Growth metric toggle */}
-              <div className="rpt-seg" style={{marginBottom:'12px'}}>
-                <button className={`rpt-seg-btn${growthMetric==='height'?' active':''}`} onClick={()=>setGrowthMetric('height')}>키</button>
-                <button className={`rpt-seg-btn${growthMetric==='weight'?' active':''}`} onClick={()=>setGrowthMetric('weight')}>몸무게</button>
-              </div>
-
-              {showGrowthForm && (
-                <div className="growth-form">
-                  <div className="growth-input-row">
-                    <input type="date" className="growth-in" value={gDate} onChange={e=>setGDate(e.target.value)} style={{flex:'1.2'}} />
-                    <input type="number" className="growth-in" placeholder="키 (cm)" value={gHeight} onChange={e=>setGHeight(e.target.value)} step="0.1" min="30" max="120" />
-                    <input type="number" className="growth-in" placeholder="몸무게 (kg)" value={gWeight} onChange={e=>setGWeight(e.target.value)} step="0.01" min="1" max="20" />
-                    <button className="btn-primary" style={{padding:'8px 12px',fontSize:'12px'}} onClick={saveGrowth}>저장</button>
+            {/* Summary stats bar */}
+            {(() => {
+              const days = reportMode === 'week' ? 7 : 30;
+              let totalSleepMin = 0, totalFeed = 0, totalDiaper = 0;
+              for (let i = 0; i < days; i++) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const ls = appState.logs[localDateStr(d)] || [];
+                totalSleepMin += ls.filter(l => l.type === 'sleep' && l.endTime).reduce((acc, l) => {
+                  let dur = hmToMin(l.endTime!) - hmToMin(l.startTime || '00:00');
+                  if (dur < 0) dur += 1440;
+                  return acc + dur;
+                }, 0);
+                totalFeed += ls.filter(l => l.type === 'feed').length;
+                totalDiaper += ls.filter(l => l.type === 'pee' || l.type === 'poop').length;
+              }
+              const avgSleepH = (totalSleepMin / days / 60).toFixed(1);
+              const avgFeed = (totalFeed / days).toFixed(1);
+              const avgDiaper = (totalDiaper / days).toFixed(1);
+              return (
+                <div className="rpt-stats-bar">
+                  <div className="rpt-stat-item">
+                    <span className="rpt-stat-icon">😴</span>
+                    <span className="rpt-stat-val">{avgSleepH}h</span>
+                    <span className="rpt-stat-label">수면</span>
+                  </div>
+                  <div className="rpt-stat-div"/>
+                  <div className="rpt-stat-item">
+                    <span className="rpt-stat-icon">🍼</span>
+                    <span className="rpt-stat-val">{avgFeed}회</span>
+                    <span className="rpt-stat-label">수유</span>
+                  </div>
+                  <div className="rpt-stat-div"/>
+                  <div className="rpt-stat-item">
+                    <span className="rpt-stat-icon">💧</span>
+                    <span className="rpt-stat-val">{avgDiaper}회</span>
+                    <span className="rpt-stat-label">기저귀</span>
                   </div>
                 </div>
-              )}
+              );
+            })()}
 
-              {/* SVG growth chart */}
-              <div className="growth-chart-wrap">
-                <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, growthMetric, appState.baby?.gender || 'girl')}} />
+            <div className="rpt-print-cols">
+              <div className="rpt-col-left">
+                {/* Activity chart */}
+                <div className="section-card">
+                  <div className="section-header">
+                    <h3 className="section-title">생활 패턴</h3>
+                  </div>
+                  <div className="activity-legend">
+                    <div className="act-legend-item"><div className="act-legend-dot act-sleep-dot"/><span>수면</span></div>
+                    <div className="act-legend-item"><div className="act-legend-dot act-feed-dot"/><span>수유</span></div>
+                    <div className="act-legend-item"><div className="act-legend-dot act-diaper-dot"/><span>기저귀</span></div>
+                  </div>
+                  <div className="activity-chart" dangerouslySetInnerHTML={{__html: buildActivityChartHTML(appState.logs, reportMode)}} />
+                </div>
               </div>
 
-              {/* Latest percentile */}
-              {(() => {
-                const sorted = [...appState.growth].filter(r => growthMetric==='height'?r.height!=null:r.weight!=null).sort((a,b)=>b.date.localeCompare(a.date));
-                const latest = sorted[0];
-                if (!latest || !ageInfo) return null;
-                const val = growthMetric==='height' ? latest.height! : latest.weight!;
-                const result = calcPercentile(val, ageInfo.months, growthMetric, appState.baby?.gender || 'girl');
-                return (
-                  <div className="growth-percentile-badge">
-                    <div className="growth-pct-row">
-                      <div className="growth-pct-icon">{result.emoji}</div>
-                      <div>
-                        <div className="growth-pct-label">{growthMetric==='height'?`${val}cm`:`${val}kg`} — {result.label}</div>
-                        <div className="growth-pct-sub">WHO 성장 기준 (P3/P50/P97)</div>
-                      </div>
-                    </div>
+              <div className="rpt-col-right">
+                {/* Height growth chart */}
+                <div className="section-card">
+                  <div className="section-header">
+                    <h3 className="section-title">📏 키 성장 곡선</h3>
+                    <button className="btn-secondary" onClick={()=>{ setGDate(todayStr()); setGHeight(''); setGWeight(''); setShowGrowthForm(v=>!v); }}>
+                      {showGrowthForm ? '닫기' : '+ 기록'}
+                    </button>
                   </div>
-                );
-              })()}
-
-              {/* Record list */}
-              {appState.growth.length > 0 && (
-                <div className="growth-records">
-                  {[...appState.growth].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(r=>(
-                    <div key={r.id} className="growth-rec-row">
-                      <span className="growth-rec-date">{r.date}</span>
-                      <span className="growth-rec-vals">{r.height!=null?`${r.height}cm`:''}{r.height!=null&&r.weight!=null?' · ':''}{r.weight!=null?`${r.weight}kg`:''}</span>
-                      <button className="growth-rec-del" onClick={()=>deleteGrowth(r.id)}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Health issues */}
-            <div className="section-card">
-              <h3 className="section-title">🩺 최근 건강 이슈</h3>
-              {(!appState.health.logs || appState.health.logs.length === 0) ? (
-                <div className="rpt-empty">건강 기록이 없어요</div>
-              ) : (
-                <div className="rpt-issues">
-                  {[...appState.health.logs].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,5).map(l=>(
-                    <div key={l.id} className="rpt-issue-card">
-                      <div className="rpt-issue-top">
-                        <span className="rpt-issue-type">{{temp:'체온',rash:'피부',symptom:'증상',other:'기타'}[l.type]}</span>
-                        <span className="rpt-issue-date">{l.date} {l.time}</span>
+                  {showGrowthForm && (
+                    <div className="growth-form">
+                      <div className="growth-input-row">
+                        <input type="date" className="growth-in" value={gDate} onChange={e=>setGDate(e.target.value)} style={{flex:'1.2'}} />
+                        <input type="number" className="growth-in" placeholder="키 (cm)" value={gHeight} onChange={e=>setGHeight(e.target.value)} step="0.1" min="30" max="120" />
+                        <input type="number" className="growth-in" placeholder="몸무게 (kg)" value={gWeight} onChange={e=>setGWeight(e.target.value)} step="0.01" min="1" max="20" />
+                        <button className="btn-primary" style={{padding:'8px 12px',fontSize:'12px'}} onClick={saveGrowth}>저장</button>
                       </div>
-                      <div className="rpt-issue-detail">{l.detail}</div>
                     </div>
-                  ))}
+                  )}
+                  <div className="growth-chart-wrap">
+                    <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'height', appState.baby?.gender || 'girl')}} />
+                  </div>
+                  {(() => {
+                    const sorted = [...appState.growth].filter(r => r.height != null).sort((a,b)=>b.date.localeCompare(a.date));
+                    const latest = sorted[0];
+                    if (!latest || !ageInfo) return null;
+                    const result = calcPercentile(latest.height!, ageInfo.months, 'height', appState.baby?.gender || 'girl');
+                    return (
+                      <div className="growth-percentile-badge">
+                        <div className="growth-pct-row">
+                          <div className="growth-pct-icon">{result.emoji}</div>
+                          <div>
+                            <div className="growth-pct-label">{latest.height}cm — {result.label}</div>
+                            <div className="growth-pct-sub">WHO 성장 기준 (P3/P50/P97)</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-              )}
-            </div>
+
+                {/* Weight growth chart */}
+                <div className="section-card">
+                  <h3 className="section-title">⚖️ 몸무게 성장 곡선</h3>
+                  <div className="growth-chart-wrap">
+                    <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'weight', appState.baby?.gender || 'girl')}} />
+                  </div>
+                  {(() => {
+                    const sorted = [...appState.growth].filter(r => r.weight != null).sort((a,b)=>b.date.localeCompare(a.date));
+                    const latest = sorted[0];
+                    if (!latest || !ageInfo) return null;
+                    const result = calcPercentile(latest.weight!, ageInfo.months, 'weight', appState.baby?.gender || 'girl');
+                    return (
+                      <div className="growth-percentile-badge">
+                        <div className="growth-pct-row">
+                          <div className="growth-pct-icon">{result.emoji}</div>
+                          <div>
+                            <div className="growth-pct-label">{latest.weight}kg — {result.label}</div>
+                            <div className="growth-pct-sub">WHO 성장 기준 (P3/P50/P97)</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {appState.growth.length > 0 && (
+                    <div className="growth-records">
+                      {[...appState.growth].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(r=>(
+                        <div key={r.id} className="growth-rec-row">
+                          <span className="growth-rec-date">{r.date}</span>
+                          <span className="growth-rec-vals">{r.height!=null?`${r.height}cm`:''}{r.height!=null&&r.weight!=null?' · ':''}{r.weight!=null?`${r.weight}kg`:''}</span>
+                          <button className="growth-rec-del" onClick={()=>deleteGrowth(r.id)}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Health issues */}
+                <div className="section-card">
+                  <h3 className="section-title">🩺 최근 건강 이슈</h3>
+                  {(!appState.health.logs || appState.health.logs.length === 0) ? (
+                    <div className="rpt-empty">건강 기록이 없어요</div>
+                  ) : (
+                    <div className="rpt-issues">
+                      {[...appState.health.logs].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,5).map(l=>(
+                        <div key={l.id} className="rpt-issue-card">
+                          <div className="rpt-issue-top">
+                            <span className="rpt-issue-type">{{temp:'체온',rash:'피부',symptom:'증상',other:'기타'}[l.type]}</span>
+                            <span className="rpt-issue-date">{l.date} {l.time}</span>
+                          </div>
+                          <div className="rpt-issue-detail">{l.detail}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>{/* rpt-col-right */}
+            </div>{/* rpt-print-cols */}
           </div>
         </section>
 
@@ -1915,18 +2124,18 @@ export default function BabyApp() {
         <section id="page-info" className={`page${currentPage==='info'?' active':''}`}>
           <div className="page-scroll">
 
-            {/* Header */}
-            <div className="yt-page-header">
-              {ytView === 'list' && ytSelectedCat && (
+            {/* Header — list view only */}
+            {ytView === 'list' && ytSelectedCat && (
+              <div className="yt-page-header">
                 <button className="yt-back-btn" onClick={() => { setYtView('home'); setYtSelectedCat(null); }}>
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
-              )}
-              <div>
-                <div className="screen-title hand">{ytView === 'list' && ytSelectedCat ? ytSelectedCat.label : '정보'}</div>
-                <div className="screen-sub">{ytView === 'list' && ytSelectedCat ? ytSelectedCat.desc : '육아 YouTube 추천 영상'}</div>
+                <div>
+                  <div className="screen-title hand">{ytSelectedCat.label}</div>
+                  <div className="screen-sub">{ytSelectedCat.desc}</div>
+                </div>
               </div>
-            </div>
+            )}
 
             {ytView === 'home' ? (
               <>
@@ -2209,6 +2418,30 @@ export default function BabyApp() {
           <span className="nav-label">정보</span>
         </button>
       </nav>
+
+      {/* Share overlay */}
+      {shareOverlay && (
+        <div className="share-overlay" onClick={()=>setShareOverlay(false)}>
+          <div className="share-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="share-sheet-title">공유하기</div>
+            <div className="share-sheet-grid">
+              <button className="share-opt" onClick={async()=>{
+                const text=`${appState.baby?.name??'아기'} (${ageInfo?.months??0}개월) 육아 리포트`;
+                await navigator.clipboard.writeText(text).catch(()=>{});
+                setShareOverlay(false); showToast('📋 클립보드에 복사됐어요!');
+              }}>
+                <span className="share-opt-icon">📋</span>
+                <span>링크 복사</span>
+              </button>
+              <button className="share-opt" onClick={()=>{ window.print(); setShareOverlay(false); }}>
+                <span className="share-opt-icon">🖨️</span>
+                <span>인쇄</span>
+              </button>
+            </div>
+            <button className="share-cancel" onClick={()=>setShareOverlay(false)}>취소</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
