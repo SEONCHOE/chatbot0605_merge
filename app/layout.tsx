@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Gaegu } from "next/font/google";
+
+const gaegu = Gaegu({ weight: ['400', '700'], subsets: ['latin'], display: 'swap', variable: '--font-gaegu' });
 
 export const metadata: Metadata = {
   title: "베이비로그 — 아기 돌봄 일지",
@@ -19,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full">
+    <html lang="ko" className={`h-full ${gaegu.variable}`}>
       <body className="h-full" suppressHydrationWarning>{children}</body>
     </html>
   );

@@ -421,9 +421,12 @@ export default function BabyApp() {
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
-  // OpenAI API key
-  const [openAiKey, setOpenAiKey] = useState('');
-  const [keyInput, setKeyInput] = useState('');
+  // YouTube videos (info page)
+  const [ytVideos, setYtVideos] = useState<{id:{videoId:string};snippet:{title:string;channelTitle:string;thumbnails:{medium:{url:string}}}}[]>([]);
+  const [ytLoading, setYtLoading] = useState(false);
+
+  // Weather
+  const [weather, setWeather] = useState<{temp:number;desc:string;icon:string;humidity:number|null;city:string;aqi:number|null;pm25:number|null;pm10:number|null}|null>(null);
 
   // Calendar
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
@@ -467,9 +470,6 @@ export default function BabyApp() {
 
   // Load from DB via API
   useEffect(() => {
-    const savedKey = localStorage.getItem('openai_api_key') || '';
-    setOpenAiKey(savedKey);
-    setKeyInput(savedKey);
     fetch('/api/state')
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setAppState(Object.assign(defaultState(), data)); })
@@ -511,6 +511,29 @@ export default function BabyApp() {
     if (chatMessagesRef.current)
       setTimeout(() => { chatMessagesRef.current!.scrollTop = chatMessagesRef.current!.scrollHeight; }, 30);
   }, [chatMessages]);
+
+  // Weather fetch on mount
+  useEffect(() => {
+    fetch('/api/weather?city=Seoul')
+      .then(r => r.json())
+      .then(d => { if (!d.error) setWeather(d); })
+      .catch(() => {});
+  }, []);
+
+  // YouTube video fetch when info page opens
+  useEffect(() => {
+    if (currentPage !== 'info') return;
+    if (ytVideos.length > 0) return;
+    setYtLoading(true);
+    const q = appState.baby
+      ? `${getAgeInfo(appState.baby.birthDate).months}개월 아기 육아 소아과`
+      : '신생아 아기 육아';
+    fetch(`/api/youtube?q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(data => setYtVideos(data.items || []))
+      .catch(() => {})
+      .finally(() => setYtLoading(false));
+  }, [currentPage]);
 
   // ── Helpers ──────────────────────────────────────────────────
   const saveAppState = useCallback((s: AppState) => {
@@ -734,25 +757,21 @@ export default function BabyApp() {
     ]);
     try {
       const { chunks, figures } = await searchRAG(text);
-      let html: string;
-      if (!openAiKey) {
-        html = getBotResponse(text, months, name) + renderSources(chunks, figures);
-      } else {
-        const context = chunks.length
-          ? chunks.map(c => { const p = c.metadata.page ? ` (p.${c.metadata.page})` : ''; return `[출처: ${c.metadata.source}${p}]\n${c.text}`; }).join('\n\n---\n\n')
-          : '';
-        const systemPrompt = `너는 영유아 육아 전문 챗봇이야.\n아기 이름: ${name}, 월령: ${months != null ? months + '개월' : '미입력'}.\n아래 참고 문서를 바탕으로 질문에 정확하고 실용적인 답변을 해줘.\n- 항상 한국어로 답변\n- 중요 키워드는 <strong>볼드</strong> 처리\n- 목록은 <ul><li> 형식\n- 의학적 결정은 반드시 소아청소년과 전문의 상담 권고 포함\n- 없는 정보를 지어내지 마\n\n[참고 문서]\n${context || '관련 문서 없음. 일반 육아 지식으로 답변.'}`;
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${openAiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 800, temperature: 0.3, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }] }),
-        });
-        const data = await res.json();
-        html = (data.choices?.[0]?.message?.content || '답변을 생성하지 못했어요.') + renderSources(chunks, figures);
-      }
+      const context = chunks.length
+        ? chunks.map(c => { const p = c.metadata.page ? ` (p.${c.metadata.page})` : ''; return `[출처: ${c.metadata.source}${p}]\n${c.text}`; }).join('\n\n---\n\n')
+        : '';
+      const systemPrompt = `너는 영유아 육아 전문 챗봇이야.\n아기 이름: ${name}, 월령: ${months != null ? months + '개월' : '미입력'}.\n아래 참고 문서를 바탕으로 질문에 정확하고 실용적인 답변을 해줘.\n- 항상 한국어로 답변\n- 중요 키워드는 <strong>볼드</strong> 처리\n- 목록은 <ul><li> 형식\n- 의학적 결정은 반드시 소아청소년과 전문의 상담 권고 포함\n- 없는 정보를 지어내지 마\n\n[참고 문서]\n${context || '관련 문서 없음. 일반 육아 지식으로 답변.'}`;
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 800, temperature: 0.3, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }] }),
+      });
+      const data = await res.json();
+      const html = (data.choices?.[0]?.message?.content || getBotResponse(text, months, name)) + renderSources(chunks, figures);
       setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html }]);
     } catch {
-      setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html: getBotResponse(text, months, name) }]);
+      const months2 = appState.baby ? getAgeInfo(appState.baby.birthDate).months : null;
+      setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html: getBotResponse(text, months2, name) }]);
     }
   };
 
@@ -800,13 +819,6 @@ export default function BabyApp() {
   };
 
   const processVoiceInput = async (transcript: string) => {
-    if (!openAiKey) {
-      setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false);
-      navigate('chat');
-      setTimeout(() => sendChat(transcript), 200);
-      showToast('💬 챗봇으로 전달했어요 (API 키 미설정)');
-      return;
-    }
     const voiceTools = [
       { type:'function', function:{ name:'record_activity', description:'아기의 활동(수유, 수면, 기저귀, 산책, 울음)을 시간표에 기록합니다.', parameters:{ type:'object', properties:{ type:{type:'string',enum:['feed','sleep','pee','poop','cry','walk'],description:'활동 유형'}, time:{type:'string',description:'시작 시간 HH:MM'}, endTime:{type:'string',description:'종료 시간 HH:MM'}, amount:{type:'number',description:'수유량(ml)'}, feedType:{type:'string',enum:['분유','모유','혼합']}, note:{type:'string',description:'메모'} }, required:['type'] } } },
       { type:'function', function:{ name:'save_schedule', description:'할일이나 예약 일정을 스케줄에 저장합니다.', parameters:{ type:'object', properties:{ text:{type:'string',description:'할일 내용'}, category:{type:'string',enum:['health','food','play','etc'],description:'health=건강/병원/접종, food=이유식, play=놀이, etc=기타'} }, required:['text','category'] } } },
@@ -817,9 +829,9 @@ export default function BabyApp() {
       setVoiceTranscript(`"${transcript}"`);
       const babyMonths = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 5;
       const babyName = appState.baby?.name || '아기';
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch('/api/chat', {
         method:'POST',
-        headers:{ 'Authorization':`Bearer ${openAiKey}`, 'Content-Type':'application/json' },
+        headers:{ 'Content-Type':'application/json' },
         body:JSON.stringify({
           model:'gpt-4o-mini',
           messages:[
@@ -1189,7 +1201,7 @@ export default function BabyApp() {
               <div className="baby-hero-top">
                 <div className="baby-face">{appState.baby?.gender==='boy'?'👦':'👧'}</div>
                 <div className="baby-hero-info">
-                  <div className="baby-hero-name" role="button" tabIndex={0} onClick={()=>{setModal('setup');}}>{appState.baby?.name||'베이비'}</div>
+                  <div className="baby-hero-name hand" role="button" tabIndex={0} onClick={()=>{setModal('setup');}}>{appState.baby?.name||'베이비'}</div>
                   <div className="baby-hero-pills">
                     {ageInfo ? (
                       <>
@@ -1204,18 +1216,46 @@ export default function BabyApp() {
                 </button>
               </div>
               <div className="baby-hero-stats">
-                <div className="bhs-item"><div className="bhs-val">{feedCount>0?`${feedCount}회`:'—'}</div><div className="bhs-lbl">수유</div></div>
+                <div className="bhs-item"><div className="bhs-val hand">{feedCount>0?`${feedCount}회`:'—'}</div><div className="bhs-lbl">수유</div></div>
                 <div className="bhs-divider"/>
-                <div className="bhs-item"><div className="bhs-val">{sleepMin===0?'—':sleepMin>=60?`${Math.floor(sleepMin/60)}h${sleepMin%60>0?` ${sleepMin%60}m`:''}`:` ${sleepMin}m`}</div><div className="bhs-lbl">수면</div></div>
+                <div className="bhs-item"><div className="bhs-val hand">{sleepMin===0?'—':sleepMin>=60?`${Math.floor(sleepMin/60)}h${sleepMin%60>0?` ${sleepMin%60}m`:''}`:` ${sleepMin}m`}</div><div className="bhs-lbl">수면</div></div>
                 <div className="bhs-divider"/>
-                <div className="bhs-item"><div className="bhs-val">{diaperCount>0?`${diaperCount}회`:'—'}</div><div className="bhs-lbl">기저귀</div></div>
+                <div className="bhs-item"><div className="bhs-val hand">{diaperCount>0?`${diaperCount}회`:'—'}</div><div className="bhs-lbl">기저귀</div></div>
               </div>
             </div>
+
+            {/* 날씨 & 미세먼지 */}
+            {weather && (
+              <div className="weather-bar">
+                <div className="weather-left">
+                  <img
+                    className="weather-icon-img"
+                    src={`https://openweathermap.org/img/wn/${weather.icon}.png`}
+                    alt={weather.desc}
+                  />
+                  <span className="weather-temp">{weather.temp}°C</span>
+                  <span className="weather-desc">{weather.desc}</span>
+                </div>
+                <div className="weather-right">
+                  {weather.pm25 !== null && (
+                    <span className={`dust-badge dust-${weather.pm25<=15?'good':weather.pm25<=35?'normal':weather.pm25<=75?'bad':'very-bad'}`}>
+                      PM2.5 {weather.pm25}
+                      {weather.pm25<=15?' 좋음':weather.pm25<=35?' 보통':weather.pm25<=75?' 나쁨':' 매우나쁨'}
+                    </span>
+                  )}
+                  {weather.pm10 !== null && (
+                    <span className={`dust-badge dust-${weather.pm10<=30?'good':weather.pm10<=80?'normal':weather.pm10<=150?'bad':'very-bad'}`}>
+                      PM10 {weather.pm10}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 다가오는 일정 */}
             <div className="section-card">
               <div className="section-header">
-                <h3 className="section-title">다가오는 일정</h3>
+                <h3 className="section-title hand">다가오는 일정</h3>
                 <button className="see-all-btn" onClick={()=>navigate('schedule')}>전체 →</button>
               </div>
               <div className="home-upcoming-list">
@@ -1231,7 +1271,7 @@ export default function BabyApp() {
             </div>
 
             <div className="section-card">
-              <h3 className="section-title">빠른 기록</h3>
+              <h3 className="section-title hand">빠른 기록</h3>
               <div className="quick-grid">
                 {(['sleep','feed','pee','poop','cry','walk'] as LogType[]).map(type=>(
                   <button key={type} className={`quick-btn qbtn-${type}`} onClick={()=>openAddLog(type)}>
@@ -1243,7 +1283,7 @@ export default function BabyApp() {
 
             <div className="section-card">
               <div className="section-header">
-                <h3 className="section-title">최근 기록</h3>
+                <h3 className="section-title hand">최근 기록</h3>
                 <button className="see-all-btn" onClick={()=>navigate('timeline')}>전체보기 →</button>
               </div>
               <div className="recent-logs-list">
@@ -1267,7 +1307,7 @@ export default function BabyApp() {
             </div>
 
             <div className="section-card">
-              <h3 className="section-title">오늘의 알림 🔔</h3>
+              <h3 className="section-title hand">오늘의 알림 🔔</h3>
               <div className="alerts-list">
                 {alerts.length===0 ? (
                   <div className="empty-state" style={{padding:'12px'}}><div className="empty-icon" style={{fontSize:'28px'}}>🔕</div><p style={{fontSize:'12px'}}>오늘은 특별한 알림이 없어요</p></div>
@@ -1700,25 +1740,8 @@ export default function BabyApp() {
         <section id="page-chat" className={`page page-chat-layout${currentPage==='chat'?' active':''}`}>
           <div className="chat-bot-header">
             <div className="bot-avatar-lg">🤱</div>
-            <div><div className="bot-name">베이비케어 도우미</div><div className="bot-status">{openAiKey ? '🤖 RAG AI 모드' : '💬 기본 답변 모드'}</div></div>
+            <div><div className="bot-name">베이비케어 도우미</div><div className="bot-status">🤖 RAG AI 모드</div></div>
           </div>
-          {!openAiKey ? (
-            <div className="api-key-banner">
-              <p>🔑 OpenAI API 키를 입력하면 육아 문서 기반 AI 답변을 받을 수 있어요</p>
-              <div className="api-key-row">
-                <input type="password" className="api-key-input" placeholder="sk-..." value={keyInput}
-                  onChange={e => setKeyInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && keyInput.trim()) { localStorage.setItem('openai_api_key', keyInput.trim()); setOpenAiKey(keyInput.trim()); showToast('🔑 API 키가 저장됐어요'); }}} />
-                <button className="btn-primary" style={{whiteSpace:'nowrap'}} onClick={() => { if (!keyInput.trim()) return; localStorage.setItem('openai_api_key', keyInput.trim()); setOpenAiKey(keyInput.trim()); showToast('🔑 API 키가 저장됐어요'); }}>저장</button>
-              </div>
-              <p style={{fontSize:'11px',color:'var(--text-light)'}}>키 없이도 기본 답변 이용 가능</p>
-            </div>
-          ) : (
-            <div className="api-key-connected">
-              <span>🤖 AI 연결됨</span>
-              <button onClick={() => { localStorage.removeItem('openai_api_key'); setOpenAiKey(''); setKeyInput(''); showToast('🔑 API 키가 해제됐어요'); }}>해제</button>
-            </div>
-          )}
           <div className="chat-messages" ref={chatMessagesRef}>
             {chatMessages.map(msg=>(
               <div key={msg.id} className={`chat-msg ${msg.role}`}>
@@ -1749,42 +1772,42 @@ export default function BabyApp() {
         {/* ❻ INFO */}
         <section id="page-info" className={`page${currentPage==='info'?' active':''}`}>
           <div className="page-scroll">
-            <div className="section-card">
-              <h3 className="section-title">📺 육아 유튜브</h3>
-              <p className="info-note">전문 소아과 의사와 육아 전문가의 영상을 참고해보세요</p>
-              <div className="info-open-wrap" style={{padding:'16px 0 8px'}}>
-                <a className="info-open-btn"
-                  href={`https://www.youtube.com/results?search_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기`:'아기')+ ' 육아 소아과')}`}
-                  target="_blank" rel="noopener noreferrer">
-                  <span style={{fontSize:'28px'}}>▶</span>
-                  <span>YouTube에서 보기</span>
-                </a>
-                <p className="info-open-hint">{ageInfo?`${ageInfo.months}개월 아기 관련 영상을 검색해요`:''}</p>
-              </div>
+            <div style={{padding:'20px 20px 4px'}}>
+              <div className="screen-title hand">정보</div>
+              <div className="screen-sub">육아 관련 YouTube 추천 영상</div>
             </div>
-            <div className="section-card">
-              <h3 className="section-title">🔍 관련 검색</h3>
-              <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                {[
-                  {label:'🥕 당근마켓 — 육아용품', href:`https://www.daangn.com/search/${encodeURIComponent('육아용품')}`, bg:'#fff3eb', color:'#e85c00'},
-                  {label:'🧴 맘가이드 — 제품 리뷰', href:'https://momguide.co.kr', bg:'var(--lime-pale)', color:'#3a8033'},
-                  {label:'💉 예방접종도우미', href:'https://nip.kdca.go.kr', bg:'#e9f2ff', color:'#2255cc'},
-                ].map(({label, href, bg, color})=>(
-                  <a key={href} href={href} target="_blank" rel="noopener noreferrer"
-                    style={{display:'flex',alignItems:'center',gap:'10px',padding:'12px',borderRadius:'var(--r-md)',background:bg,color,fontWeight:700,fontSize:'13px',textDecoration:'none'}}>
-                    {label}
-                    <span style={{marginLeft:'auto',opacity:.5}}>›</span>
-                  </a>
-                ))}
-              </div>
+            <div className="info-open-wrap" style={{padding:'16px 20px'}}>
+              <a className="info-open-btn"
+                href={`https://www.youtube.com/results?search_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기`:'아기')+ ' 육아 소아과')}`}
+                target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 0 0023 12a29 29 0 00-.46-5.58z"/>
+                  <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="white" stroke="none"/>
+                </svg>
+                YouTube 추천 영상 보기
+              </a>
+              <p className="info-open-hint">새 탭에서 열립니다</p>
             </div>
-            <div className="section-card">
-              <h3 className="section-title">ℹ️ 앱 정보</h3>
-              <p className="info-note" style={{marginBottom:0}}>
-                베이비로그 v1.0<br/>
-                수면, 수유, 기저귀, 건강, 발달을 기록하는 스마트 육아 일지입니다.<br/>
-                RAG 기반 AI 챗봇으로 육아 전문 정보를 제공해요.
-              </p>
+
+            {/* YouTube 영상 목록 */}
+            <div style={{padding:'0 16px 16px'}}>
+              {ytLoading ? (
+                <div style={{textAlign:'center',padding:'24px',color:'var(--text-light)',fontSize:'13px'}}>영상을 불러오는 중...</div>
+              ) : ytVideos.length > 0 ? (
+                <div className="yt-video-list">
+                  {ytVideos.map(v => (
+                    <a key={v.id.videoId} className="yt-video-card"
+                      href={`https://www.youtube.com/watch?v=${v.id.videoId}`}
+                      target="_blank" rel="noopener noreferrer">
+                      <img className="yt-video-thumb" src={v.snippet.thumbnails.medium.url} alt={v.snippet.title} loading="lazy" />
+                      <div className="yt-video-info">
+                        <div className="yt-video-title">{v.snippet.title}</div>
+                        <div className="yt-video-channel">{v.snippet.channelTitle}</div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -1831,14 +1854,18 @@ export default function BabyApp() {
 
       {/* Bottom Navigation — 7-col grid with center FAB mic */}
       <nav className="bottom-nav" role="navigation">
-        {([['home','🏠','홈'],['timeline','📅','타임라인'],['schedule','✅','스케줄']] as [Page,string,string][]).map(([page,icon,label])=>(
-          <button key={page} className={`nav-item${currentPage===page?' active':''}`}
-            onClick={()=>navigate(page)}
-            aria-label={label} aria-current={currentPage===page?'page':undefined}>
-            <span className="nav-icon">{icon}</span>
-            <span className="nav-label">{label}</span>
-          </button>
-        ))}
+        <button className={`nav-item${currentPage==='home'?' active':''}`} onClick={()=>navigate('home')} aria-label="홈" aria-current={currentPage==='home'?'page':undefined}>
+          <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a2 2 0 01-2 2h-4v-7H9v7H5a2 2 0 01-2-2v-9z"/></svg>
+          <span className="nav-label">홈</span>
+        </button>
+        <button className={`nav-item${currentPage==='timeline'?' active':''}`} onClick={()=>navigate('timeline')} aria-label="시간표" aria-current={currentPage==='timeline'?'page':undefined}>
+          <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span className="nav-label">시간표</span>
+        </button>
+        <button className={`nav-item${currentPage==='schedule'?' active':''}`} onClick={()=>navigate('schedule')} aria-label="스케줄" aria-current={currentPage==='schedule'?'page':undefined}>
+          <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+          <span className="nav-label">스케줄</span>
+        </button>
 
         {/* Center FAB mic */}
         <div className="nav-center-area">
@@ -1876,14 +1903,18 @@ export default function BabyApp() {
           </button>
         </div>
 
-        {([['health','❤️','건강'],['chat','💬','챗봇'],['info','ℹ️','정보']] as [Page,string,string][]).map(([page,icon,label])=>(
-          <button key={page} className={`nav-item${currentPage===page?' active':''}`}
-            onClick={()=>navigate(page)}
-            aria-label={label} aria-current={currentPage===page?'page':undefined}>
-            <span className="nav-icon">{icon}</span>
-            <span className="nav-label">{label}</span>
-          </button>
-        ))}
+        <button className={`nav-item${currentPage==='health'?' active':''}`} onClick={()=>navigate('health')} aria-label="건강" aria-current={currentPage==='health'?'page':undefined}>
+          <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.8 8.6a5.5 5.5 0 00-9.3-3 5.5 5.5 0 00-9.3 3c0 6.5 9.3 11.4 9.3 11.4s9.3-4.9 9.3-11.4z"/></svg>
+          <span className="nav-label">건강</span>
+        </button>
+        <button className={`nav-item${currentPage==='chat'?' active':''}`} onClick={()=>navigate('chat')} aria-label="챗봇" aria-current={currentPage==='chat'?'page':undefined}>
+          <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <span className="nav-label">챗봇</span>
+        </button>
+        <button className={`nav-item${currentPage==='info'?' active':''}`} onClick={()=>navigate('info')} aria-label="정보" aria-current={currentPage==='info'?'page':undefined}>
+          <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 0 0023 12a29 29 0 00-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" stroke="none"/></svg>
+          <span className="nav-label">정보</span>
+        </button>
       </nav>
     </div>
   );

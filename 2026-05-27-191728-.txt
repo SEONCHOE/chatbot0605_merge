@@ -1,0 +1,1962 @@
+ ▐▛███▜▌   Claude Code v2.1.152
+▝▜█████▛▘  Sonnet 4.6 · Claude Pro
+  ▘▘ ▝▝    /…/ssunn/OneDrive/Documents/GitHub/chatbot0605_merge/my-baby
+  ⎿  Referenced file app/components/BabyApp.tsx
+  ⎿  Referenced file app/globals.css
+  ⎿  Read app/layout.tsx (27 lines)
+  ⎿  Read .env.local (7 lines)
+  ⎿  Read ../../../../../../../../../tmp/claude-1000/-mnt-c-Users-ssunn-OneDrive-Documents-GitHub-plan-plan-claude/c3aa962b-969a-4f88-8c38-ca4a640d7d65/tasks/by82q254z.output (1 lines)
+
+● Reading the remaining app.js code and current BabyApp.tsx to continue porting.
+
+  Read 2 files (ctrl+o to expand)
+
+● Let me read more of both files to understand the calendar code and current
+  state of BabyApp.tsx.
+
+  Read 2 files (ctrl+o to expand)
+
+● Now let me read the schedule page section and the bottom nav area of
+  BabyApp.tsx to understand the current state.
+
+  Read 1 file (ctrl+o to expand)
+
+● Let me read the schedule page section and the app.js SHOP_KEYWORDS + keyword
+  picker section.
+
+  Read 2 files (ctrl+o to expand)
+
+● Now let me read the chatbot0605 CSS for shop/kw/cal styles, and read the
+  VOICE_TOOLS section of app.js.
+
+  Searched for 2 patterns, read 2 files (ctrl+o to expand)
+
+● Let me read more of BabyApp.tsx to understand the function section.
+
+  Read 1 file (ctrl+o to expand)
+
+● Now I have everything I need. Let me look at the end of globals.css to know
+  where to append the new styles.
+
+  Read 1 file (ctrl+o to expand)
+
+● Now I'll add the shop/kw/cal CSS to globals.css, then make all the BabyApp.tsx
+   changes.
+
+● Update(app/globals.css)
+  ⎿  Added 183 lines
+      1061  .info-open-btn:hover  { transform: translateY(-2px); box-shad
+            ow: 0 8px 24px rgba(200,0,0,.4); }
+      1062  .info-open-btn:active { transform: translateY(0) scale(.97); 
+            }
+      1063  .info-open-hint { font-size: 12px; color: var(--text-mid); }
+      1064 +                                                             
+      1065 +/* ── SCHEDULE SHOP CARD ────────────────────────────────────
+           +─── */                                                       
+      1066 +.shop-age-badge {                                            
+      1067 +  font-size: 11px; font-weight: 700; color: var(--orange);   
+      1068 +  background: var(--orange-pale); padding: 3px 10px;         
+      1069 +  border-radius: var(--r-pill);                              
+      1070 +}                                                            
+      1071 +.shop-flow-desc {                                            
+      1072 +  font-size: 11.5px; color: var(--text-mid); margin-bottom: 1
+           +2px;                                                         
+      1073 +  padding: 8px 10px; background: var(--bg); border-radius: va
+           +r(--r-sm);                                                   
+      1074 +  line-height: 1.55;                                         
+      1075 +}                                                            
+      1076 +.shop-grid { display: flex; flex-direction: column; gap: 2px;
+           + }                                                           
+      1077 +.shop-item {                                                 
+      1078 +  display: flex; align-items: center; gap: 12px;             
+      1079 +  padding: 10px 4px; border-bottom: 1px solid var(--border); 
+      1080 +  text-decoration: none; color: var(--text);                 
+      1081 +  transition: background .12s; border-radius: var(--r-sm);   
+      1082 +}                                                            
+      1083 +.shop-item:last-child { border-bottom: none; }               
+      1084 +.shop-item:active { background: var(--bg); }                 
+      1085 +.shop-item-icon {                                            
+      1086 +  width: 38px; height: 38px; border-radius: var(--r-md);     
+      1087 +  display: flex; align-items: center; justify-content: center
+           +;                                                            
+      1088 +  font-size: 20px; flex-shrink: 0;                           
+      1089 +}                                                            
+      1090 +.shop-yt { background: #fff0f0; }                            
+      1091 +.shop-dg { background: #fff3eb; }                            
+      1092 +.shop-mg { background: var(--lime-pale); }                   
+      1093 +.shop-item-info { flex: 1; min-width: 0; }                   
+      1094 +.shop-item-name { font-size: 13px; font-weight: 700; color: v
+           +ar(--text); }                                                
+      1095 +.shop-item-desc { font-size: 11px; color: var(--text-mid); ma
+           +rgin-top: 1px; }                                             
+      1096 +.shop-arrow { color: var(--text-light); flex-shrink: 0; }    
+      1097 +                                                             
+      1098 +/* Keyword chips */                                          
+      1099 +.kw-chips {                                                  
+      1100 +  display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14
+           +px;                                                          
+      1101 +}                                                            
+      1102 +.kw-chip {                                                   
+      1103 +  padding: 5px 13px; border-radius: var(--r-pill);           
+      1104 +  border: 1.5px solid var(--border); background: var(--bg);  
+      1105 +  font-size: 12.5px; font-weight: 600; color: var(--text);   
+      1106 +  cursor: pointer; transition: background .12s, border-color 
+           +.12s;                                                        
+      1107 +}                                                            
+      1108 +.kw-chip:active { background: var(--orange-pale); border-colo
+           +r: var(--orange); }                                          
+      1109 +                                                             
+      1110 +/* Keyword platform picker overlay */                        
+      1111 +.kw-picker-overlay {                                         
+      1112 +  position: fixed; inset: 0;                                 
+      1113 +  background: rgba(0,0,0,0.45); z-index: 300;                
+      1114 +  display: flex; align-items: flex-end; justify-content: cent
+           +er;                                                          
+      1115 +}                                                            
+      1116 +.kw-picker-sheet {                                           
+      1117 +  background: #fff; width: 100%; max-width: 430px;           
+      1118 +  border-radius: 20px 20px 0 0; padding: 20px 20px 32px;     
+      1119 +}                                                            
+      1120 +.kw-picker-keyword {                                         
+      1121 +  font-size: 14px; font-weight: 700; color: var(--text);     
+      1122 +  margin-bottom: 16px; text-align: center;                   
+      1123 +}                                                            
+      1124 +.kw-picker-btns {                                            
+      1125 +  display: flex; flex-direction: column; gap: 8px; margin-bot
+           +tom: 12px;                                                   
+      1126 +}                                                            
+      1127 +.kw-picker-btn {                                             
+      1128 +  display: flex; align-items: center; gap: 12px;             
+      1129 +  padding: 12px 16px; border-radius: var(--r-md);            
+      1130 +  text-decoration: none; font-size: 13.5px; font-weight: 600;
+           + color: var(--text);                                         
+      1131 +  transition: background .12s;                               
+      1132 +}                                                            
+      1133 +.kw-picker-btn:active { opacity: .8; }                       
+      1134 +.kw-yt  { background: #fff0f0; }                             
+      1135 +.kw-dg  { background: #fff3eb; }                             
+      1136 +.kw-mg  { background: var(--lime-pale); }                    
+      1137 +.kw-picker-cancel {                                          
+      1138 +  width: 100%; padding: 11px; border-radius: var(--r-md);    
+      1139 +  border: none; background: var(--bg); font-size: 14px;      
+      1140 +  font-weight: 600; color: var(--text-mid); cursor: pointer; 
+      1141 +}                                                            
+      1142 +                                                             
+      1143 +/* ── MILESTONE CALENDAR ────────────────────────────────────
+           +─── */                                                       
+      1144 +.cal-legend-row {                                            
+      1145 +  display: flex; align-items: center; gap: 6px;              
+      1146 +  font-size: 11px; color: var(--text-mid); font-weight: 600; 
+      1147 +}                                                            
+      1148 +.cal-legend-dot {                                            
+      1149 +  width: 8px; height: 8px; border-radius: 50%; display: inlin
+           +e-block;                                                     
+      1150 +}                                                            
+      1151 +.dot-vaccine { background: #E05577; }                        
+      1152 +.dot-food    { background: #FF8040; }                        
+      1153 +.dot-check   { background: #4FAACC; }                        
+      1154 +                                                             
+      1155 +.cal-nav {                                                   
+      1156 +  display: flex; align-items: center; justify-content: space-
+           +between;                                                     
+      1157 +  margin-bottom: 10px;                                       
+      1158 +}                                                            
+      1159 +.cal-month-label { font-size: 15px; font-weight: 800; color: 
+           +var(--text); }                                               
+      1160 +.cal-nav-btn {                                               
+      1161 +  width: 32px; height: 32px; border-radius: 50%;             
+      1162 +  background: var(--orange-pale); color: var(--orange);      
+      1163 +  font-size: 18px; font-weight: 700; line-height: 1;         
+      1164 +  display: flex; align-items: center; justify-content: center
+           +;                                                            
+      1165 +  transition: background .12s;                               
+      1166 +}                                                            
+      1167 +.cal-nav-btn:active { background: #ffddc4; }                 
+      1168 +                                                             
+      1169 +.cal-grid-header {                                           
+      1170 +  display: grid; grid-template-columns: repeat(7, 1fr);      
+      1171 +  margin-bottom: 4px;                                        
+      1172 +}                                                            
+      1173 +.cal-grid-header span {                                      
+      1174 +  text-align: center; font-size: 11px; font-weight: 700;     
+      1175 +  color: var(--text-light); padding: 2px 0;                  
+      1176 +}                                                            
+      1177 +.cal-grid-header span:first-child { color: #E05577; }        
+      1178 +.cal-grid-header span:last-child  { color: #4FAACC; }        
+      1179 +                                                             
+      1180 +.cal-grid {                                                  
+      1181 +  display: grid; grid-template-columns: repeat(7, 1fr); gap: 
+           +2px;                                                         
+      1182 +}                                                            
+      1183 +.cal-cell {                                                  
+      1184 +  aspect-ratio: 1; display: flex; flex-direction: column;    
+      1185 +  align-items: center; justify-content: flex-start;          
+      1186 +  padding-top: 4px; border-radius: var(--r-sm);              
+      1187 +  font-size: 12px; font-weight: 600; color: var(--text);     
+      1188 +  position: relative; cursor: default;                       
+      1189 +}                                                            
+      1190 +.cal-cell.other-month { color: var(--text-light); }          
+      1191 +.cal-cell.today {                                            
+      1192 +  background: var(--orange-pale);                            
+      1193 +  color: var(--orange); font-weight: 800;                    
+      1194 +}                                                            
+      1195 +.cal-cell.today::after {                                     
+      1196 +  content: ''; position: absolute; bottom: 3px;              
+      1197 +  width: 4px; height: 4px; border-radius: 50%; background: va
+           +r(--orange);                                                 
+      1198 +}                                                            
+      1199 +.cal-cell.sun { color: #E05577; }                            
+      1200 +.cal-cell.sat { color: #4FAACC; }                            
+      1201 +.cal-cell.other-month.sun, .cal-cell.other-month.sat { color:
+           + var(--text-light); }                                        
+      1202 +                                                             
+      1203 +.cal-dots {                                                  
+      1204 +  display: flex; gap: 2px; margin-top: 1px; flex-wrap: wrap; 
+           +justify-content: center;                                     
+      1205 +}                                                            
+      1206 +.cal-dot {                                                   
+      1207 +  width: 5px; height: 5px; border-radius: 50%;               
+      1208 +}                                                            
+      1209 +                                                             
+      1210 +.cal-events {                                                
+      1211 +  margin-top: 12px; border-top: 1px solid var(--border); padd
+           +ing-top: 10px;                                               
+      1212 +}                                                            
+      1213 +.cal-events-empty {                                          
+      1214 +  text-align: center; font-size: 12px; color: var(--text-ligh
+           +t); padding: 8px 0;                                          
+      1215 +}                                                            
+      1216 +.cal-events-title {                                          
+      1217 +  font-size: 12px; font-weight: 800; color: var(--text-mid); 
+      1218 +  margin-bottom: 8px;                                        
+      1219 +}                                                            
+      1220 +.cal-event-item {                                            
+      1221 +  display: flex; align-items: flex-start; gap: 10px;         
+      1222 +  padding: 8px 0; border-bottom: 1px solid var(--border);    
+      1223 +}                                                            
+      1224 +.cal-event-item:last-child { border-bottom: none; }          
+      1225 +.cal-event-date {                                            
+      1226 +  min-width: 46px; text-align: center; padding: 4px 6px;     
+      1227 +  border-radius: var(--r-sm); font-size: 11px; font-weight: 7
+           +00;                                                          
+      1228 +  line-height: 1.3; flex-shrink: 0;                          
+      1229 +}                                                            
+      1230 +.cal-event-date.type-vaccine { background: #FDEEF3; color: #A
+           +33B53; }                                                     
+      1231 +.cal-event-date.type-food    { background: #FFF3EB; color: #B
+           +85617; }                                                     
+      1232 +.cal-event-date.type-check   { background: #E8F5FC; color: #2
+           +D6D8A; }                                                     
+      1233 +.cal-event-info { flex: 1; min-width: 0; }                   
+      1234 +.cal-event-label { font-size: 13px; font-weight: 700; color: 
+           +var(--text); }                                               
+      1235 +.cal-event-sub { font-size: 11px; color: var(--text-mid); mar
+           +gin-top: 1px; }                                              
+      1236 +.cal-event-badge {                                           
+      1237 +  font-size: 10px; font-weight: 700; padding: 2px 7px;       
+      1238 +  border-radius: var(--r-pill); flex-shrink: 0; align-self: c
+           +enter;                                                       
+      1239 +}                                                            
+      1240 +.cal-event-badge.type-vaccine { background: #FDEEF3; color: #
+           +A33B53; }                                                    
+      1241 +.cal-event-badge.type-food    { background: #FFF3EB; color: #
+           +B85617; }                                                    
+      1242 +.cal-event-badge.type-check   { background: #E8F5FC; color: #
+           +2D6D8A; }                                                    
+      1243 +.cal-no-baby {                                               
+      1244 +  text-align: center; padding: 20px 0;                       
+      1245 +  font-size: 13px; color: var(--text-mid); line-height: 1.7; 
+      1246 +}                                                            
+
+● Now let me make the BabyApp.tsx changes. First, add the new constants after
+  getMilestones:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 68 lines
+      181  ];
+      182  function getMilestones(months: number) { return MILESTONES.fil
+           ter(g => months>=g.minM && months<g.maxM); }
+      183  
+      184 +// ── Vaccine/food/check milestones for calendar ─────────────
+          +──────                                                        
+      185 +interface CalMilestone { m: number; label: string; sub: string
+          +; type: 'vaccine'|'food'|'check'; }                           
+      186 +const CAL_MILESTONES: CalMilestone[] = [                      
+      187 +  { m:0,  label:'BCG 접종',                       sub:'출생 후
+          + 4주 이내',              type:'vaccine' },                    
+      188 +  { m:0,  label:'B형간염 1차',                    sub:'출생 직
+          +후',                     type:'vaccine' },                    
+      189 +  { m:1,  label:'B형간염 2차',                    sub:'생후 1 
+          +개월',                    type:'vaccine' },                   
+      190 +  { m:1,  label:'영유아검진 1차',                  sub:'생후 1
+          +개월',                    type:'check' },                     
+      191 +  { m:2,  label:'DTaP·Hib·PCV·폴리오 1차',        sub:'생후 2 
+          +개월 — 4종 동시접종',     type:'vaccine' },                   
+      192 +  { m:2,  label:'로타바이러스 1차',                sub:'생후 2
+          +개월',                    type:'vaccine' },                   
+      193 +  { m:2,  label:'영유아검진 2차',                  sub:'생후 2
+          +개월',                    type:'check' },                     
+      194 +  { m:4,  label:'DTaP·Hib·PCV·폴리오 2차',        sub:'생후 4 
+          +개월 — 4종 동시접종',     type:'vaccine' },                   
+      195 +  { m:4,  label:'로타바이러스 2차',                sub:'생후 4
+          +개월',                    type:'vaccine' },                   
+      196 +  { m:4,  label:'영유아검진 3차',                  sub:'생후 4
+          +개월',                    type:'check' },                     
+      197 +  { m:6,  label:'DTaP·Hib·PCV·폴리오·HepB 3차',   sub:'생후 6 
+          +개월 — 5종 동시접종',     type:'vaccine' },                   
+      198 +  { m:6,  label:'로타바이러스 3차',                sub:'생후 6
+          +개월 (해당 제품만)',       type:'vaccine' },                  
+      199 +  { m:6,  label:'이유식 시작',                     sub:'쌀미음
+          +부터 권고, 1일 1회',       type:'food' },                     
+      200 +  { m:6,  label:'영유아검진 4차',                  sub:'생후 6
+          +개월',                    type:'check' },                     
+      201 +  { m:7,  label:'중기 이유식',                     sub:'7~9개 
+          +월, 다양한 식재료 도입',    type:'food' },                    
+      202 +  { m:9,  label:'영유아검진 5차',                  sub:'생후 9
+          +개월',                    type:'check' },                     
+      203 +  { m:10, label:'후기 이유식',                     sub:'10~12 
+          +개월, 죽→진밥 전환',       type:'food' },                     
+      204 +  { m:12, label:'MMR·수두·Hib·PCV 4차',           sub:'생후 12
+          +~15개월',                type:'vaccine' },                    
+      205 +  { m:12, label:'A형간염 1차',                     sub:'생후 1
+          +2~23개월',                type:'vaccine' },                   
+      206 +  { m:12, label:'일본뇌염 1차',                    sub:'생후 1
+          +2개월',                   type:'vaccine' },                   
+      207 +  { m:12, label:'완료기 이유식',                   sub:'12개월
+          +~, 가족 식사 함께 시작',   type:'food' },                     
+      208 +  { m:12, label:'영유아검진 6차',                  sub:'생후 1
+          +2개월',                   type:'check' },                     
+      209 +  { m:15, label:'DTaP 4차',                        sub:'생후 1
+          +5~18개월',                type:'vaccine' },                   
+      210 +  { m:18, label:'영유아검진 7차',                  sub:'생후 1
+          +8개월',                   type:'check' },                     
+      211 +  { m:24, label:'A형간염 2차',                     sub:'1차 접
+          +종 후 6개월',             type:'vaccine' },                   
+      212 +  { m:24, label:'일본뇌염 2차',                    sub:'1차 접
+          +종 후 1개월',             type:'vaccine' },                   
+      213 +  { m:24, label:'영유아검진 8차',                  sub:'생후 2
+          +4개월',                   type:'check' },                     
+      214 +  { m:36, label:'영유아검진 9차',                  sub:'생후 3
+          +6개월',                   type:'check' },                     
+      215 +  { m:48, label:'DTaP 5차·폴리오 4차',             sub:'만 4~6
+          +세',                      type:'vaccine' },                   
+      216 +  { m:48, label:'영유아검진 10차',                 sub:'생후 4
+          +8개월',                   type:'check' },                     
+      217 +  { m:54, label:'영유아검진 11차',                 sub:'생후 5
+          +4개월',                   type:'check' },                     
+      218 +  { m:60, label:'MMR 2차',                         sub:'만 4~6
+          +세',                      type:'vaccine' },                   
+      219 +  { m:66, label:'영유아검진 12차',                 sub:'생후 6
+          +6개월',                   type:'check' },                     
+      220 +];                                                            
+      221 +                                                              
+      222 +function getMilestonesForMonth(birthDateStr: string, year: num
+          +ber, month: number) {                                         
+      223 +  const events: (CalMilestone & { date: Date })[] = [];       
+      224 +  for (const ms of CAL_MILESTONES) {                          
+      225 +    const d = new Date(birthDateStr);                         
+      226 +    d.setMonth(d.getMonth() + ms.m);                          
+      227 +    if (d.getFullYear() === year && d.getMonth() === month) { 
+      228 +      events.push({ ...ms, date: new Date(d) });              
+      229 +    }                                                         
+      230 +  }                                                           
+      231 +  return events.sort((a, b) => a.date.getTime() - b.date.getTi
+          +me());                                                        
+      232 +}                                                             
+      233 +                                                              
+      234 +// ── Shop keywords ──────────────────────────────────────────
+          +──────                                                        
+      235 +const SHOP_KEYWORDS: Record<string, string[]> = {             
+      236 +  newborn: ['황달 케어', '신생아 목욕', '배앓이 달래기', '수유
+          + 자세', '태열', '영아산통', '모유수유', '신생아 모빌'],       
+      237 +  '1-3':   ['흑백 모빌', '딸랑이', '배앓이', '목 가누기', '사 
+          +회적 미소', '소프트 토이', '스와들링', '배 놀이'],            
+      238 +  '4-6':   ['이앓이', '치발기', '촉감 놀이', '이유식 준비', ' 
+          +뒤집기 연습', '배 놀이 매트', '오감 장난감', '목욕 장난감'],  
+      239 +  '7-9':   ['이유식', '집게 잡기', '기기 연습', '낯가림', '소 
+          +리 장난감', '손잡이 컵', '범퍼 침대', '오뚝이'],              
+      240 +  '10-12': ['걸음마 보조', '첫 단어', '컵 연습', '소프트 퍼즐'
+          +, '잡고 서기', '끌차', '잇몸 간식'],                          
+      241 +  toddler: ['역할 놀이', '끌차', '큰 블록', '유아 크레용', '어
+          +린이집 가방', '유아 의자', '놀이 매트'],                      
+      242 +};                                                            
+      243 +function getShopKeywordsForAge(months: number): string[] {    
+      244 +  if (months < 1)  return SHOP_KEYWORDS.newborn;              
+      245 +  if (months <= 3) return SHOP_KEYWORDS['1-3'];               
+      246 +  if (months <= 6) return SHOP_KEYWORDS['4-6'];               
+      247 +  if (months <= 9) return SHOP_KEYWORDS['7-9'];               
+      248 +  if (months <= 12) return SHOP_KEYWORDS['10-12'];            
+      249 +  return SHOP_KEYWORDS.toddler;                               
+      250 +}                                                             
+      251 +                                                              
+      252  // ── Bot helpers ────────────────────────────────────────────
+           ──────
+      253  function makeExtLinks(q: string) {
+      254    const yt=encodeURIComponent(q), dg=encodeURIComponent(q), mg
+           =encodeURIComponent(q);
+
+● Now add the new state variables after the existing voice/openAiKey state:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 12 lines
+      425    const [openAiKey, setOpenAiKey] = useState('');
+      426    const [keyInput, setKeyInput] = useState('');
+      427  
+      428 +  // Calendar                                                 
+      429 +  const [calYear, setCalYear] = useState(() => new Date().getF
+          +ullYear());                                                   
+      430 +  const [calMonth, setCalMonth] = useState(() => new Date().ge
+          +tMonth());                                                    
+      431 +                                                              
+      432 +  // Keyword picker overlay                                   
+      433 +  const [kwPickerOpen, setKwPickerOpen] = useState(false);    
+      434 +  const [kwPickerKeyword, setKwPickerKeyword] = useState(''); 
+      435 +                                                              
+      436 +  // Voice processing (GPT intent routing)                    
+      437 +  const [voiceProcessing, setVoiceProcessing] = useState(false
+          +);                                                            
+      438 +  const [voiceTranscript, setVoiceTranscript] = useState(''); 
+      439 +                                                              
+      440    const startVoiceRecognition = useCallback(() => {
+      441      const SpeechRecognition = (window as Window & { SpeechReco
+           gnition?: SpeechRecognitionCtor; webkitSpeechRecognition?: Spe
+           echRecognitionCtor }).SpeechRecognition || (window as Window &
+            { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSp
+           eechRecognition;
+      442      if (!SpeechRecognition) { alert('이 브라우저는 음성 인식을
+            지원하지 않습니다.'); return; }
+
+● Now add the voice handler functions and calendar navigation after sendChat:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 91 lines
+      756      }
+      757    };
+      758  
+      759 +  // ── Calendar navigation ──────────────────────────────────
+          +────                                                          
+      760 +  const prevCalMonth = () => {                                
+      761 +    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(
+          +11); }                                                        
+      762 +    else setCalMonth(m => m - 1);                             
+      763 +  };                                                          
+      764 +  const nextCalMonth = () => {                                
+      765 +    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth
+          +(0); }                                                        
+      766 +    else setCalMonth(m => m + 1);                             
+      767 +  };                                                          
+      768 +                                                              
+      769 +  // ── Voice GPT intent routing ─────────────────────────────
+          +─────                                                         
+      770 +  const handleVoiceRecord = (args: { type: LogType; time?: str
+          +ing; endTime?: string; amount?: number; feedType?: string; not
+          +e?: string }) => {                                            
+      771 +    const dateKey = todayStr();                               
+      772 +    const time = args.time || nowHHMM();                      
+      773 +    const log: Log = { id: uid(), type: args.type, date: dateK
+          +ey, note: args.note || '' };                                  
+      774 +    if (args.type === 'sleep' || args.type === 'cry' || args.t
+          +ype === 'walk') {                                             
+      775 +      log.startTime = time;                                   
+      776 +      if (args.endTime) log.endTime = args.endTime;           
+      777 +    } else {                                                  
+      778 +      log.time = time; log.startTime = time;                  
+      779 +    }                                                         
+      780 +    if (args.type === 'feed') { log.amount = args.amount || nu
+          +ll; log.feedType = args.feedType || '분유'; }                 
+      781 +    const ns = { ...appState };                               
+      782 +    if (!ns.logs[dateKey]) ns.logs[dateKey] = [];             
+      783 +    ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) =
+          +> (a.startTime||a.time||'').localeCompare(b.startTime||b.time|
+          +|''));                                                        
+      784 +    saveAppState(ns);                                         
+      785 +    showToast(`🎤 ${TYPE_ICONS[args.type]} ${TYPE_LABELS[args.
+          +type]} 기록 완료!`);                                          
+      786 +    navigate('timeline');                                     
+      787 +    fetch('/api/logs', { method:'POST', headers:{'Content-Type
+          +':'application/json'}, body:JSON.stringify({ ...log, babyId: a
+          +ppState.babyId }) }).catch(console.error);                    
+      788 +  };                                                          
+      789 +                                                              
+      790 +  const handleVoiceSchedule = (args: { text: string; category:
+          + string }) => {                                               
+      791 +    const catMap: Record<string, TodoCat> = { health:'vaccine'
+          +, food:'solid', play:'other', etc:'other' };                  
+      792 +    const cat: TodoCat = (catMap[args.category] as TodoCat) ||
+          + 'other';                                                     
+      793 +    const newTodo: Todo = { id:uid(), text:args.text, category
+          +:cat, completed:false, createdAt:Date.now() };                
+      794 +    const ns = { ...appState };                               
+      795 +    ns.todos = [newTodo, ...ns.todos];                        
+      796 +    saveAppState(ns);                                         
+      797 +    showToast(`🎤 스케줄에 추가됐어요: ${args.text}`);        
+      798 +    navigate('schedule');                                     
+      799 +    fetch('/api/todos', { method:'POST', headers:{'Content-Typ
+          +e':'application/json'}, body:JSON.stringify({ ...newTodo, baby
+          +Id: appState.babyId }) }).catch(console.error);               
+      800 +  };                                                          
+      801 +                                                              
+      802 +  const processVoiceInput = async (transcript: string) => {   
+      803 +    if (!openAiKey) {                                         
+      804 +      setVoiceOverlay(false); setIsRecording(false); setVoiceP
+          +rocessing(false);                                             
+      805 +      navigate('chat');                                       
+      806 +      setTimeout(() => sendChat(transcript), 200);            
+      807 +      showToast('💬 챗봇으로 전달했어요 (API 키 미설정)');    
+      808 +      return;                                                 
+      809 +    }                                                         
+      810 +    const voiceTools = [                                      
+      811 +      { type:'function', function:{ name:'record_activity', de
+          +scription:'아기의 활동(수유, 수면, 기저귀, 산책, 울음)을 시간 
+          +표에 기록합니다.', parameters:{ type:'object', properties:{ ty
+          +pe:{type:'string',enum:['feed','sleep','pee','poop','cry','wal
+          +k'],description:'활동 유형'}, time:{type:'string',description:
+          +'시작 시간 HH:MM'}, endTime:{type:'string',description:'종료  
+          +시간 HH:MM'}, amount:{type:'number',description:'수유량(ml)'},
+          + feedType:{type:'string',enum:['분유','모유','혼합']}, note:{t
+          +ype:'string',description:'메모'} }, required:['type'] } } },  
+      812 +      { type:'function', function:{ name:'save_schedule', desc
+          +ription:'할일이나 예약 일정을 스케줄에 저장합니다.', parameter
+          +s:{ type:'object', properties:{ text:{type:'string',descriptio
+          +n:'할일 내용'}, category:{type:'string',enum:['health','food',
+          +'play','etc'],description:'health=건강/병원/접종, food=이유식,
+          + play=놀이, etc=기타'} }, required:['text','category'] } } }, 
+      813 +      { type:'function', function:{ name:'chat_response', desc
+          +ription:'아기 육아 정보 질문, 조언 요청, 일반 대화에 답변합니 
+          +다.', parameters:{ type:'object', properties:{ message:{type:'
+          +string',description:'사용자 메시지'} }, required:['message'] }
+          + } },                                                         
+      814 +    ];                                                        
+      815 +    try {                                                     
+      816 +      setVoiceProcessing(true);                               
+      817 +      setVoiceTranscript(`"${transcript}"`);                  
+      818 +      const babyMonths = appState.baby ? getAgeInfo(appState.b
+          +aby.birthDate).months : 5;                                    
+      819 +      const babyName = appState.baby?.name || '아기';         
+      820 +      const res = await fetch('https://api.openai.com/v1/chat/
+          +completions', {                                               
+      821 +        method:'POST',                                        
+      822 +        headers:{ 'Authorization':`Bearer ${openAiKey}`, 'Cont
+          +ent-Type':'application/json' },                               
+      823 +        body:JSON.stringify({                                 
+      824 +          model:'gpt-4o-mini',                                
+      825 +          messages:[                                          
+      826 +            { role:'system', content:`너는 아기 육아 앱의 음성
+          + 명령 분류기야. 아기 이름: ${babyName}, 월령: ${babyMonths}개 
+          +월, 현재 시각: ${nowHHMM()}. 사용자 음성 입력을 보고 반드시 아
+          +래 중 하나의 함수를 호출해:\n- 수유/수면/기저귀/산책/울음 내용
+          + → record_activity\n- 할일/예약/일정 저장 요청 → save_schedule
+          +\n- 질문/대화/정보 요청 → chat_response\n시간 표현("방금", "지
+          +금", "30분 전" 등)은 HH:MM으로 변환해서 넣어줘.` },           
+      827 +            { role:'user', content:transcript }               
+      828 +          ],                                                  
+      829 +          tools:voiceTools,                                   
+      830 +          tool_choice:'required'                              
+      831 +        })                                                    
+      832 +      });                                                     
+      833 +      const data = await res.json();                          
+      834 +      const tcall = data.choices?.[0]?.message?.tool_calls?.[0
+          +];                                                            
+      835 +      if (!tcall) throw new Error('no tool_call');            
+      836 +      const fn = tcall.function.name;                         
+      837 +      const args = JSON.parse(tcall.function.arguments);      
+      838 +      setVoiceOverlay(false); setIsRecording(false); setVoiceP
+          +rocessing(false);                                             
+      839 +      if (fn === 'record_activity') handleVoiceRecord(args as 
+          +Parameters<typeof handleVoiceRecord>[0]);                     
+      840 +      else if (fn === 'save_schedule') handleVoiceSchedule(arg
+          +s as { text: string; category: string });                     
+      841 +      else { navigate('chat'); setTimeout(() => sendChat(trans
+          +cript), 200); }                                               
+      842 +    } catch {                                                 
+      843 +      setVoiceOverlay(false); setIsRecording(false); setVoiceP
+          +rocessing(false);                                             
+      844 +      navigate('chat');                                       
+      845 +      setTimeout(() => sendChat(transcript), 200);            
+      846 +      showToast('💬 챗봇으로 연결했어요');                    
+      847 +    }                                                         
+      848 +  };                                                          
+      849 +                                                              
+      850    // ── Computed ─────────────────────────────────────────────
+           ────
+      851    const ageInfo = appState.baby ? getAgeInfo(appState.baby.bir
+           thDate) : null;
+      852    const todayLogs = appState.logs[todayStr()] || [];
+
+● Now update the schedule page to add the keyword card and calendar. First let
+  me update the Schedule section:
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 100 lines
+      1386                  </div>
+      1387                ))}
+      1388              </div>
+      1389 +                                                             
+      1390 +            {/* 맞춤 키워드 카드 */}                         
+      1391 +            <div className="section-card">                   
+      1392 +              <div style={{display:'flex',alignItems:'center'
+           +,justifyContent:'space-between',marginBottom:'10px'}}>       
+      1393 +                <h3 className="section-title" style={{margin:
+           +0}}>🛒 맞춤 키워드 확인</h3>                                 
+      1394 +                {ageInfo && <span className="shop-age-badge">
+           +{ageInfo.months}개월 맞춤</span>}                            
+      1395 +              </div>                                         
+      1396 +              <div className="shop-flow-desc">키워드를 눌러 Y
+           +ouTube, 당근마켓, 맘가이드에서 검색해보세요</div>            
+      1397 +              <div className="kw-chips">                     
+      1398 +                {(ageInfo ? getShopKeywordsForAge(ageInfo.mon
+           +ths) : SHOP_KEYWORDS['4-6']).map(kw=>(                       
+      1399 +                  <button key={kw} className="kw-chip" onClic
+           +k={()=>{ setKwPickerKeyword(kw); setKwPickerOpen(true); }}>{k
+           +w}</button>                                                  
+      1400 +                ))}                                          
+      1401 +              </div>                                         
+      1402 +              <div className="shop-grid">                    
+      1403 +                {[                                           
+      1404 +                  { icon:'🎬', name:'YouTube', desc:'키워드로
+           + 육아 영상 검색', cls:'shop-yt', href:`https://www.youtube.co
+           +m/results?search_query=${encodeURIComponent((ageInfo?`${ageIn
+           +fo.months}개월 아기 `:'아기 ')+'육아 정보')}` },             
+      1405 +                  { icon:'🥕', name:'당근마켓', desc:'중고 장
+           +난감·아이템 검색', cls:'shop-dg', href:`https://www.daangn.co
+           +m/search/${encodeURIComponent((ageInfo?`${ageInfo.months}개월
+           + 아기 `:'아기 ')+'장난감')}` },                              
+      1406 +                  { icon:'🧴', name:'맘가이드', desc:'성분 안
+           +전성 확인', cls:'shop-mg', href:`https://momguide.co.kr/searc
+           +h/?q=${encodeURIComponent('아기')}` },                       
+      1407 +                ].map(({icon,name,desc,cls,href})=>(         
+      1408 +                  <a key={name} className="shop-item" href={h
+           +ref} target="_blank" rel="noopener noreferrer">              
+      1409 +                    <div className={`shop-item-icon ${cls}`}>
+           +{icon}</div>                                                 
+      1410 +                    <div className="shop-item-info"><div clas
+           +sName="shop-item-name">{name}</div><div className="shop-item-
+           +desc">{desc}</div></div>                                     
+      1411 +                    <svg className="shop-arrow" viewBox="0 0 
+           +24 24" width="16" height="16" fill="none" stroke="currentColo
+           +r" strokeWidth="2" strokeLinecap="round"><path d="M10 6l6 6-6
+           + 6"/></svg>                                                  
+      1412 +                  </a>                                       
+      1413 +                ))}                                          
+      1414 +              </div>                                         
+      1415 +            </div>                                           
+      1416 +                                                             
+      1417 +            {/* 육아 달력 */}                                
+      1418 +            <div className="section-card">                   
+      1419 +              <h3 className="section-title">📅 육아 달력</h3>
+      1420 +              <div className="cal-legend-row" style={{marginB
+           +ottom:'12px'}}>                                              
+      1421 +                <div className="cal-legend-dot dot-vaccine"><
+           +/div><span>접종</span>                                       
+      1422 +                <div className="cal-legend-dot dot-food" styl
+           +e={{marginLeft:'8px'}}></div><span>이유식</span>             
+      1423 +                <div className="cal-legend-dot dot-check" sty
+           +le={{marginLeft:'8px'}}></div><span>검진</span>              
+      1424 +              </div>                                         
+      1425 +              <div className="cal-nav">                      
+      1426 +                <button className="cal-nav-btn" onClick={prev
+           +CalMonth}>‹</button>                                         
+      1427 +                <span className="cal-month-label">{calYear}년
+           + {calMonth+1}월</span>                                       
+      1428 +                <button className="cal-nav-btn" onClick={next
+           +CalMonth}>›</button>                                         
+      1429 +              </div>                                         
+      1430 +              <div className="cal-grid-header">              
+      1431 +                {['일','월','화','수','목','금','토'].map(d=>
+           +<span key={d}>{d}</span>)}                                   
+      1432 +              </div>                                         
+      1433 +              <div className="cal-grid">                     
+      1434 +                {(() => {                                    
+      1435 +                  const today = new Date();                  
+      1436 +                  const firstDow = new Date(calYear, calMonth
+           +, 1).getDay();                                               
+      1437 +                  const daysInMon = new Date(calYear, calMont
+           +h+1, 0).getDate();                                           
+      1438 +                  const daysInPrev = new Date(calYear, calMon
+           +th, 0).getDate();                                            
+      1439 +                  const birthStr = appState.baby?.birthDate |
+           +| null;                                                      
+      1440 +                  const eventsThisMonth = birthStr ? getMiles
+           +tonesForMonth(birthStr, calYear, calMonth) : [];             
+      1441 +                  const dayEventsMap: Record<number, Set<stri
+           +ng>> = {};                                                   
+      1442 +                  for (const ev of eventsThisMonth) {        
+      1443 +                    const d = ev.date.getDate();             
+      1444 +                    if (!dayEventsMap[d]) dayEventsMap[d] = n
+           +ew Set();                                                    
+      1445 +                    dayEventsMap[d].add(ev.type);            
+      1446 +                  }                                          
+      1447 +                  const cells: JSX.Element[] = [];           
+      1448 +                  for (let i=firstDow-1;i>=0;i--) cells.push(
+           +<div key={`prev-${i}`} className="cal-cell other-month">{days
+           +InPrev-i}</div>);                                            
+      1449 +                  for (let d=1;d<=daysInMon;d++) {           
+      1450 +                    const dow = new Date(calYear,calMonth,d).
+           +getDay();                                                    
+      1451 +                    const isToday = today.getFullYear()===cal
+           +Year&&today.getMonth()===calMonth&&today.getDate()===d;      
+      1452 +                    const cls = ['cal-cell',isToday?'today':'
+           +',dow===0?'sun':dow===6?'sat':''].filter(Boolean).join(' '); 
+      1453 +                    cells.push(                              
+      1454 +                      <div key={d} className={cls}>          
+      1455 +                        {d}                                  
+      1456 +                        {dayEventsMap[d] && <div className="c
+           +al-dots">{[...dayEventsMap[d]].map(t=><div key={t} className=
+           +{`cal-dot dot-${t}`}/>)}</div>}                              
+      1457 +                      </div>                                 
+      1458 +                    );                                       
+      1459 +                  }                                          
+      1460 +                  const filled = firstDow+daysInMon;         
+      1461 +                  const tail = (7-(filled%7))%7;             
+      1462 +                  for (let d=1;d<=tail;d++) cells.push(<div k
+           +ey={`next-${d}`} className="cal-cell other-month">{d}</div>);
+      1463 +                  return cells;                              
+      1464 +                })()}                                        
+      1465 +              </div>                                         
+      1466 +              <div className="cal-events">                   
+      1467 +                {!appState.baby?.birthDate ? (               
+      1468 +                  <div className="cal-no-baby">아기 정보를 먼
+           +저 등록해주세요 👶</div>                                     
+      1469 +                ) : (() => {                                 
+      1470 +                  const evs = getMilestonesForMonth(appState.
+           +baby.birthDate, calYear, calMonth);                          
+      1471 +                  if (evs.length===0) return <div className="
+           +cal-events-empty">이 달에는 일정이 없어요 🌱</div>;          
+      1472 +                  const typeLabel: Record<string,string> = { 
+           +vaccine:'💉 접종', food:'🥣 이유식', check:'🏥 검진' };      
+      1473 +                  return <>                                  
+      1474 +                    <div className="cal-events-title">이달의 
+           +일정 ({evs.length}건)</div>                                  
+      1475 +                    {evs.map((ev,i)=>(                       
+      1476 +                      <div key={i} className="cal-event-item"
+           +>                                                            
+      1477 +                        <div className={`cal-event-date type-
+           +${ev.type}`}>{ev.date.getMonth()+1}월<br/>{ev.date.getDate()}
+           +일</div>                                                     
+      1478 +                        <div className="cal-event-info">     
+      1479 +                          <div className="cal-event-label">{e
+           +v.label}</div>                                               
+      1480 +                          <div className="cal-event-sub">{ev.
+           +sub}</div>                                                   
+      1481 +                        </div>                               
+      1482 +                        <div className={`cal-event-badge type
+           +-${ev.type}`}>{typeLabel[ev.type]}</div>                     
+      1483 +                      </div>                                 
+      1484 +                    ))}                                      
+      1485 +                  </>;                                       
+      1486 +                })()}                                        
+      1487 +              </div>                                         
+      1488 +            </div>                                           
+      1489            </div>
+      1490          </section>
+      1491  
+
+● Now add the kw-picker overlay before the voice overlay, and update the FAB mic
+   to use processVoiceInput:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 27 lines, removed 6 lines
+      1791  
+      1792        </main>
+      1793  
+      1794 +      {/* Keyword Picker Overlay */}                         
+      1795 +      {kwPickerOpen && (                                     
+      1796 +        <div className="kw-picker-overlay" onClick={()=>setKw
+           +PickerOpen(false)}>                                          
+      1797 +          <div className="kw-picker-sheet" onClick={e=>e.stop
+           +Propagation()}>                                              
+      1798 +            <div className="kw-picker-keyword">"{kwPickerKeyw
+           +ord}" 검색하기</div>                                         
+      1799 +            <div className="kw-picker-btns">                 
+      1800 +              <a className="kw-picker-btn kw-yt" href={`https
+           +://www.youtube.com/results?search_query=${encodeURIComponent(
+           +kwPickerKeyword+' 아기')}`} target="_blank" rel="noopener nor
+           +eferrer" onClick={()=>setTimeout(()=>setKwPickerOpen(false),2
+           +00)}>                                                        
+      1801 +                🎬 <span>YouTube에서 검색</span>             
+      1802 +              </a>                                           
+      1803 +              <a className="kw-picker-btn kw-dg" href={`https
+           +://www.daangn.com/search/${encodeURIComponent(kwPickerKeyword
+           +)}`} target="_blank" rel="noopener noreferrer" onClick={()=>s
+           +etTimeout(()=>setKwPickerOpen(false),200)}>                  
+      1804 +                🥕 <span>당근마켓에서 검색</span>            
+      1805 +              </a>                                           
+      1806 +              <a className="kw-picker-btn kw-mg" href={`https
+           +://momguide.co.kr/search/?q=${encodeURIComponent(kwPickerKeyw
+           +ord)}`} target="_blank" rel="noopener noreferrer" onClick={()
+           +=>setTimeout(()=>setKwPickerOpen(false),200)}>               
+      1807 +                🧴 <span>맘가이드에서 검색</span>            
+      1808 +              </a>                                           
+      1809 +            </div>                                           
+      1810 +            <button className="kw-picker-cancel" onClick={()=
+           +>setKwPickerOpen(false)}>취소</button>                       
+      1811 +          </div>                                             
+      1812 +        </div>                                               
+      1813 +      )}                                                     
+      1814 +                                                             
+      1815        {/* Voice Overlay */}
+      1816        {voiceOverlay && (
+      1796 -        <div className="voice-overlay" onClick={()=>{ recogni
+           -tionRef.current?.stop(); setVoiceOverlay(false); setIsRecordi
+           -ng(false); }}>                                               
+      1817 +        <div className="voice-overlay" onClick={()=>{ recogni
+           +tionRef.current?.stop(); setVoiceOverlay(false); setIsRecordi
+           +ng(false); setVoiceProcessing(false); }}>                    
+      1818            <div className="voice-sheet" onClick={e=>e.stopProp
+            agation()}>
+      1819              <div className="voice-header">
+      1799 -              <div className="voice-icon">{isRecording ? '🎙️' 
+           -: '🎤'}</div>                                                
+      1800 -              <div className="voice-status">{isRecording ? ' 
+           -듣고 있어요...' : '음성 인식 준비 중'}</div>                 
+      1820 +              <div className="voice-icon">{voiceProcessing ? 
+           +'🧠' : isRecording ? '🎙️' : '🎤'}</div>                      
+      1821 +              <div className="voice-status">{voiceProcessing 
+           +? '분석 중...' : isRecording ? '듣고 있어요...' : '음성 인식 
+           +준비 중'}</div>                                              
+      1822              </div>
+      1823              <div className="voice-wave">
+      1803 -              {[1,2,3,4,5].map(i=><div key={i} className="voi
+           -ce-bar" style={{height:`${isRecording?Math.random()*32+6:6}px
+           -`}}/>)}                                                      
+      1824 +              {[1,2,3,4,5].map(i=><div key={i} className="voi
+           +ce-bar" style={{height:`${isRecording&&!voiceProcessing?Math.
+           +random()*32+6:6}px`}}/>)}                                    
+      1825              </div>
+      1805 -            <div className="voice-transcript">{chatInput || '
+           -말씀해 주세요'}</div>                                        
+      1806 -            <button className="voice-cancel" onClick={()=>{ r
+           -ecognitionRef.current?.stop(); setVoiceOverlay(false); setIsR
+           -ecording(false); }}>취소</button>                            
+      1826 +            <div className="voice-transcript">{voiceTranscrip
+           +t || voiceProcessing ? voiceTranscript : '말씀해 주세요'}</di
+           +v>                                                           
+      1827 +            <button className="voice-cancel" onClick={()=>{ r
+           +ecognitionRef.current?.stop(); setVoiceOverlay(false); setIsR
+           +ecording(false); setVoiceProcessing(false); }}>취소</button> 
+      1828            </div>
+      1829          </div>
+      1830        )}
+
+● Now update the FAB mic button to use processVoiceInput and interimResults: 
+  true:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 16 lines, removed 9 lines
+      1846              onClick={()=>{
+      1847                const SpeechRecognition = (window as Window & {
+             SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecog
+            nition?: SpeechRecognitionCtor }).SpeechRecognition || (windo
+            w as Window & { webkitSpeechRecognition?: SpeechRecognitionCt
+            or }).webkitSpeechRecognition;
+      1848                if (!SpeechRecognition) { alert('이 브라우저는 
+            음성 인식을 지원하지 않습니다.'); return; }
+      1849 -              if (isRecording) { recognitionRef.current?.stop
+           -(); setVoiceOverlay(false); return; }                        
+      1849 +              if (isRecording) { recognitionRef.current?.stop
+           +(); setVoiceOverlay(false); setVoiceProcessing(false); return
+           +; }                                                          
+      1850                const recognition = new SpeechRecognition();
+      1851 -              recognition.lang = 'ko-KR'; recognition.interim
+           -Results = false; recognition.maxAlternatives = 1;            
+      1851 +              recognition.lang = 'ko-KR'; recognition.interim
+           +Results = true; recognition.maxAlternatives = 1;             
+      1852                recognition.onresult = (e: SpeechRecognitionEve
+            nt) => {
+      1853 -                const transcript = e.results[0][0].transcript
+           -;                                                            
+      1854 -                setVoiceOverlay(false); setIsRecording(false)
+           -;                                                            
+      1855 -                navigate('chat');                            
+      1856 -                setTimeout(() => sendChat(transcript), 300); 
+      1853 +                const interim = Array.from(e.results).map(r =
+           +> r[0].transcript).join('');                                 
+      1854 +                setVoiceTranscript(interim);                 
+      1855 +                if (e.results[e.results.length-1].isFinal) { 
+      1856 +                  recognitionRef.current?.stop();            
+      1857 +                  processVoiceInput(interim);                
+      1858 +                }                                            
+      1859                };
+      1858 -              recognition.onerror = () => { setIsRecording(fa
+           -lse); setVoiceOverlay(false); };                             
+      1859 -              recognition.onend = () => { setIsRecording(fals
+           -e); setVoiceOverlay(false); };                               
+      1860 +              recognition.onerror = (e) => {                 
+      1861 +                const errMsg = (e as {error?: string}).error;
+      1862 +                setIsRecording(false); setVoiceOverlay(false)
+           +; setVoiceProcessing(false);                                 
+      1863 +                if (errMsg === 'no-speech') showToast('🎤 음 
+           +성이 감지되지 않았어요');                                    
+      1864 +                else if (errMsg === 'not-allowed') showToast(
+           +'🎤 마이크 권한을 허용해주세요');                            
+      1865 +              };                                             
+      1866 +              recognition.onend = () => { if (!voiceProcessin
+           +g) { setIsRecording(false); } };                             
+      1867                recognitionRef.current = recognition;
+      1868                recognition.start();
+      1869 +              setVoiceTranscript('');                        
+      1870                setIsRecording(true); setVoiceOverlay(true);
+      1863 -              navigate('chat');                              
+      1871              }}>
+      1872              <svg width="22" height="22" viewBox="0 0 24 24" f
+            ill="none" stroke="currentColor" strokeWidth="2.2" strokeLine
+            cap="round" strokeLinejoin="round">
+      1873                <rect x="9" y="1" width="6" height="11" rx="3"/
+            >
+
+● Now I need to add the JSX import since I'm using JSX.Element[] in the calendar
+   rendering. Let me check the TypeScript type check:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1444                      if (!dayEventsMap[d]) dayEventsMap[d] = n
+            ew Set();
+      1445                      dayEventsMap[d].add(ev.type);
+      1446                    }
+      1447 -                  const cells: JSX.Element[] = [];           
+      1447 +                  const cells: React.ReactElement[] = [];    
+      1448                    for (let i=firstDow-1;i>=0;i--) cells.push(
+            <div key={`prev-${i}`} className="cal-cell other-month">{days
+            InPrev-i}</div>);
+      1449                    for (let d=1;d<=daysInMon;d++) {
+      1450                      const dow = new Date(calYear,calMonth,d).
+            getDay();
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● TypeScript compiles clean. Let me verify the key sections of BabyApp.tsx look
+  correct:
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+● Everything looks good. Let me do a final TypeScript check to confirm clean
+  compilation:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Zero errors. Let me do a quick summary of what was added:
+
+  globals.css — Added 3 new style blocks at the end:
+  - .shop-age-badge, .shop-flow-desc, .shop-grid, .shop-item*, .shop-yt/dg/mg —
+  shop card
+  - .kw-chips, .kw-chip, .kw-picker-overlay, .kw-picker-sheet, .kw-picker-btn,
+  etc. — keyword picker overlay
+  - .cal-legend-*, .cal-nav*, .cal-grid*, .cal-cell*, .cal-dots, .cal-event* —
+  milestone calendar
+
+  BabyApp.tsx — Added:
+  1. CAL_MILESTONES array + getMilestonesForMonth() — vaccine/food/check events
+  for the calendar
+  2. SHOP_KEYWORDS + getShopKeywordsForAge() — age-based keyword lists
+  3. State: calYear, calMonth, kwPickerOpen, kwPickerKeyword, voiceProcessing,
+  voiceTranscript
+  4. prevCalMonth() / nextCalMonth() — calendar navigation
+  5. handleVoiceRecord() — directly saves activity log + navigates to timeline
+  6. handleVoiceSchedule() — adds to todos + navigates to schedule
+  7. processVoiceInput() — GPT VOICE_TOOLS intent router (no API key → sends to
+  chat; with key → routes to record/schedule/chat)
+  8. Schedule page: Added 맞춤 키워드 카드 with age-based keyword chips + 3
+  platform links + 육아 달력 with full monthly calendar grid + event list
+  9. Keyword picker overlay — bottom sheet with 3 platform links per keyword
+  10. FAB mic — upgraded to use interimResults: true for real-time transcript +
+  processVoiceInput() for smart GPT routing instead of always sending to chat
+
+✻ Crunched for 9m 42s
+
+❯ 지금 홈화면에서 아기 이름, 다가오는 일정 등 소제목을 chatbot0605 버전에서의   
+  폰트로 설정해줘, 하단의 아이콘도 chatbog0605 버전이 깔끔한거 같아. 정보       
+  파트도 원본파일(chatbot_0605)과 동일하게 만들어줘. 이건 vercel을 통해         
+  베포할텐데, environment variable 에 youtube api와 openai api를 저장하는 게    
+  나을까?                                                                       
+
+● 먼저 chatbot0605의 폰트, 네비게이션 아이콘, 정보 페이지를 확인할게요.
+
+  Searched for 4 patterns, read 1 file, ran 1 shell command (ctrl+o to expand)
+
+● 현재 globals.css의 폰트와 section-title 스타일을 확인할게요.
+
+  Searched for 3 patterns, read 2 files (ctrl+o to expand)
+
+● 이제 명확하게 파악됐네요. Gaegu 폰트, SVG 아이콘, 정보 페이지 세 가지를 모두
+  수정하겠습니다.
+
+● Update(app/layout.tsx)
+  ⎿  Added 3 lines
+      1  import type { Metadata, Viewport } from "next";
+      2  import "./globals.css";
+      3 +import { Gaegu } from "next/font/google";                       
+      4  
+      5 +const gaegu = Gaegu({ weight: ['400', '700'], subsets: ['latin']
+        +, display: 'swap', variable: '--font-gaegu' });                 
+      6 +                                                                
+      7  export const metadata: Metadata = {
+      8    title: "베이비로그 — 아기 돌봄 일지",
+      9    description: "아기 수면, 수유, 기저귀, 건강, 발달을 기록하는 
+         스마트 육아 일지",
+
+● Update(app/layout.tsx)
+  ⎿  Added 1 line, removed 1 line
+      22    children: React.ReactNode;
+      23  }>) {
+      24    return (
+      25 -    <html lang="ko" className="h-full">                        
+      25 +    <html lang="ko" className={`h-full ${gaegu.variable}`}>    
+      26        <body className="h-full" suppressHydrationWarning>{childr
+          en}</body>
+      27      </html>
+      28    );
+
+● Now add the .hand class to globals.css and update the nav styles:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(app/globals.css)
+  ⎿  Added 8 lines, removed 2 lines
+      160    background: var(--gradient);
+      161    border-radius: 0 0 3px 3px;
+      162  }
+      163 -.nav-icon  { font-size: 21px; line-height: 1; }               
+      164 -.nav-label { font-size: 10px; font-weight: 700; letter-spacing
+          -: -.3px; }                                                    
+      163 +.nav-svg   { width: 22px; height: 22px; }                     
+      164 +.nav-label { font-size: 9px; font-weight: 700; letter-spacing:
+          + -.2px; }                                                     
+      165  
+      166 +/* ── Handwritten font (Gaegu) ───────────────────────────────
+          +─ */                                                          
+      167 +.hand {                                                       
+      168 +  font-family: var(--font-gaegu), -apple-system, BlinkMacSyste
+          +mFont, 'Apple SD Gothic Neo', sans-serif;                     
+      169 +  font-weight: 700;                                           
+      170 +}                                                             
+      171 +                                                              
+      172  /* ── Section Cards ──────────────────────────────────────────
+           ─ */
+      173  .section-card {
+      174    background: var(--surface);
+
+● Now update BabyApp.tsx — replace emoji nav icons with SVG, add hand class to
+  hero/section titles, and rebuild the info page:
+
+● Update(app/components/BabyApp.tsx)  ⎿  Added 12 lines, removed 8 lines
+      1831  
+      1832        {/* Bottom Navigation — 7-col grid with center FAB mic 
+            */}
+      1833        <nav className="bottom-nav" role="navigation">
+      1834 -        {([['home','🏠','홈'],['timeline','📅','타임라인'],['
+           -schedule','✅','스케줄']] as [Page,string,string][]).map(([pa
+           -ge,icon,label])=>(                                           
+      1835 -          <button key={page} className={`nav-item${currentPag
+           -e===page?' active':''}`}                                     
+      1836 -            onClick={()=>navigate(page)}                     
+      1837 -            aria-label={label} aria-current={currentPage===pa
+           -ge?'page':undefined}>                                        
+      1838 -            <span className="nav-icon">{icon}</span>         
+      1839 -            <span className="nav-label">{label}</span>       
+      1840 -          </button>                                          
+      1841 -        ))}                                                  
+      1834 +        <button className={`nav-item${currentPage==='home'?' 
+           +active':''}`} onClick={()=>navigate('home')} aria-label="홈" 
+           +aria-current={currentPage==='home'?'page':undefined}>        
+      1835 +          <svg className="nav-svg" viewBox="0 0 24 24" fill="
+           +none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="
+           +round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a2 2 0 
+           +01-2 2h-4v-7H9v7H5a2 2 0 01-2-2v-9z"/></svg>                 
+      1836 +          <span className="nav-label">홈</span>              
+      1837 +        </button>                                            
+      1838 +        <button className={`nav-item${currentPage==='timeline
+           +'?' active':''}`} onClick={()=>navigate('timeline')} aria-lab
+           +el="시간표" aria-current={currentPage==='timeline'?'page':und
+           +efined}>                                                     
+      1839 +          <svg className="nav-svg" viewBox="0 0 24 24" fill="
+           +none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="
+           +round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/>
+           +<path d="M12 7v5l3 2"/></svg>                                
+      1840 +          <span className="nav-label">시간표</span>          
+      1841 +        </button>                                            
+      1842 +        <button className={`nav-item${currentPage==='schedule
+           +'?' active':''}`} onClick={()=>navigate('schedule')} aria-lab
+           +el="스케줄" aria-current={currentPage==='schedule'?'page':und
+           +efined}>                                                     
+      1843 +          <svg className="nav-svg" viewBox="0 0 24 24" fill="
+           +none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="
+           +round" strokeLinejoin="round"><rect x="3" y="5" width="18" he
+           +ight="16" rx="3"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>     
+      1844 +          <span className="nav-label">스케줄</span>          
+      1845 +        </button>                                            
+      1846  
+      1847          {/* Center FAB mic */}
+      1848          <div className="nav-center-area">
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 12 lines, removed 8 lines
+      1880            </button>
+      1881          </div>
+      1882  
+      1883 -        {([['health','❤️','건강'],['chat','💬','챗봇'],['info'
+           -,'ℹ️','정보']] as [Page,string,string][]).map(([page,icon,labe
+           -l])=>(                                                       
+      1884 -          <button key={page} className={`nav-item${currentPag
+           -e===page?' active':''}`}                                     
+      1885 -            onClick={()=>navigate(page)}                     
+      1886 -            aria-label={label} aria-current={currentPage===pa
+           -ge?'page':undefined}>                                        
+      1887 -            <span className="nav-icon">{icon}</span>         
+      1888 -            <span className="nav-label">{label}</span>       
+      1889 -          </button>                                          
+      1890 -        ))}                                                  
+      1883 +        <button className={`nav-item${currentPage==='health'?
+           +' active':''}`} onClick={()=>navigate('health')} aria-label="
+           +건강" aria-current={currentPage==='health'?'page':undefined}>
+      1884 +          <svg className="nav-svg" viewBox="0 0 24 24" fill="
+           +none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="
+           +round" strokeLinejoin="round"><path d="M20.8 8.6a5.5 5.5 0 00
+           +-9.3-3 5.5 5.5 0 00-9.3 3c0 6.5 9.3 11.4 9.3 11.4s9.3-4.9 9.3
+           +-11.4z"/></svg>                                              
+      1885 +          <span className="nav-label">건강</span>            
+      1886 +        </button>                                            
+      1887 +        <button className={`nav-item${currentPage==='chat'?' 
+           +active':''}`} onClick={()=>navigate('chat')} aria-label="챗봇
+           +" aria-current={currentPage==='chat'?'page':undefined}>      
+      1888 +          <svg className="nav-svg" viewBox="0 0 24 24" fill="
+           +none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="
+           +round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l
+           +-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>                  
+      1889 +          <span className="nav-label">챗봇</span>            
+      1890 +        </button>                                            
+      1891 +        <button className={`nav-item${currentPage==='info'?' 
+           +active':''}`} onClick={()=>navigate('info')} aria-label="정보
+           +" aria-current={currentPage==='info'?'page':undefined}>      
+      1892 +          <svg className="nav-svg" viewBox="0 0 24 24" fill="
+           +none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="
+           +round" strokeLinejoin="round"><path d="M22.54 6.42a2.78 2.78 
+           +0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 
+           +001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001
+           +.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.
+           +95-1.96A29 29 0 0023 12a29 29 0 00-.46-5.58z"/><polygon point
+           +s="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColo
+           +r" stroke="none"/></svg>                                     
+      1893 +          <span className="nav-label">정보</span>            
+      1894 +        </button>                                            
+      1895        </nav>
+      1896      </div>
+      1897    );
+
+● Now add hand class to the baby hero card name and stats values:
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1189                <div className="baby-hero-top">
+      1190                  <div className="baby-face">{appState.baby?.ge
+            nder==='boy'?'👦':'👧'}</div>
+      1191                  <div className="baby-hero-info">
+      1192 -                  <div className="baby-hero-name" role="butto
+           -n" tabIndex={0} onClick={()=>{setModal('setup');}}>{appState.
+           -baby?.name||'베이비'}</div>                                  
+      1192 +                  <div className="baby-hero-name hand" role="
+           +button" tabIndex={0} onClick={()=>{setModal('setup');}}>{appS
+           +tate.baby?.name||'베이비'}</div>                             
+      1193                    <div className="baby-hero-pills">
+      1194                      {ageInfo ? (
+      1195                        <>
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 3 lines, removed 3 lines
+      1204                  </button>
+      1205                </div>
+      1206                <div className="baby-hero-stats">
+      1207 -                <div className="bhs-item"><div className="bhs
+           --val">{feedCount>0?`${feedCount}회`:'—'}</div><div className=
+           -"bhs-lbl">수유</div></div>                                   
+      1207 +                <div className="bhs-item"><div className="bhs
+           +-val hand">{feedCount>0?`${feedCount}회`:'—'}</div><div class
+           +Name="bhs-lbl">수유</div></div>                              
+      1208                  <div className="bhs-divider"/>
+      1209 -                <div className="bhs-item"><div className="bhs
+           --val">{sleepMin===0?'—':sleepMin>=60?`${Math.floor(sleepMin/6
+           -0)}h${sleepMin%60>0?` ${sleepMin%60}m`:''}`:` ${sleepMin}m`}<
+           -/div><div className="bhs-lbl">수면</div></div>               
+      1209 +                <div className="bhs-item"><div className="bhs
+           +-val hand">{sleepMin===0?'—':sleepMin>=60?`${Math.floor(sleep
+           +Min/60)}h${sleepMin%60>0?` ${sleepMin%60}m`:''}`:` ${sleepMin
+           +}m`}</div><div className="bhs-lbl">수면</div></div>          
+      1210                  <div className="bhs-divider"/>
+      1211 -                <div className="bhs-item"><div className="bhs
+           --val">{diaperCount>0?`${diaperCount}회`:'—'}</div><div classN
+           -ame="bhs-lbl">기저귀</div></div>                             
+      1211 +                <div className="bhs-item"><div className="bhs
+           +-val hand">{diaperCount>0?`${diaperCount}회`:'—'}</div><div c
+           +lassName="bhs-lbl">기저귀</div></div>                        
+      1212                </div>
+      1213              </div>
+      1214  
+
+● Now add hand class to the home page section titles:
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1215              {/* 다가오는 일정 */}
+      1216              <div className="section-card">
+      1217                <div className="section-header">
+      1218 -                <h3 className="section-title">다가오는 일정</
+           -h3>                                                          
+      1218 +                <h3 className="section-title hand">다가오는  
+           +일정</h3>                                                    
+      1219                  <button className="see-all-btn" onClick={()=>
+            navigate('schedule')}>전체 →</button>
+      1220                </div>
+      1221                <div className="home-upcoming-list">
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1231              </div>
+      1232  
+      1233              <div className="section-card">
+      1234 -              <h3 className="section-title">빠른 기록</h3>   
+      1234 +              <h3 className="section-title hand">빠른 기록</h
+           +3>                                                           
+      1235                <div className="quick-grid">
+      1236                  {(['sleep','feed','pee','poop','cry','walk'] 
+            as LogType[]).map(type=>(
+      1237                    <button key={type} className={`quick-btn qb
+            tn-${type}`} onClick={()=>openAddLog(type)}>
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1243  
+      1244              <div className="section-card">
+      1245                <div className="section-header">
+      1246 -                <h3 className="section-title">최근 기록</h3> 
+      1246 +                <h3 className="section-title hand">최근 기록<
+           +/h3>                                                         
+      1247                  <button className="see-all-btn" onClick={()=>
+            navigate('timeline')}>전체보기 →</button>
+      1248                </div>
+      1249                <div className="recent-logs-list">
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1267              </div>
+      1268  
+      1269              <div className="section-card">
+      1270 -              <h3 className="section-title">오늘의 알림 🔔</h
+           -3>                                                           
+      1270 +              <h3 className="section-title hand">오늘의 알림 
+           +🔔</h3>                                                      
+      1271                <div className="alerts-list">
+      1272                  {alerts.length===0 ? (
+      1273                    <div className="empty-state" style={{paddin
+            g:'12px'}}><div className="empty-icon" style={{fontSize:'28px
+            '}}>🔕</div><p style={{fontSize:'12px'}}>오늘은 특별한 알림이
+             없어요</p></div>
+
+● Now replace the info page with chatbot0605's simple design:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 16 lines, removed 37 lines
+      1748  
+      1749          {/* ❻ INFO */}
+      1750          <section id="page-info" className={`page${currentPage
+            ==='info'?' active':''}`}>
+      1751 -          <div className="page-scroll">                      
+      1752 -            <div className="section-card">                   
+      1753 -              <h3 className="section-title">📺 육아 유튜브</h
+           -3>                                                           
+      1754 -              <p className="info-note">전문 소아과 의사와 육 
+           -아 전문가의 영상을 참고해보세요</p>                          
+      1755 -              <div className="info-open-wrap" style={{padding
+           -:'16px 0 8px'}}>                                             
+      1756 -                <a className="info-open-btn"                 
+      1757 -                  href={`https://www.youtube.com/results?sear
+           -ch_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월
+           - 아기`:'아기')+ ' 육아 소아과')}`}                           
+      1758 -                  target="_blank" rel="noopener noreferrer"> 
+      1759 -                  <span style={{fontSize:'28px'}}>▶</span>   
+      1760 -                  <span>YouTube에서 보기</span>              
+      1761 -                </a>                                         
+      1762 -                <p className="info-open-hint">{ageInfo?`${age
+           -Info.months}개월 아기 관련 영상을 검색해요`:''}</p>          
+      1763 -              </div>                                         
+      1751 +          <div className="screen-header" style={{padding:'20p
+           +x 20px 0'}}>                                                 
+      1752 +            <div>                                            
+      1753 +              <div className="screen-title hand" style={{font
+           +Size:'22px',fontWeight:700,color:'var(--text)'}}>정보</div>  
+      1754 +              <div className="screen-sub" style={{fontSize:'1
+           +3px',color:'var(--text-mid)',marginTop:'2px'}}>육아 관련 YouT
+           +ube 추천 영상</div>                                          
+      1755              </div>
+      1765 -            <div className="section-card">                   
+      1766 -              <h3 className="section-title">🔍 관련 검색</h3>
+      1767 -              <div style={{display:'flex',flexDirection:'colu
+           -mn',gap:'8px'}}>                                             
+      1768 -                {[                                           
+      1769 -                  {label:'🥕 당근마켓 — 육아용품', href:`http
+           -s://www.daangn.com/search/${encodeURIComponent('육아용품')}`,
+           - bg:'#fff3eb', color:'#e85c00'},                             
+      1770 -                  {label:'🧴 맘가이드 — 제품 리뷰', href:'htt
+           -ps://momguide.co.kr', bg:'var(--lime-pale)', color:'#3a8033'}
+           -,                                                            
+      1771 -                  {label:'💉 예방접종도우미', href:'https://n
+           -ip.kdca.go.kr', bg:'#e9f2ff', color:'#2255cc'},              
+      1772 -                ].map(({label, href, bg, color})=>(          
+      1773 -                  <a key={href} href={href} target="_blank" r
+           -el="noopener noreferrer"                                     
+      1774 -                    style={{display:'flex',alignItems:'center
+           -',gap:'10px',padding:'12px',borderRadius:'var(--r-md)',backgr
+           -ound:bg,color,fontWeight:700,fontSize:'13px',textDecoration:'
+           -none'}}>                                                     
+      1775 -                    {label}                                  
+      1776 -                    <span style={{marginLeft:'auto',opacity:.
+           -5}}>›</span>                                                 
+      1777 -                  </a>                                       
+      1778 -                ))}                                          
+      1779 -              </div>                                         
+      1780 -            </div>                                           
+      1781 -            <div className="section-card">                   
+      1782 -              <h3 className="section-title">ℹ️ 앱 정보</h3>  
+      1783 -              <p className="info-note" style={{marginBottom:0
+           -}}>                                                          
+      1784 -                베이비로그 v1.0<br/>                         
+      1785 -                수면, 수유, 기저귀, 건강, 발달을 기록하는 스 
+           -마트 육아 일지입니다.<br/>                                   
+      1786 -                RAG 기반 AI 챗봇으로 육아 전문 정보를 제공해 
+           -요.                                                          
+      1787 -              </p>                                           
+      1788 -            </div>                                           
+      1756            </div>
+      1757 +          <div className="info-open-wrap">                   
+      1758 +            <a className="info-open-btn"                     
+      1759 +              href={`https://www.youtube.com/results?search_q
+           +uery=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아 
+           +기`:'아기')+ ' 육아 소아과')}`}                              
+      1760 +              target="_blank" rel="noopener noreferrer">     
+      1761 +              <svg viewBox="0 0 24 24" width="32" height="32"
+           + fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="
+           +round">                                                      
+      1762 +                <path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96
+           +C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29
+           + 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.12 
+           +20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 
+           +0 0023 12a29 29 0 00-.46-5.58z"/>                            
+      1763 +                <polygon points="9.75 15.02 15.5 12 9.75 8.98
+           + 9.75 15.02" fill="white" stroke="none"/>                    
+      1764 +              </svg>                                         
+      1765 +              YouTube 추천 영상 보기                         
+      1766 +            </a>                                             
+      1767 +            <p className="info-open-hint">새 탭에서 열립니다<
+           +/p>                                                          
+      1768 +          </div>                                             
+      1769          </section>
+      1770  
+      1771        </main>
+
+● Now update the info page CSS to match chatbot0605's centered layout style:
+
+● Update(app/globals.css)
+  ⎿  Added 9 lines, removed 4 lines
+      1051  .rpt-empty { text-align: center; padding: 20px; font-size: 13
+            px; color: var(--text-light); }
+      1052  
+      1053  /* ── INFO PAGE ─────────────────────────────────────────────
+            ─── */
+      1054 +.screen-title { font-size: 22px; font-weight: 700; color: var
+           +(--text); }                                                  
+      1055 +.screen-sub   { font-size: 13px; color: var(--text-mid); marg
+           +in-top: 2px; }                                               
+      1056  .info-open-wrap {
+      1057    display: flex; flex-direction: column; align-items: center;
+      1056 -  justify-content: center; gap: 14px; padding: 60px 24px 24px
+           -;                                                            
+      1058 +  justify-content: center; gap: 18px;                        
+      1059 +  padding: 0 24px;                                           
+      1060 +  flex: 1;                                                   
+      1061  }
+      1062  .info-open-btn {
+      1059 -  display: flex; align-items: center; gap: 12px;             
+      1063 +  display: flex; align-items: center; gap: 14px;             
+      1064    background: linear-gradient(135deg, #FF0000 0%, #CC0000 100
+            %);
+      1065    color: white; text-decoration: none;
+      1062 -  font-size: 16px; font-weight: 700;                         
+      1063 -  padding: 18px 28px; border-radius: 16px;                   
+      1066 +  font-size: 17px; font-weight: 700;                         
+      1067 +  padding: 20px 32px; border-radius: 18px;                   
+      1068    box-shadow: 0 6px 20px rgba(200,0,0,.3);
+      1069    transition: transform .18s, box-shadow .18s;
+      1070 +  width: 100%; justify-content: center;                      
+      1071  }
+      1072  .info-open-btn:hover  { transform: translateY(-2px); box-shad
+            ow: 0 8px 24px rgba(200,0,0,.4); }
+      1073  .info-open-btn:active { transform: translateY(0) scale(.97); 
+            }
+
+● The info page needs a flex layout to center the button vertically. Let me
+  check how the page section is styled:
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● The info page needs display: flex; flex-direction: column to let
+  .info-open-wrap { flex: 1 } work. Let me add a page-info-layout class:
+
+● Update(app/globals.css)
+  ⎿  Added 2 lines
+      120  
+      121  .page-chat-layout { display: flex !important; flex-direction: 
+           column; overflow: hidden !important; }
+      122  .page-chat-layout.active { display: flex !important; }
+      123 +.page-info-layout { display: flex !important; flex-direction: 
+          +column; }                                                     
+      124 +.page-info-layout.active { display: flex !important; }        
+      125  
+      126  @keyframes pageIn {
+      127    from { opacity: 0; transform: translateY(6px); }
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1747          </section>
+      1748  
+      1749          {/* ❻ INFO */}
+      1750 -        <section id="page-info" className={`page${currentPage
+           -==='info'?' active':''}`}>                                   
+      1750 +        <section id="page-info" className={`page page-info-la
+           +yout${currentPage==='info'?' active':''}`}>                  
+      1751            <div className="screen-header" style={{padding:'20p
+            x 20px 0'}}>
+      1752              <div>
+      1753                <div className="screen-title hand" style={{font
+            Size:'22px',fontWeight:700,color:'var(--text)'}}>정보</div>
+
+● Now run final TypeScript check:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● 완전히 깨끗합니다. 변경 내용을 정리하면:
+
+  ---
+  변경 사항
+
+  1. Gaegu 손글씨 폰트 (layout.tsx)
+  - next/font/google으로 Gaegu 폰트 로드 → --font-gaegu CSS 변수로 등록
+
+  2. .hand 클래스 적용 (globals.css + BabyApp.tsx)
+  - 아기 이름 (baby-hero-name), 통계 숫자 (bhs-val) → Gaegu 폰트
+  - 홈 소제목 4개 — 다가오는 일정, 빠른 기록, 최근 기록, 오늘의 알림 → Gaegu
+  폰트
+
+  3. 하단 네비게이션 SVG 아이콘 (BabyApp.tsx)
+  - 이모지 제거 → chatbot0605와 동일한 SVG 경로 (홈, 시계, 캘린더, 하트, 말풍선,
+   YouTube)
+
+  4. 정보 페이지 (BabyApp.tsx)
+  - chatbot0605와 동일하게 — "정보 / 육아 관련 YouTube 추천 영상" 헤더 + 큰 빨간
+   YouTube 버튼만 중앙 배치
+
+  ---
+  Vercel 환경 변수 질문에 대한 답변
+
+  ┌────────────────────┬──────────────┬────────────────────────────────────┐
+  │      키 종류       │  권장 방식   │                이유                │
+  ├────────────────────┼──────────────┼────────────────────────────────────┤
+  │ DB_HOST, DB_USER,  │ ✅ Vercel    │ 서버 API route에서만 사용, 절대    │
+  │ DB_PASSWORD 등     │ env var      │ 클라이언트에 노출 금지             │
+  │                    │ (서버 전용)  │                                    │
+  ├────────────────────┼──────────────┼────────────────────────────────────┤
+  │                    │ ✅ Vercel    │ 서버 API route에서 호출하면 키     │
+  │ YOUTUBE_API_KEY    │ env var      │ 안전하게 보호                      │
+  │                    │ (서버 전용)  │                                    │
+  ├────────────────────┼──────────────┼────────────────────────────────────┤
+  │                    │ ❌ Vercel    │ 모든 사용자가 동일 키 공유 → 비용  │
+  │ OPENAI_API_KEY     │ env var에    │ 폭증 위험. 현재처럼 사용자가 직접  │
+  │                    │ 공용 키      │ 입력 + localStorage 저장 방식이    │
+  │                    │ 비권장       │ 가장 안전                          │
+  └────────────────────┴──────────────┴────────────────────────────────────┘
+
+  결론: DB 정보와 YouTube API는 Vercel 대시보드 → Settings → Environment
+  Variables에 추가하세요. OpenAI는 현재 방식(사용자 개인 키 입력) 유지가
+  좋습니다.
+
+✻ Crunched for 4m 38s
+
+❯ 일단 이 버전은 데모 버진이므로, VERCEL 환경변수에 저장했어. 사용자에게        
+  요청하지 말고, 저장된 YOUTUBE_API_KEY, OPENAI_API_KEY를 참조하게 코드를 짜줘  
+
+● 현재 API 구조를 먼저 확인할게요.
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+● 채팅 섹션의 API 키 관련 JSX를 확인할게요.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● 完全히 파악했습니다. 두 개의 서버 API route를 만들고 BabyApp.tsx에서
+  클라이언트 키 입력을 완전히 제거할게요.
+
+● Write(app/api/chat/route.ts)
+  ⎿  Wrote 20 lines to app/api/chat/route.ts
+       1 import { NextRequest, NextResponse } from 'next/server';
+       2 
+       3 export async function POST(req: NextRequest) {
+       5   if (!apiKey) {
+       6     return NextResponse.json({ error: 'OPENAI_API_KEY not config
+         ured' }, { status: 500 });
+       7   }
+       8   try {
+      10     const res = await fetch('https://api.openai.com/v1/chat/comp
+         letions', {
+     … +14 lines (ctrl+o to expand)
+
+● Write(app/api/youtube/route.ts)
+  ⎿  Wrote 24 lines to app/api/youtube/route.ts
+       1 import { NextRequest, NextResponse } from 'next/server';
+       2 
+       3 export async function GET(req: NextRequest) {
+       4   const apiKey = process.env.YOUTUBE_API_KEY;
+       5   if (!apiKey) {
+       7   }
+       8   const q = req.nextUrl.searchParams.get('q') || '아기 육아';
+       9   try {
+      10     const url = new URL('https://www.googleapis.com/youtube/v3/s
+         earch');
+     … +16 lines (ctrl+o to expand)
+
+● 이제 BabyApp.tsx에서 openAiKey 관련 상태·로직을 모두 제거하고 서버 route로
+  교체합니다.
+
+  1. 상태 변수 제거 + YouTube 상태 추가:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 3 lines, removed 3 lines
+      421    const [isRecording, setIsRecording] = useState(false);
+      422    const recognitionRef = useRef<SpeechRecognitionLike | null>(
+           null);
+      423  
+      424 -  // OpenAI API key                                           
+      425 -  const [openAiKey, setOpenAiKey] = useState('');             
+      426 -  const [keyInput, setKeyInput] = useState('');               
+      424 +  // YouTube videos (info page)                               
+      425 +  const [ytVideos, setYtVideos] = useState<{id:{videoId:string
+          +};snippet:{title:string;channelTitle:string;thumbnails:{medium
+          +:{url:string}}}}[]>([]);                                      
+      426 +  const [ytLoading, setYtLoading] = useState(false);          
+      427  
+      428    // Calendar
+      429    const [calYear, setCalYear] = useState(() => new Date().getF
+           ullYear());
+
+● 2. useEffect에서 localStorage 키 로드 제거 + YouTube fetch 추가:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Removed 3 lines
+      467  
+      468    // Load from DB via API
+      469    useEffect(() => {
+      470 -    const savedKey = localStorage.getItem('openai_api_key') ||
+          - '';                                                          
+      471 -    setOpenAiKey(savedKey);                                   
+      472 -    setKeyInput(savedKey);                                    
+      470      fetch('/api/state')
+      471        .then(r => r.ok ? r.json() : null)
+      472        .then(data => { if (data) setAppState(Object.assign(defa
+           ultState(), data)); })
+
+● 3. YouTube fetch useEffect 추가 (Chat scroll useEffect 뒤에):
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 15 lines
+      509        setTimeout(() => { chatMessagesRef.current!.scrollTop = 
+           chatMessagesRef.current!.scrollHeight; }, 30);
+      510    }, [chatMessages]);
+      511  
+      512 +  // YouTube video fetch when info page opens                 
+      513 +  useEffect(() => {                                           
+      514 +    if (currentPage !== 'info') return;                       
+      515 +    if (ytVideos.length > 0) return;                          
+      516 +    setYtLoading(true);                                       
+      517 +    const q = appState.baby                                   
+      518 +      ? `${getAgeInfo(appState.baby.birthDate).months}개월 아 
+          +기 육아 소아과`                                               
+      519 +      : '신생아 아기 육아';                                   
+      520 +    fetch(`/api/youtube?q=${encodeURIComponent(q)}`)          
+      521 +      .then(r => r.json())                                    
+      522 +      .then(data => setYtVideos(data.items || []))            
+      523 +      .catch(() => {})                                        
+      524 +      .finally(() => setYtLoading(false));                    
+      525 +  }, [currentPage]);                                          
+      526 +                                                              
+      527    // ── Helpers ──────────────────────────────────────────────
+           ────
+      528    const saveAppState = useCallback((s: AppState) => {
+      529      setAppState(s);
+
+● 4. sendChat() — /api/chat 서버 route 호출로 교체:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 13 lines, removed 17 lines
+      746      ]);
+      747      try {
+      748        const { chunks, figures } = await searchRAG(text);
+      749 -      let html: string;                                       
+      750 -      if (!openAiKey) {                                       
+      751 -        html = getBotResponse(text, months, name) + renderSour
+          -ces(chunks, figures);                                         
+      752 -      } else {                                                
+      753 -        const context = chunks.length                         
+      754 -          ? chunks.map(c => { const p = c.metadata.page ? ` (p
+          -.${c.metadata.page})` : ''; return `[출처: ${c.metadata.source
+          -}${p}]\n${c.text}`; }).join('\n\n---\n\n')                    
+      755 -          : '';                                               
+      756 -        const systemPrompt = `너는 영유아 육아 전문 챗봇이야.\
+          -n아기 이름: ${name}, 월령: ${months != null ? months + '개월' 
+          -: '미입력'}.\n아래 참고 문서를 바탕으로 질문에 정확하고 실용적
+          -인 답변을 해줘.\n- 항상 한국어로 답변\n- 중요 키워드는 <strong
+          ->볼드</strong> 처리\n- 목록은 <ul><li> 형식\n- 의학적 결정은  
+          -반드시 소아청소년과 전문의 상담 권고 포함\n- 없는 정보를 지어 
+          -내지 마\n\n[참고 문서]\n${context || '관련 문서 없음. 일반 육 
+          -아 지식으로 답변.'}`;                                         
+      757 -        const res = await fetch('https://api.openai.com/v1/cha
+          -t/completions', {                                             
+      758 -          method: 'POST',                                     
+      759 -          headers: { 'Authorization': `Bearer ${openAiKey}`, '
+          -Content-Type': 'application/json' },                          
+      760 -          body: JSON.stringify({ model: 'gpt-4o-mini', max_tok
+          -ens: 800, temperature: 0.3, messages: [{ role: 'system', conte
+          -nt: systemPrompt }, { role: 'user', content: text }] }),      
+      761 -        });                                                   
+      762 -        const data = await res.json();                        
+      763 -        html = (data.choices?.[0]?.message?.content || '답변을
+          - 생성하지 못했어요.') + renderSources(chunks, figures);       
+      764 -      }                                                       
+      749 +      const context = chunks.length                           
+      750 +        ? chunks.map(c => { const p = c.metadata.page ? ` (p.$
+          +{c.metadata.page})` : ''; return `[출처: ${c.metadata.source}$
+          +{p}]\n${c.text}`; }).join('\n\n---\n\n')                      
+      751 +        : '';                                                 
+      752 +      const systemPrompt = `너는 영유아 육아 전문 챗봇이야.\n 
+          +아기 이름: ${name}, 월령: ${months != null ? months + '개월' :
+          + '미입력'}.\n아래 참고 문서를 바탕으로 질문에 정확하고 실용적 
+          +인 답변을 해줘.\n- 항상 한국어로 답변\n- 중요 키워드는 <strong
+          +>볼드</strong> 처리\n- 목록은 <ul><li> 형식\n- 의학적 결정은  
+          +반드시 소아청소년과 전문의 상담 권고 포함\n- 없는 정보를 지어 
+          +내지 마\n\n[참고 문서]\n${context || '관련 문서 없음. 일반 육 
+          +아 지식으로 답변.'}`;                                         
+      753 +      const res = await fetch('/api/chat', {                  
+      754 +        method: 'POST',                                       
+      755 +        headers: { 'Content-Type': 'application/json' },      
+      756 +        body: JSON.stringify({ model: 'gpt-4o-mini', max_token
+          +s: 800, temperature: 0.3, messages: [{ role: 'system', content
+          +: systemPrompt }, { role: 'user', content: text }] }),        
+      757 +      });                                                     
+      758 +      const data = await res.json();                          
+      759 +      const html = (data.choices?.[0]?.message?.content || get
+          +BotResponse(text, months, name)) + renderSources(chunks, figur
+          +es);                                                          
+      760        setChatMessages(prev => [...prev.filter(m => m.id !== 't
+           yping'), { id: uid(), role: 'bot', html }]);
+      761      } catch {
+      767 -      setChatMessages(prev => [...prev.filter(m => m.id !== 't
+          -yping'), { id: uid(), role: 'bot', html: getBotResponse(text, 
+          -months, name) }]);                                            
+      762 +      const months2 = appState.baby ? getAgeInfo(appState.baby
+          +.birthDate).months : null;                                    
+      763 +      setChatMessages(prev => [...prev.filter(m => m.id !== 't
+          +yping'), { id: uid(), role: 'bot', html: getBotResponse(text, 
+          +months2, name) }]);                                           
+      764      }
+      765    };
+      766  
+
+● 5. processVoiceInput() — 키 체크 제거 + /api/chat 사용:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 2 lines, removed 9 lines
+      808    };
+      809  
+      810    const processVoiceInput = async (transcript: string) => {
+      811 -    if (!openAiKey) {                                         
+      812 -      setVoiceOverlay(false); setIsRecording(false); setVoiceP
+          -rocessing(false);                                             
+      813 -      navigate('chat');                                       
+      814 -      setTimeout(() => sendChat(transcript), 200);            
+      815 -      showToast('💬 챗봇으로 전달했어요 (API 키 미설정)');    
+      816 -      return;                                                 
+      817 -    }                                                         
+      811      const voiceTools = [
+      812        { type:'function', function:{ name:'record_activity', de
+           scription:'아기의 활동(수유, 수면, 기저귀, 산책, 울음)을 시간
+           표에 기록합니다.', parameters:{ type:'object', properties:{ ty
+           pe:{type:'string',enum:['feed','sleep','pee','poop','cry','wal
+           k'],description:'활동 유형'}, time:{type:'string',description:
+           '시작 시간 HH:MM'}, endTime:{type:'string',description:'종료 
+           시간 HH:MM'}, amount:{type:'number',description:'수유량(ml)'},
+            feedType:{type:'string',enum:['분유','모유','혼합']}, note:{t
+           ype:'string',description:'메모'} }, required:['type'] } } },
+      813        { type:'function', function:{ name:'save_schedule', desc
+           ription:'할일이나 예약 일정을 스케줄에 저장합니다.', parameter
+           s:{ type:'object', properties:{ text:{type:'string',descriptio
+           n:'할일 내용'}, category:{type:'string',enum:['health','food',
+           'play','etc'],description:'health=건강/병원/접종, food=이유식,
+            play=놀이, etc=기타'} }, required:['text','category'] } } },
+     ...
+      818        setVoiceTranscript(`"${transcript}"`);
+      819        const babyMonths = appState.baby ? getAgeInfo(appState.b
+           aby.birthDate).months : 5;
+      820        const babyName = appState.baby?.name || '아기';
+      828 -      const res = await fetch('https://api.openai.com/v1/chat/
+          -completions', {                                               
+      821 +      const res = await fetch('/api/chat', {                  
+      822          method:'POST',
+      830 -        headers:{ 'Authorization':`Bearer ${openAiKey}`, 'Cont
+          -ent-Type':'application/json' },                               
+      823 +        headers:{ 'Content-Type':'application/json' },        
+      824          body:JSON.stringify({
+      825            model:'gpt-4o-mini',
+      826            messages:[
+
+● 6. 채팅 페이지 — API 키 배너 제거 및 상태 업데이트:
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 1 line, removed 18 lines
+      1701          <section id="page-chat" className={`page page-chat-la
+            yout${currentPage==='chat'?' active':''}`}>
+      1702            <div className="chat-bot-header">
+      1703              <div className="bot-avatar-lg">🤱</div>
+      1704 -            <div><div className="bot-name">베이비케어 도우미<
+           -/div><div className="bot-status">{openAiKey ? '🤖 RAG AI 모드
+           -' : '💬 기본 답변 모드'}</div></div>                         
+      1704 +            <div><div className="bot-name">베이비케어 도우미<
+           +/div><div className="bot-status">🤖 RAG AI 모드</div></div>  
+      1705            </div>
+      1706 -          {!openAiKey ? (                                    
+      1707 -            <div className="api-key-banner">                 
+      1708 -              <p>🔑 OpenAI API 키를 입력하면 육아 문서 기반 A
+           -I 답변을 받을 수 있어요</p>                                  
+      1709 -              <div className="api-key-row">                  
+      1710 -                <input type="password" className="api-key-inp
+           -ut" placeholder="sk-..." value={keyInput}                    
+      1711 -                  onChange={e => setKeyInput(e.target.value)}
+      1712 -                  onKeyDown={e => { if (e.key === 'Enter' && 
+           -keyInput.trim()) { localStorage.setItem('openai_api_key', key
+           -Input.trim()); setOpenAiKey(keyInput.trim()); showToast('🔑 A
+           -PI 키가 저장됐어요'); }}} />                                 
+      1713 -                <button className="btn-primary" style={{white
+           -Space:'nowrap'}} onClick={() => { if (!keyInput.trim()) retur
+           -n; localStorage.setItem('openai_api_key', keyInput.trim()); s
+           -etOpenAiKey(keyInput.trim()); showToast('🔑 API 키가 저장됐어
+           -요'); }}>저장</button>                                       
+      1714 -              </div>                                         
+      1715 -              <p style={{fontSize:'11px',color:'var(--text-li
+           -ght)'}}>키 없이도 기본 답변 이용 가능</p>                    
+      1716 -            </div>                                           
+      1717 -          ) : (                                              
+      1718 -            <div className="api-key-connected">              
+      1719 -              <span>🤖 AI 연결됨</span>                      
+      1720 -              <button onClick={() => { localStorage.removeIte
+           -m('openai_api_key'); setOpenAiKey(''); setKeyInput(''); showT
+           -oast('🔑 API 키가 해제됐어요'); }}>해제</button>             
+      1721 -            </div>                                           
+      1722 -          )}                                                 
+      1706            <div className="chat-messages" ref={chatMessagesRef
+            }>
+      1707              {chatMessages.map(msg=>(
+      1708                <div key={msg.id} className={`chat-msg ${msg.ro
+            le}`}>
+
+● 7. 정보 페이지 — YouTube 영상 카드 추가 (스크롤 가능하도록 구조 변경):
+
+● Update(app/components/BabyApp.tsx)
+  ⎿  Added 38 lines, removed 17 lines
+      1731          </section>
+      1732  
+      1733          {/* ❻ INFO */}
+      1734 -        <section id="page-info" className={`page page-info-la
+           -yout${currentPage==='info'?' active':''}`}>                  
+      1735 -          <div className="screen-header" style={{padding:'20p
+           -x 20px 0'}}>                                                 
+      1736 -            <div>                                            
+      1737 -              <div className="screen-title hand" style={{font
+           -Size:'22px',fontWeight:700,color:'var(--text)'}}>정보</div>  
+      1738 -              <div className="screen-sub" style={{fontSize:'1
+           -3px',color:'var(--text-mid)',marginTop:'2px'}}>육아 관련 YouT
+           -ube 추천 영상</div>                                          
+      1734 +        <section id="page-info" className={`page${currentPage
+           +==='info'?' active':''}`}>                                   
+      1735 +          <div className="page-scroll">                      
+      1736 +            <div style={{padding:'20px 20px 4px'}}>          
+      1737 +              <div className="screen-title hand">정보</div>  
+      1738 +              <div className="screen-sub">육아 관련 YouTube  
+           +추천 영상</div>                                              
+      1739              </div>
+      1740 +            <div className="info-open-wrap" style={{padding:'
+           +16px 20px'}}>                                                
+      1741 +              <a className="info-open-btn"                   
+      1742 +                href={`https://www.youtube.com/results?search
+           +_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월  
+           +아기`:'아기')+ ' 육아 소아과')}`}                            
+      1743 +                target="_blank" rel="noopener noreferrer">   
+      1744 +                <svg viewBox="0 0 24 24" width="30" height="3
+           +0" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap
+           +="round">                                                    
+      1745 +                  <path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.
+           +96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 
+           +29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.1
+           +2 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 2
+           +9 0 0023 12a29 29 0 00-.46-5.58z"/>                          
+      1746 +                  <polygon points="9.75 15.02 15.5 12 9.75 8.
+           +98 9.75 15.02" fill="white" stroke="none"/>                  
+      1747 +                </svg>                                       
+      1748 +                YouTube 추천 영상 보기                       
+      1749 +              </a>                                           
+      1750 +              <p className="info-open-hint">새 탭에서 열립니 
+           +다</p>                                                       
+      1751 +            </div>                                           
+      1752 +                                                             
+      1753 +            {/* YouTube 영상 목록 */}                        
+      1754 +            <div style={{padding:'0 16px 16px'}}>            
+      1755 +              {ytLoading ? (                                 
+      1756 +                <div style={{textAlign:'center',padding:'24px
+           +',color:'var(--text-light)',fontSize:'13px'}}>영상을 불러오는
+           + 중...</div>                                                 
+      1757 +              ) : ytVideos.length > 0 ? (                    
+      1758 +                <div className="yt-video-list">              
+      1759 +                  {ytVideos.map(v => (                       
+      1760 +                    <a key={v.id.videoId} className="yt-video
+           +-card"                                                       
+      1761 +                      href={`https://www.youtube.com/watch?v=
+           +${v.id.videoId}`}                                            
+      1762 +                      target="_blank" rel="noopener noreferre
+           +r">                                                          
+      1763 +                      <img className="yt-video-thumb" src={v.
+           +snippet.thumbnails.medium.url} alt={v.snippet.title} loading=
+           +"lazy" />                                                    
+      1764 +                      <div className="yt-video-info">        
+      1765 +                        <div className="yt-video-title">{v.sn
+           +ippet.title}</div>                                           
+      1766 +                        <div className="yt-video-channel">{v.
+           +snippet.channelTitle}</div>                                  
+      1767 +                      </div>                                 
+      1768 +                    </a>                                     
+      1769 +                  ))}                                        
+      1770 +                </div>                                       
+      1771 +              ) : null}                                      
+      1772 +            </div>                                           
+      1773            </div>
+      1741 -          <div className="info-open-wrap">                   
+      1742 -            <a className="info-open-btn"                     
+      1743 -              href={`https://www.youtube.com/results?search_q
+           -uery=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아 
+           -기`:'아기')+ ' 육아 소아과')}`}                              
+      1744 -              target="_blank" rel="noopener noreferrer">     
+      1745 -              <svg viewBox="0 0 24 24" width="32" height="32"
+           - fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="
+           -round">                                                      
+      1746 -                <path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96
+           -C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29
+           - 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.12 
+           -20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 
+           -0 0023 12a29 29 0 00-.46-5.58z"/>                            
+      1747 -                <polygon points="9.75 15.02 15.5 12 9.75 8.98
+           - 9.75 15.02" fill="white" stroke="none"/>                    
+      1748 -              </svg>                                         
+      1749 -              YouTube 추천 영상 보기                         
+      1750 -            </a>                                             
+      1751 -            <p className="info-open-hint">새 탭에서 열립니다<
+           -/p>                                                          
+      1752 -          </div>                                             
+      1774          </section>
+      1775  
+      1776        </main>
+
+● 8. YouTube 영상 카드 CSS 추가:
+
+● Update(app/globals.css)
+  ⎿  Added 24 lines, removed 5 lines
+      1057  .screen-sub   { font-size: 13px; color: var(--text-mid); marg
+            in-top: 2px; }
+      1058  .info-open-wrap {
+      1059    display: flex; flex-direction: column; align-items: center;
+      1060 -  justify-content: center; gap: 18px;                        
+      1061 -  padding: 0 24px;                                           
+      1062 -  flex: 1;                                                   
+      1060 +  justify-content: center; gap: 14px;                        
+      1061  }
+      1062  .info-open-btn {
+      1063    display: flex; align-items: center; gap: 14px;
+      1064    background: linear-gradient(135deg, #FF0000 0%, #CC0000 100
+            %);
+      1065    color: white; text-decoration: none;
+      1068 -  font-size: 17px; font-weight: 700;                         
+      1069 -  padding: 20px 32px; border-radius: 18px;                   
+      1066 +  font-size: 16px; font-weight: 700;                         
+      1067 +  padding: 18px 28px; border-radius: 18px;                   
+      1068    box-shadow: 0 6px 20px rgba(200,0,0,.3);
+      1069    transition: transform .18s, box-shadow .18s;
+      1070    width: 100%; justify-content: center;
+     ...
+      1073  .info-open-btn:active { transform: translateY(0) scale(.97); 
+            }
+      1074  .info-open-hint { font-size: 12px; color: var(--text-mid); }
+      1075  
+      1076 +/* YouTube video list */                                     
+      1077 +.yt-video-list { display: flex; flex-direction: column; gap: 
+           +10px; }                                                      
+      1078 +.yt-video-card {                                             
+      1079 +  display: flex; gap: 12px; align-items: flex-start;         
+      1080 +  background: var(--surface); border-radius: var(--r-md);    
+      1081 +  padding: 10px; text-decoration: none; color: var(--text);  
+      1082 +  box-shadow: var(--sh-sm); transition: transform .15s;      
+      1083 +}                                                            
+      1084 +.yt-video-card:active { transform: scale(.98); }             
+      1085 +.yt-video-thumb {                                            
+      1086 +  width: 110px; height: 62px; border-radius: var(--r-sm);    
+      1087 +  object-fit: cover; flex-shrink: 0; background: var(--bg);  
+      1088 +}                                                            
+      1089 +.yt-video-info { flex: 1; min-width: 0; }                    
+      1090 +.yt-video-title {                                            
+      1091 +  font-size: 12.5px; font-weight: 700; color: var(--text);   
+      1092 +  line-height: 1.4;                                          
+      1093 +  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-or
+           +ient: vertical; overflow: hidden;                            
+      1094 +}                                                            
+      1095 +.yt-video-channel { font-size: 11px; color: var(--text-light)
+           +; margin-top: 4px; }                                         
+      1096 +                                                             
+      1097  /* ── SCHEDULE SHOP CARD ────────────────────────────────────
+            ─── */
+      1098  .shop-age-badge {
+      1099    font-size: 11px; font-weight: 700; color: var(--orange);
+  ⎿  Referenced file app/globals.css
+  ⎿  Referenced file app/components/BabyApp.tsx
+  ⎿  Read app/api/youtube/route.ts (25 lines)
+  ⎿  Read app/api/chat/route.ts (21 lines)
+  ⎿  Read app/layout.tsx (30 lines)
+  Ran 1 shell command (ctrl+o to expand)
+
+● TypeScript is clean. The codebase is ready for Vercel deployment with all
+  server-side API routes properly using process.env.OPENAI_API_KEY and
+  process.env.YOUTUBE_API_KEY.
+
+✻ Brewed for 6m 50s
+
+❯ 완료 된거야 ?                                                                 
+
+● 네, 코드 작업은 완료됐어요. 정리하면:
+
+  완료된 것들
+  - chatbot0605 UI/UX 동일하게 포팅 (일정 키워드 카드, 육아 달력, 음성 인텐트
+  라우팅)
+  - Gaegu 폰트 적용, SVG 하단 아이콘
+  - /api/chat, /api/youtube 서버사이드 프록시 라우트 생성
+  - Vercel 환경변수(OPENAI_API_KEY, YOUTUBE_API_KEY) 참조하도록 설정
+  - TypeScript 에러 없음 ✓
+
+  남은 것
+  - Vercel에 실제 배포 (코드 push → Vercel 자동 빌드)
+
+  배포도 진행할까요? GitHub에 push하면 Vercel이 자동으로 빌드해줄 거예요.
+
+✻ Churned for 17s
