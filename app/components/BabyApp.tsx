@@ -109,9 +109,10 @@ function ytFmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('ko');
 }
 const YT_CACHE_TTL = 30 * 60 * 1000;
+const YT_CACHE_VERSION = 'v2';
 function ytGetCache(key: string) {
   try {
-    const raw = sessionStorage.getItem('yt_' + key);
+    const raw = sessionStorage.getItem(`yt_${YT_CACHE_VERSION}_${key}`);
     if (!raw) return null;
     const { ts, data } = JSON.parse(raw);
     if (Date.now() - ts > YT_CACHE_TTL) return null;
@@ -119,7 +120,7 @@ function ytGetCache(key: string) {
   } catch { return null; }
 }
 function ytSetCache(key: string, data: unknown) {
-  try { sessionStorage.setItem('yt_' + key, JSON.stringify({ ts: Date.now(), data })); }
+  try { sessionStorage.setItem(`yt_${YT_CACHE_VERSION}_${key}`, JSON.stringify({ ts: Date.now(), data })); }
   catch { /* quota */ }
 }
 
