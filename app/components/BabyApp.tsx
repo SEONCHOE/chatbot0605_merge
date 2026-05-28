@@ -17,7 +17,7 @@ type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
 type LogType = 'sleep' | 'feed' | 'pee' | 'poop' | 'cry' | 'walk';
 type Page = 'home' | 'timeline' | 'schedule' | 'health' | 'chat' | 'info';
-type ModalState = 'setup' | 'addLog' | 'healthLog' | 'logDetail' | null;
+type ModalState = 'setup' | 'addLog' | 'healthLog' | 'logDetail' | 'settings' | null;
 type TodoCat = 'vaccine' | 'formula' | 'solid' | 'other';
 type TodoFilter = 'all' | TodoCat;
 type HealthTab = 'development' | 'logs' | 'medication' | 'report';
@@ -108,11 +108,11 @@ function ytFmtDate(iso: string) {
   if (days < 365) return `${Math.floor(days/30)}개월 전`;
   return new Date(iso).toLocaleDateString('ko');
 }
-const YT_CACHE_TTL = 30 * 60 * 1000;
-const YT_CACHE_VERSION = 'v2';
+const YT_CACHE_TTL = 24 * 60 * 60 * 1000;
+const YT_CACHE_VERSION = 'v3';
 function ytGetCache(key: string) {
   try {
-    const raw = sessionStorage.getItem(`yt_${YT_CACHE_VERSION}_${key}`);
+    const raw = localStorage.getItem(`yt_${YT_CACHE_VERSION}_${key}`);
     if (!raw) return null;
     const { ts, data } = JSON.parse(raw);
     if (Date.now() - ts > YT_CACHE_TTL) return null;
@@ -120,7 +120,7 @@ function ytGetCache(key: string) {
   } catch { return null; }
 }
 function ytSetCache(key: string, data: unknown) {
-  try { sessionStorage.setItem(`yt_${YT_CACHE_VERSION}_${key}`, JSON.stringify({ ts: Date.now(), data })); }
+  try { localStorage.setItem(`yt_${YT_CACHE_VERSION}_${key}`, JSON.stringify({ ts: Date.now(), data })); }
   catch { /* quota */ }
 }
 
@@ -524,6 +524,14 @@ export default function BabyApp() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [modal, setModal] = useState<ModalState>(null);
 
+  // API keys (user-provided)
+  const [userOpenAIKey, setUserOpenAIKey] = useState('');
+  const [userYoutubeKey, setUserYoutubeKey] = useState('');
+  const [showOpenAIKey, setShowOpenAIKey] = useState(false);
+  const [showYoutubeKey, setShowYoutubeKey] = useState(false);
+  const userOpenAIKeyRef = useRef('');
+  const userYoutubeKeyRef = useRef('');
+
   // Log detail / edit
   const [selectedLog, setSelectedLog] = useState<(Log & { dateKey: string }) | null>(null);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -594,6 +602,7 @@ export default function BabyApp() {
 
   // YouTube (info page)
   const [ytView, setYtView] = useState<'home'|'list'>('home');
+  const [ytRefetchTrigger, setYtRefetchTrigger] = useState(0);
   const [ytSelectedCat, setYtSelectedCat] = useState<YtCat|null>(null);
   const [ytRepVideos, setYtRepVideos] = useState<Record<string,YtVideo>>({});
   const [ytRepLoading, setYtRepLoading] = useState(false);
@@ -657,7 +666,16 @@ export default function BabyApp() {
       .finally(() => setMounted(true));
     const saved = localStorage.getItem('baby_photo');
     if (saved) setBabyPhoto(saved);
+    const oaiKey = localStorage.getItem('user_openai_key') || '';
+    const ytKey = localStorage.getItem('user_youtube_key') || '';
+    setUserOpenAIKey(oaiKey);
+    setUserYoutubeKey(ytKey);
+    userOpenAIKeyRef.current = oaiKey;
+    userYoutubeKeyRef.current = ytKey;
   }, []);
+
+  useEffect(() => { userOpenAIKeyRef.current = userOpenAIKey; }, [userOpenAIKey]);
+  useEffect(() => { userYoutubeKeyRef.current = userYoutubeKey; }, [userYoutubeKey]);
 
   // Header date updater
   useEffect(() => {
@@ -718,7 +736,7 @@ export default function BabyApp() {
         if (done === YT_CATS.length) setYtRepLoading(false);
         return;
       }
-      fetch(`/api/youtube?q=${encodeURIComponent(cat.queries[0])}&maxResults=1&order=${cat.sortOrder}`)
+      fetch(`/api/youtube?q=${encodeURIComponent(cat.queries[0])}&maxResults=1&order=${cat.sortOrder}`, { headers: userYoutubeKeyRef.current ? { 'x-youtube-key': userYoutubeKeyRef.current } : {} })
         .then(r => r.json())
         .then(data => {
           const v = (data.videos as YtVideo[])?.[0];
@@ -727,7 +745,7 @@ export default function BabyApp() {
         .catch(() => {})
         .finally(() => { done++; if (done === YT_CATS.length) setYtRepLoading(false); });
     });
-  }, [currentPage, ytView]);
+  }, [currentPage, ytView, ytRefetchTrigger]);
 
   // YouTube: fetch category video list
   const ytFetchList = useCallback((cat: YtCat, query: string, sort: string, pageToken?: string) => {
@@ -744,7 +762,7 @@ export default function BabyApp() {
       setYtListVideos([]);
     }
     const url = `/api/youtube?q=${encodeURIComponent(query)}&maxResults=12&order=${sort}${pageToken ? `&pageToken=${pageToken}` : ''}`;
-    fetch(url)
+    fetch(url, { headers: userYoutubeKeyRef.current ? { 'x-youtube-key': userYoutubeKeyRef.current } : {} })
       .then(r => r.json())
       .then(data => {
         const videos = (data.videos as YtVideo[]) || [];
@@ -1083,7 +1101,7 @@ ${headStyles}
       const systemPrompt = `너는 영유아 육아 전문 챗봇이야.\n아기 이름: ${name}, 월령: ${months != null ? months + '개월' : '미입력'}.\n아래 참고 문서를 바탕으로 질문에 정확하고 실용적인 답변을 해줘.\n- 항상 한국어로 답변\n- 중요 키워드는 <strong>볼드</strong> 처리\n- 목록은 <ul><li> 형식\n- 의학적 결정은 반드시 소아청소년과 전문의 상담 권고 포함\n- 없는 정보를 지어내지 마\n\n[참고 문서]\n${context || '관련 문서 없음. 일반 육아 지식으로 답변.'}`;
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
         body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 800, temperature: 0.3, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }] }),
       });
       const data = await res.json();
@@ -1151,7 +1169,7 @@ ${headStyles}
       const babyName = appState.baby?.name || '아기';
       const res = await fetch('/api/chat', {
         method:'POST',
-        headers:{ 'Content-Type':'application/json' },
+        headers:{ 'Content-Type':'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
         body:JSON.stringify({
           model:'gpt-4o-mini',
           messages:[
@@ -1508,6 +1526,66 @@ ${headStyles}
         </div>
       </div>
 
+      {/* Settings Modal */}
+      <div className={`modal-overlay${modal==='settings'?' active':''}`} role="dialog" aria-modal="true">
+        <div className="modal-card">
+          <div className="modal-header">
+            <h3>API 키 설정</h3>
+            <button className="modal-close" onClick={()=>setModal(null)} aria-label="닫기">✕</button>
+          </div>
+          <div style={{padding:'16px',display:'flex',flexDirection:'column',gap:'20px'}}>
+            <p style={{fontSize:'13px',color:'#666',margin:0,lineHeight:1.5}}>
+              챗봇과 유튜브 기능을 사용하려면 아래에 API 키를 입력하세요.<br/>키는 이 기기에만 저장되며 서버에 보관되지 않습니다.
+            </p>
+
+            <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+              <label style={{fontSize:'13px',fontWeight:600}}>OpenAI API Key <span style={{color:'#aaa',fontWeight:400}}>(챗봇)</span></label>
+              <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+                <input
+                  type={showOpenAIKey ? 'text' : 'password'}
+                  value={userOpenAIKey}
+                  onChange={e => setUserOpenAIKey(e.target.value)}
+                  placeholder="sk-proj-..."
+                  style={{flex:1,padding:'10px 12px',borderRadius:'10px',border:'1.5px solid #e0e0e0',fontSize:'13px',outline:'none'}}
+                />
+                <button onClick={()=>setShowOpenAIKey(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'16px',padding:'4px'}}>{showOpenAIKey?'🙈':'👁️'}</button>
+              </div>
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'#7c6ef7'}}>키 발급받기 →</a>
+            </div>
+
+            <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+              <label style={{fontSize:'13px',fontWeight:600}}>YouTube Data API Key <span style={{color:'#aaa',fontWeight:400}}>(유튜브)</span></label>
+              <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+                <input
+                  type={showYoutubeKey ? 'text' : 'password'}
+                  value={userYoutubeKey}
+                  onChange={e => setUserYoutubeKey(e.target.value)}
+                  placeholder="AIzaSy..."
+                  style={{flex:1,padding:'10px 12px',borderRadius:'10px',border:'1.5px solid #e0e0e0',fontSize:'13px',outline:'none'}}
+                />
+                <button onClick={()=>setShowYoutubeKey(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'16px',padding:'4px'}}>{showYoutubeKey?'🙈':'👁️'}</button>
+              </div>
+              <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'#7c6ef7'}}>키 발급받기 →</a>
+            </div>
+
+            <button
+              onClick={()=>{
+                localStorage.setItem('user_openai_key', userOpenAIKey);
+                localStorage.setItem('user_youtube_key', userYoutubeKey);
+                userOpenAIKeyRef.current = userOpenAIKey;
+                userYoutubeKeyRef.current = userYoutubeKey;
+                setYtRepVideos({});
+                setYtRefetchTrigger(t => t + 1);
+                setModal(null);
+                showToast('API 키가 저장됐어요!');
+              }}
+              className="btn-primary"
+              style={{width:'100%',padding:'12px',borderRadius:'12px',fontSize:'15px',fontWeight:600}}
+            >저장</button>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <header className="app-header">
         <div className="header-content">
@@ -1526,7 +1604,14 @@ ${headStyles}
               </div>
             </div>
           </div>
-          <div className="header-date" style={{whiteSpace:'pre-line'}}>{headerDate}</div>
+          <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+            <div className="header-date" style={{whiteSpace:'pre-line'}}>{headerDate}</div>
+            <button onClick={()=>setModal('settings')} aria-label="API 키 설정" style={{background:'none',border:'none',cursor:'pointer',padding:'4px',opacity:0.6,lineHeight:1}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 

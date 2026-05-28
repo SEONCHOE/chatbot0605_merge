@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = req.headers.get('x-openai-key') || process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: 'OPENAI_API_KEY not configured' }, { status: 500 });
+    return NextResponse.json({ error: 'OpenAI API 키가 설정되지 않았습니다. 설정(⚙️)에서 API 키를 입력해주세요.' }, { status: 500 });
   }
   try {
     const body = await req.json();

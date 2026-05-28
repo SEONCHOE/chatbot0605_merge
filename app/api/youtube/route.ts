@@ -9,7 +9,7 @@ function parseDuration(iso: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const apiKey = process.env.YOUTUBE_API_KEY;
+  const apiKey = req.headers.get('x-youtube-key') || process.env.YOUTUBE_API_KEY;
   if (!apiKey) return NextResponse.json({ videos: [], nextPageToken: null });
 
   const sp = req.nextUrl.searchParams;
