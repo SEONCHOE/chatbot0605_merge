@@ -59,6 +59,58 @@ const TYPE_LABELS: Record<LogType, string> = { sleep:'수면', feed:'수유', pe
 const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿' };
 const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접종', formula:'분유', solid:'이유식', other:'기타' };
 
+// ── Voice Tools (LLM intent router) ─────────────────────────────
+const VOICE_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'record_activity',
+      description: '아기의 활동(수유, 수면, 기저귀, 산책, 울음)을 시간표에 기록합니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['feed','sleep','pee','poop','cry','walk'], description: 'feed=수유, sleep=수면, pee=소변, poop=대변, cry=울음, walk=산책' },
+          time:     { type: 'string', description: '시작 시간 HH:MM (24시간). 언급 없으면 생략' },
+          endTime:  { type: 'string', description: '종료 시간 HH:MM. sleep/cry/walk에만 해당' },
+          amount:   { type: 'number', description: '수유량(ml). 수유일 때만' },
+          feedType: { type: 'string', enum: ['분유','모유','혼합'], description: '수유 방법' },
+          note:     { type: 'string', description: '메모나 특이사항' },
+        },
+        required: ['type'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'save_schedule',
+      description: '할일이나 예약 일정(예방접종, 병원, 이유식 재료, 쇼핑 등)을 스케줄에 저장합니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text:     { type: 'string', description: '할일 내용 (간결하게)' },
+          category: { type: 'string', enum: ['health','food','play','etc'], description: 'health=건강/병원/접종, food=이유식/음식, play=놀이/발달, etc=기타' },
+        },
+        required: ['text', 'category'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'chat_response',
+      description: '아기 육아 정보 질문, 조언 요청, 일반 대화에 답변합니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', description: '사용자의 원본 메시지' },
+        },
+        required: ['message'],
+      },
+    },
+  },
+];
+
 // ── YouTube Categories & Stage Map ───────────────────────────────
 const YT_CATS: YtCat[] = [
   { id:'age',   label:'우리아이는 지금', desc:'발달단계에 따른 특징',       emoji:'👶', tone:'#FFE4CF', text:'#B85617',
@@ -1157,40 +1209,46 @@ ${headStyles}
   };
 
   const processVoiceInput = async (transcript: string) => {
-    const voiceTools = [
-      { type:'function', function:{ name:'record_activity', description:'아기의 활동(수유, 수면, 기저귀, 산책, 울음)을 시간표에 기록합니다.', parameters:{ type:'object', properties:{ type:{type:'string',enum:['feed','sleep','pee','poop','cry','walk'],description:'활동 유형'}, time:{type:'string',description:'시작 시간 HH:MM'}, endTime:{type:'string',description:'종료 시간 HH:MM'}, amount:{type:'number',description:'수유량(ml)'}, feedType:{type:'string',enum:['분유','모유','혼합']}, note:{type:'string',description:'메모'} }, required:['type'] } } },
-      { type:'function', function:{ name:'save_schedule', description:'할일이나 예약 일정을 스케줄에 저장합니다.', parameters:{ type:'object', properties:{ text:{type:'string',description:'할일 내용'}, category:{type:'string',enum:['health','food','play','etc'],description:'health=건강/병원/접종, food=이유식, play=놀이, etc=기타'} }, required:['text','category'] } } },
-      { type:'function', function:{ name:'chat_response', description:'아기 육아 정보 질문, 조언 요청, 일반 대화에 답변합니다.', parameters:{ type:'object', properties:{ message:{type:'string',description:'사용자 메시지'} }, required:['message'] } } },
-    ];
+    const closeOverlay = () => { setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); };
     try {
       setVoiceProcessing(true);
       setVoiceTranscript(`"${transcript}"`);
       const babyMonths = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 5;
       const babyName = appState.baby?.name || '아기';
       const res = await fetch('/api/chat', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
-        body:JSON.stringify({
-          model:'gpt-4o-mini',
-          messages:[
-            { role:'system', content:`너는 아기 육아 앱의 음성 명령 분류기야. 아기 이름: ${babyName}, 월령: ${babyMonths}개월, 현재 시각: ${nowHHMM()}. 사용자 음성 입력을 보고 반드시 아래 중 하나의 함수를 호출해:\n- 수유/수면/기저귀/산책/울음 내용 → record_activity\n- 할일/예약/일정 저장 요청 → save_schedule\n- 질문/대화/정보 요청 → chat_response\n시간 표현("방금", "지금", "30분 전" 등)은 HH:MM으로 변환해서 넣어줘.` },
-            { role:'user', content:transcript }
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `너는 아기 육아 앱의 음성 명령 분류기야.\n아기 이름: ${babyName}, 월령: ${babyMonths}개월, 현재 시각: ${nowHHMM()}.\n사용자 음성 입력을 보고 반드시 아래 중 하나의 함수를 호출해:\n- 수유/수면/기저귀/산책/울음 내용 → record_activity\n- 할일/예약/일정 저장 요청 → save_schedule\n- 질문/대화/정보 요청 → chat_response\n시간 표현("방금", "지금", "30분 전" 등)은 HH:MM으로 변환해서 넣어줘.`,
+            },
+            { role: 'user', content: transcript },
           ],
-          tools:voiceTools,
-          tool_choice:'required'
-        })
+          tools: VOICE_TOOLS,
+          tool_choice: 'required',
+        }),
       });
+      if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = await res.json();
       const tcall = data.choices?.[0]?.message?.tool_calls?.[0];
       if (!tcall) throw new Error('no tool_call');
       const fn = tcall.function.name;
       const args = JSON.parse(tcall.function.arguments);
-      setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false);
-      if (fn === 'record_activity') handleVoiceRecord(args as Parameters<typeof handleVoiceRecord>[0]);
-      else if (fn === 'save_schedule') handleVoiceSchedule(args as { text: string; category: string });
-      else { navigate('chat'); setTimeout(() => sendChat(transcript), 200); }
-    } catch {
-      setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false);
+      closeOverlay();
+      if (fn === 'record_activity') {
+        handleVoiceRecord(args as Parameters<typeof handleVoiceRecord>[0]);
+      } else if (fn === 'save_schedule') {
+        handleVoiceSchedule(args as { text: string; category: string });
+      } else {
+        navigate('chat');
+        setTimeout(() => sendChat(transcript), 200);
+      }
+    } catch (err) {
+      console.error('[voice router]', err);
+      closeOverlay();
       navigate('chat');
       setTimeout(() => sendChat(transcript), 200);
       showToast('💬 챗봇으로 연결했어요');
