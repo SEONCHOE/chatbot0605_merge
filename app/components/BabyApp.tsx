@@ -15,7 +15,7 @@ interface SpeechRecognitionLike {
 }
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
-type LogType = 'sleep' | 'feed' | 'pee' | 'poop' | 'cry' | 'walk';
+type LogType = 'sleep' | 'feed' | 'pee' | 'poop' | 'cry' | 'walk' | 'play' | 'bath' | 'measure';
 type Page = 'home' | 'timeline' | 'schedule' | 'health' | 'chat' | 'info';
 type ModalState = 'setup' | 'addLog' | 'healthLog' | 'logDetail' | 'settings' | null;
 type TodoCat = 'vaccine' | 'formula' | 'solid' | 'other';
@@ -32,7 +32,7 @@ interface Log {
   startTime?: string; endTime?: string; time?: string;
   amount?: number | null; feedType?: string; color?: string; reason?: string;
 }
-interface Todo { id: string; text: string; category: TodoCat; completed: boolean; createdAt: number; }
+interface Todo { id: string; text: string; category: TodoCat; completed: boolean; createdAt: number; date?: string; }
 interface HealthLog { id: string; type: HealthLogType; detail: string; date: string; time: string; }
 interface Medication { id: string; name: string; dose: string; freq: string; note: string; date: string; }
 interface Growth { id: string; date: string; height?: number; weight?: number; }
@@ -55,8 +55,8 @@ interface YtVideo { id:string; title:string; thumbnail:string; channelTitle:stri
 interface YtCat { id:string; label:string; desc:string; emoji:string; tone:string; text:string; queries:string[]; sortOrder:string; }
 
 // ── Constants ────────────────────────────────────────────────────
-const TYPE_LABELS: Record<LogType, string> = { sleep:'수면', feed:'수유', pee:'소변', poop:'대변', cry:'울음', walk:'산책' };
-const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿' };
+const TYPE_LABELS: Record<LogType, string> = { sleep:'수면', feed:'수유', pee:'소변', poop:'대변', cry:'울음', walk:'산책', play:'놀이', bath:'목욕', measure:'측정' };
+const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿', play:'🧸', bath:'🛁', measure:'📏' };
 const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접종', formula:'분유', solid:'이유식', other:'기타' };
 
 // ── Voice Tools (LLM intent router) ─────────────────────────────
@@ -65,15 +65,16 @@ const VOICE_TOOLS = [
     type: 'function',
     function: {
       name: 'record_activity',
-      description: '아기의 활동(수유, 수면, 기저귀, 산책, 울음)을 시간표에 기록합니다.',
+      description: '아기의 활동(수유, 수면, 기저귀, 산책, 울음, 놀이, 목욕)을 시간표에 기록합니다. 여러 시간이 언급되면 times 배열에 모두 담아주세요.',
       parameters: {
         type: 'object',
         properties: {
-          type: { type: 'string', enum: ['feed','sleep','pee','poop','cry','walk'], description: 'feed=수유, sleep=수면, pee=소변, poop=대변, cry=울음, walk=산책' },
-          time:     { type: 'string', description: '시작 시간 HH:MM (24시간). 언급 없으면 생략' },
-          endTime:  { type: 'string', description: '종료 시간 HH:MM. sleep/cry/walk에만 해당' },
+          type: { type: 'string', enum: ['feed','sleep','pee','poop','cry','walk','play','bath'], description: 'feed=수유(젖/분유/이유식 포함), sleep=수면, pee=소변(쉬/오줌), poop=대변(똥), cry=울음, walk=산책, play=놀이, bath=목욕' },
+          times:    { type: 'array', items: { type: 'string' }, description: '기록할 시간 HH:MM 배열. 여러 시간이 언급되면 모두 포함. "2시"→"02:00", "오후 3시"→"15:00"' },
+          time:     { type: 'string', description: '단일 시간 HH:MM. times가 없을 때만 사용' },
+          endTime:  { type: 'string', description: '종료 시간 HH:MM. sleep/cry/walk/play/bath에 해당' },
           amount:   { type: 'number', description: '수유량(ml). 수유일 때만' },
-          feedType: { type: 'string', enum: ['분유','모유','혼합'], description: '수유 방법' },
+          feedType: { type: 'string', enum: ['모유','분유','유축모유','혼합','이유식','우유'], description: '수유 종류. 젖/모유수유→모유, 분유→분유, 유축→유축모유, 이유식→이유식' },
           note:     { type: 'string', description: '메모나 특이사항' },
         },
         required: ['type'],
@@ -92,6 +93,37 @@ const VOICE_TOOLS = [
           category: { type: 'string', enum: ['health','food','play','etc'], description: 'health=건강/병원/접종, food=이유식/음식, play=놀이/발달, etc=기타' },
         },
         required: ['text', 'category'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'record_measurement',
+      description: '아기 키(cm), 몸무게(kg), 체온(°C)을 측정해 기록합니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          metric: { type: 'string', enum: ['height','weight','temp'], description: 'height=키, weight=몸무게, temp=체온' },
+          value:  { type: 'number', description: '측정값. 키=cm, 몸무게=kg, 체온=°C' },
+          time:   { type: 'string', description: '측정 시각 HH:MM' },
+        },
+        required: ['metric','value'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'track_sleep',
+      description: '"자고 있어/잠들었어" → action=start, "깼어/일어났어/기상" → action=end. 수면 시작/종료를 추적합니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['start', 'end'], description: 'start=수면 시작, end=기상' },
+          time:   { type: 'string', description: '시각 HH:MM. 없으면 생략' },
+        },
+        required: ['action'],
       },
     },
   },
@@ -196,6 +228,29 @@ function fmtDuration(s: string, e: string) {
   const h=Math.floor(d/60),m=d%60; return h>0?`${h}시간 ${m}분`:`${m}분`;
 }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// 자연어 날짜 표현을 YYYY-MM-DD로 변환. 매칭 없으면 null 반환
+function parseNaturalDate(text: string): string | null {
+  const t = text.replace(/\s/g, '');
+  const today = new Date();
+  if (/다음달/.test(t)) {
+    const d = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    return localDateStr(d);
+  }
+  if (/다음주/.test(t)) {
+    // 이번 주 월요일(ISO 기준) + 7일 = 다음 주 월요일
+    const dow = today.getDay(); // 0=일
+    const daysFromMonday = dow === 0 ? 6 : dow - 1; // 이번 주 월요일까지의 거리
+    const d = new Date(today);
+    d.setDate(today.getDate() - daysFromMonday + 7);
+    return localDateStr(d);
+  }
+  if (/내일/.test(t)) {
+    const d = new Date(today); d.setDate(today.getDate() + 1);
+    return localDateStr(d);
+  }
+  return null;
+}
 function getAgeInfo(birthStr: string) {
   const birth=parseDate(birthStr), now=new Date();
   const diffDays=Math.floor((now.getTime()-birth.getTime())/86400000);
@@ -240,7 +295,7 @@ function calcPercentile(value: number, ageMonths: number, metric: GrowthMetric, 
   return { pct, emoji, label };
 }
 
-function buildGrowthSVG(records: Growth[], metric: GrowthMetric, gender: 'boy'|'girl'): string {
+function buildGrowthSVG(records: Growth[], metric: GrowthMetric, gender: 'boy'|'girl', birthDate?: string): string {
   const gd = GROWTH_DATA[gender][metric];
   const months = Array.from({length:25},(_,i)=>i);
   const L=38,T=14,R=12,B=22,W=300,H=180;
@@ -256,10 +311,28 @@ function buildGrowthSVG(records: Growth[], metric: GrowthMetric, gender: 'boy'|'
   const xLabels=[0,6,12,18,24].map(m=>`<text x="${xS(m).toFixed(1)}" y="${(T+cH+14).toFixed(1)}" text-anchor="middle" font-size="8" fill="#aaa">${m}m</text>`).join('');
   const yTicks=metric==='height'?[50,60,70,80,90,100]:[4,6,8,10,12,14];
   const yLabels=yTicks.map(v=>`<line x1="${L}" y1="${yS(v).toFixed(1)}" x2="${(L+cW).toFixed(1)}" y2="${yS(v).toFixed(1)}" stroke="#f0f0f0" stroke-width="1"/><text x="${(L-3).toFixed(1)}" y="${(yS(v)+3).toFixed(1)}" text-anchor="end" font-size="7.5" fill="#bbb">${v}</text>`).join('');
+  let dotsHTML = '';
+  if (birthDate) {
+    const birth = new Date(birthDate);
+    const pts = records.filter(r => r[metric] != null).sort((a,b) => a.date.localeCompare(b.date));
+    dotsHTML = pts.map(r => {
+      const rec = new Date(r.date);
+      const ageMon = Math.max(0, Math.min(24, (rec.getFullYear()-birth.getFullYear())*12+(rec.getMonth()-birth.getMonth())));
+      const val = r[metric] as number;
+      const cx = xS(ageMon), cy = yS(val);
+      const { pct } = calcPercentile(val, ageMon, metric, gender);
+      const pctTxt = pct <= 15 ? `하위${pct}%` : pct >= 85 ? `상위${100-pct}%` : `P${pct}`;
+      const lx = cx > L+cW*0.6 ? cx-5 : cx+5;
+      const anchor = cx > L+cW*0.6 ? 'end' : 'start';
+      return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="#FF8040" stroke="white" stroke-width="1.5"/>` +
+             `<text x="${lx.toFixed(1)}" y="${(cy-5).toFixed(1)}" text-anchor="${anchor}" font-size="7" fill="#FF8040" font-weight="bold">${pctTxt}</text>`;
+    }).join('');
+  }
   return `<svg viewBox="0 0 300 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
     ${yLabels}${xLabels}
     <polygon points="${bandPts}" fill="rgba(255,128,64,.08)"/>
     ${pl(gd.P3,'#FFD0A8','4 3')} ${pl(gd.P50,'#FF8040','',2)} ${pl(gd.P97,'#FFD0A8','4 3')}
+    ${dotsHTML}
   </svg>`;
 }
 
@@ -550,16 +623,19 @@ async function searchRAG(query: string): Promise<{ chunks: RagChunk[]; figures: 
 }
 
 function renderSources(chunks: RagChunk[], figures: RagFigure[]): string {
-  const refs: string[] = [];
-  const seen = new Set<string>();
+  // 같은 책의 페이지를 묶어서 표시
+  const sourcePages = new Map<string, Set<number>>();
   for (const c of chunks) {
-    const key = `${c.metadata.source}|${c.metadata.page}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      const page = c.metadata.page ? ` p.${c.metadata.page}` : '';
-      refs.push(`<span class="rag-ref">📖 ${escHtml(c.metadata.source)}${page}</span>`);
-    }
+    const src = c.metadata.source;
+    if (!sourcePages.has(src)) sourcePages.set(src, new Set());
+    if (c.metadata.page) sourcePages.get(src)!.add(c.metadata.page);
   }
+  const refs = [...sourcePages.entries()].map(([src, pages]) => {
+    const pageStr = pages.size > 0
+      ? ' p.' + [...pages].sort((a,b)=>a-b).join(', p.')
+      : '';
+    return `<span class="rag-ref">📖 ${escHtml(src)}${pageStr}</span>`;
+  });
   const figHtml = figures.map(f => {
     const page = f.metadata.page ? ` (p.${f.metadata.page})` : '';
     const img = f.image ? `<img src="/api/figures/${f.image}" class="rag-fig-img" alt="${escHtml(f.title)}" loading="lazy">` : '';
@@ -623,8 +699,14 @@ export default function BabyApp() {
 
   // Page state
   const [timelineDate, setTimelineDate] = useState(() => todayStr());
+  const [voiceSleepStart, setVoiceSleepStart] = useState<{logId:string; time:string} | null>(null);
+  const [quickFeedOpen,   setQuickFeedOpen]   = useState(false);
+  const [quickDiaperOpen, setQuickDiaperOpen] = useState(false);
+  const [quickOtherOpen,  setQuickOtherOpen]  = useState(false);
+  const closeQuickMenus = () => { setQuickFeedOpen(false); setQuickDiaperOpen(false); setQuickOtherOpen(false); };
   const [todoFilter, setTodoFilter] = useState<TodoFilter>('all');
   const [todoCat, setTodoCat] = useState<TodoCat>('vaccine');
+  const [todoDate, setTodoDate] = useState(() => todayStr());
   const [healthTab, setHealthTab] = useState<HealthTab>('report');
   const todoInputRef = useRef<HTMLInputElement>(null);
 
@@ -946,11 +1028,11 @@ ${headStyles}
   };
 
   // ── Log ──────────────────────────────────────────────────────
-  const openAddLog = (type: LogType) => {
+  const openAddLog = (type: LogType, initFeedType?: string) => {
     const now = nowHHMM(), end = minToHM((hmToMin(now) + 60) % 1440);
     setEditingLogId(null);
     setAddLogType(type); setLfStart(now); setLfEnd(end); setLfTime(now);
-    setLfAmount(''); setLfFeedType('분유'); setLfColor('노란색'); setLfReason(''); setLfNote('');
+    setLfAmount(''); setLfFeedType(initFeedType || '분유'); setLfColor('노란색'); setLfReason(''); setLfNote('');
     setModal('addLog');
   };
 
@@ -958,7 +1040,7 @@ ${headStyles}
     const isEdit = !!editingLogId;
     const dateKey = isEdit ? editingLogDateKey : (currentPage === 'timeline' ? timelineDate : todayStr());
     const log: Log = { id: editingLogId || uid(), type: addLogType, date: dateKey, note: lfNote.trim() };
-    if (addLogType === 'sleep' || addLogType === 'cry' || addLogType === 'walk') {
+    if (addLogType === 'sleep' || addLogType === 'cry' || addLogType === 'walk' || addLogType === 'play' || addLogType === 'bath') {
       if (!lfStart) { showToast('시작 시간을 입력해주세요'); return; }
       log.startTime = lfStart; if (lfEnd) log.endTime = lfEnd;
     } else {
@@ -1042,11 +1124,22 @@ ${headStyles}
   const addTodo = () => {
     const text = todoInputRef.current?.value.trim() || '';
     if (!text) { showToast('내용을 입력해주세요'); return; }
-    const newTodo = { id:uid(), text, category:todoCat, completed:false, createdAt:Date.now() };
+    const naturalDate = parseNaturalDate(text);
+    const resolvedDate = naturalDate || todoDate;
+    if (naturalDate) {
+      setTodoDate(naturalDate);
+      // 달력을 해당 월로 자동 이동
+      const [ry, rm] = naturalDate.split('-').map(Number);
+      setCalYear(ry); setCalMonth(rm - 1);
+    }
+    const newTodo = { id:uid(), text, category:todoCat, completed:false, createdAt:Date.now(), date:resolvedDate };
     const ns = { ...appState };
     ns.todos = [newTodo, ...ns.todos];
     saveAppState(ns); if (todoInputRef.current) todoInputRef.current.value = '';
-    showToast('✅ 항목이 추가됐어요!');
+    const [,dm,dd] = resolvedDate.split('-').map(Number);
+    const days = ['일','월','화','수','목','금','토'];
+    const dotw = days[new Date(resolvedDate).getDay()];
+    showToast(naturalDate ? `📅 ${dm}/${dd}(${dotw}) 달력에 추가됐어요!` : '✅ 항목이 추가됐어요!');
     fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newTodo, babyId: appState.babyId }) }).catch(console.error);
   };
   const toggleTodo = (id: string) => {
@@ -1176,34 +1269,41 @@ ${headStyles}
   };
 
   // ── Voice GPT intent routing ──────────────────────────────────
-  const handleVoiceRecord = (args: { type: LogType; time?: string; endTime?: string; amount?: number; feedType?: string; note?: string }) => {
+  const handleVoiceRecord = (args: { type: LogType; times?: string[]; time?: string; endTime?: string; amount?: number; feedType?: string; note?: string }) => {
     const dateKey = todayStr();
-    const time = args.time || nowHHMM();
-    const log: Log = { id: uid(), type: args.type, date: dateKey, note: args.note || '' };
-    if (args.type === 'sleep' || args.type === 'cry' || args.type === 'walk') {
-      log.startTime = time;
-      if (args.endTime) log.endTime = args.endTime;
-    } else {
-      log.time = time; log.startTime = time;
-    }
-    if (args.type === 'feed') { log.amount = args.amount || null; log.feedType = args.feedType || '분유'; }
+    const timeList = (args.times && args.times.length > 0) ? args.times : [args.time || nowHHMM()];
     const ns = { ...appState };
     if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
-    ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
+    const newLogs: Log[] = timeList.map(t => {
+      const log: Log = { id: uid(), type: args.type, date: dateKey, note: args.note || '' };
+      if (args.type === 'sleep' || args.type === 'cry' || args.type === 'walk' || args.type === 'play' || args.type === 'bath') {
+        log.startTime = t;
+        if (args.endTime && timeList.length === 1) log.endTime = args.endTime;
+      } else {
+        log.time = t; log.startTime = t;
+      }
+      if (args.type === 'feed') { log.amount = args.amount || null; log.feedType = args.feedType || '모유'; }
+      return log;
+    });
+    ns.logs[dateKey] = [...ns.logs[dateKey], ...newLogs].sort((a,b) => (a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
     saveAppState(ns);
-    showToast(`🎤 ${TYPE_ICONS[args.type]} ${TYPE_LABELS[args.type]} 기록 완료!`);
+    const count = newLogs.length;
+    showToast(`🎤 ${TYPE_ICONS[args.type]} ${TYPE_LABELS[args.type]} ${count > 1 ? `${count}건` : ''} 기록 완료!`);
     navigate('timeline');
-    fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error);
+    newLogs.forEach(log => fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error));
   };
 
   const handleVoiceSchedule = (args: { text: string; category: string }) => {
     const catMap: Record<string, TodoCat> = { health:'vaccine', food:'solid', play:'other', etc:'other' };
     const cat: TodoCat = (catMap[args.category] as TodoCat) || 'other';
-    const newTodo: Todo = { id:uid(), text:args.text, category:cat, completed:false, createdAt:Date.now() };
+    const naturalDate = parseNaturalDate(args.text);
+    const date = naturalDate || todayStr();
+    const newTodo: Todo = { id:uid(), text:args.text, category:cat, completed:false, createdAt:Date.now(), date };
     const ns = { ...appState };
     ns.todos = [newTodo, ...ns.todos];
     saveAppState(ns);
-    showToast(`🎤 스케줄에 추가됐어요: ${args.text}`);
+    const [,dm,dd] = date.split('-').map(Number);
+    showToast(naturalDate ? `🎤 ${dm}/${dd}에 추가됐어요: ${args.text}` : `🎤 스케줄에 추가됐어요: ${args.text}`);
     navigate('schedule');
     fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newTodo, babyId: appState.babyId }) }).catch(console.error);
   };
@@ -1223,7 +1323,35 @@ ${headStyles}
           messages: [
             {
               role: 'system',
-              content: `너는 아기 육아 앱의 음성 명령 분류기야.\n아기 이름: ${babyName}, 월령: ${babyMonths}개월, 현재 시각: ${nowHHMM()}.\n사용자 음성 입력을 보고 반드시 아래 중 하나의 함수를 호출해:\n- 수유/수면/기저귀/산책/울음 내용 → record_activity\n- 할일/예약/일정 저장 요청 → save_schedule\n- 질문/대화/정보 요청 → chat_response\n시간 표현("방금", "지금", "30분 전" 등)은 HH:MM으로 변환해서 넣어줘.`,
+              content: `너는 아기 육아 앱의 음성 명령 분류기야.
+아기 이름: ${babyName}, 월령: ${babyMonths}개월, 현재 시각: ${nowHHMM()}.
+
+## 분류 규칙
+- "아기 키 Xcm/몸무게 Xkg/체온 X도" → record_measurement
+- "자고 있어/잠들었어/재웠어/낮잠 자" → track_sleep action=start
+- "깼어/일어났어/기상했어" → track_sleep action=end
+- "${babyName}" 또는 "아기"가 주어이고 활동을 말하면 → record_activity
+- 할일/예약/일정 저장 요청 → save_schedule
+- 질문/대화/정보 요청 → chat_response
+
+## record_activity 변환 규칙
+**활동 매핑:**
+- 젖 먹다/젖 물다/모유 먹다 → feed, feedType=모유
+- 분유 먹다/분유 타다 → feed, feedType=분유
+- 유축/유축모유 → feed, feedType=유축모유
+- 이유식 먹다 → feed, feedType=이유식
+- 오줌/쉬/소변 → pee
+- 똥/대변 → poop
+- 자다/잠들다/낮잠/밤잠 → sleep
+- 울다/보채다 → cry
+- 산책 → walk
+- 놀다/놀았다 → play
+- 목욕 → bath
+
+**시간 변환 (HH:MM 24시간제):**
+- "2시" → "02:00", "오전 10시" → "10:00", "오후 2시" → "14:00"
+- "방금/지금" → 현재 시각, "30분 전" → 현재-30분
+- 여러 시간이 언급되면 times 배열에 모두 포함 (예: "2시, 4시, 6시" → ["02:00","04:00","06:00"])`,
             },
             { role: 'user', content: transcript },
           ],
@@ -1242,6 +1370,69 @@ ${headStyles}
         handleVoiceRecord(args as Parameters<typeof handleVoiceRecord>[0]);
       } else if (fn === 'save_schedule') {
         handleVoiceSchedule(args as { text: string; category: string });
+      } else if (fn === 'record_measurement') {
+        const { metric, value, time } = args as { metric:'height'|'weight'|'temp'; value:number; time?:string };
+        const t = time || nowHHMM();
+        const dateKey = todayStr();
+        const ns = { ...appState };
+        if (metric === 'height' || metric === 'weight') {
+          const existing = ns.growth.find(r => r.date === dateKey);
+          if (existing) { existing[metric] = value; }
+          else ns.growth = [...ns.growth, { id:uid(), date:dateKey, [metric]:value }];
+          const label = metric === 'height' ? `키 ${value}cm` : `몸무게 ${value}kg`;
+          const log: Log = { id:uid(), type:'measure', date:dateKey, note:label, time:t, startTime:t };
+          if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
+          ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b)=>(a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
+          saveAppState(ns);
+          showToast(`📏 ${label} 기록 완료!`);
+          navigate('timeline');
+          fetch('/api/growth', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...ns.growth.find(r=>r.date===dateKey), babyId:ns.babyId }) }).catch(console.error);
+          fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId:ns.babyId }) }).catch(console.error);
+        } else {
+          const healthLog: HealthLog = { id:uid(), type:'temp', detail:`${value}°C`, date:dateKey, time:t };
+          ns.health = { ...ns.health, logs:[...ns.health.logs, healthLog] };
+          const log: Log = { id:uid(), type:'measure', date:dateKey, note:`체온 ${value}°C`, time:t, startTime:t };
+          if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
+          ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b)=>(a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
+          saveAppState(ns);
+          showToast(`🌡️ 체온 ${value}°C 기록 완료!`);
+          navigate('timeline');
+          fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId:ns.babyId }) }).catch(console.error);
+        }
+      } else if (fn === 'track_sleep') {
+        const { action, time } = args as { action: 'start' | 'end'; time?: string };
+        const t = time || nowHHMM();
+        const dateKey = todayStr();
+        if (action === 'start') {
+          // 시작 시각만 기록, logId 저장
+          const logId = uid();
+          const log: Log = { id: logId, type: 'sleep', date: dateKey, note: '', startTime: t };
+          const ns = { ...appState };
+          if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
+          ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
+          saveAppState(ns);
+          setVoiceSleepStart({ logId, time: t });
+          showToast(`😴 ${t} 수면 시작 기록. "아기 깼어"로 종료하세요`);
+          navigate('timeline');
+          fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error);
+        } else {
+          // 저장된 시작 로그에 endTime 추가
+          if (voiceSleepStart) {
+            const ns = { ...appState };
+            if (ns.logs[dateKey]) {
+              ns.logs[dateKey] = ns.logs[dateKey].map(l =>
+                l.id === voiceSleepStart.logId ? { ...l, endTime: t } : l
+              );
+            }
+            saveAppState(ns);
+            setVoiceSleepStart(null);
+            showToast(`😴 수면 종료: ${voiceSleepStart.time} ~ ${t}`);
+            navigate('timeline');
+            fetch(`/api/logs/${voiceSleepStart.logId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ endTime: t }) }).catch(console.error);
+          } else {
+            showToast('수면 시작 기록이 없어요. "아기 자고 있어"를 먼저 말해주세요');
+          }
+        }
       } else {
         navigate('chat');
         setTimeout(() => sendChat(transcript), 200);
@@ -1261,8 +1452,23 @@ ${headStyles}
   const sleepMin = todayLogs.filter(l=>l.type==='sleep'&&l.endTime).reduce((acc,l)=>{
     let d=hmToMin(l.endTime!)-hmToMin(l.startTime!); if(d<0) d+=1440; return acc+d;
   }, 0);
+  const isNightSleep = (t?: string) => !!t && (t >= '20:00' || t < '08:00');
+  const calcSleepMin = (logs: typeof todayLogs) => logs.filter(l=>l.type==='sleep'&&l.endTime).reduce((acc,l)=>{
+    let d=hmToMin(l.endTime!)-hmToMin(l.startTime!); if(d<0) d+=1440; return acc+d;
+  }, 0);
+  const nightSleepMin = calcSleepMin(todayLogs.filter(l=>isNightSleep(l.startTime)));
+  const napSleepMin   = calcSleepMin(todayLogs.filter(l=>!isNightSleep(l.startTime)));
   const feedCount = todayLogs.filter(l=>l.type==='feed').length;
-  const diaperCount = todayLogs.filter(l=>l.type==='pee'||l.type==='poop').length;
+  const breastCount = todayLogs.filter(l=>l.type==='feed'&&l.feedType==='모유').length;
+  const formulaCount = todayLogs.filter(l=>l.type==='feed'&&l.feedType!=='모유').length;
+  const breastMl = todayLogs.filter(l=>l.type==='feed'&&l.feedType==='모유').reduce((s,l)=>s+(l.amount||0),0);
+  const formulaMl = todayLogs.filter(l=>l.type==='feed'&&l.feedType!=='모유').reduce((s,l)=>s+(l.amount||0),0);
+  const peeCount   = todayLogs.filter(l=>l.type==='pee').length;
+  const poopCount  = todayLogs.filter(l=>l.type==='poop').length;
+  const diaperCount = peeCount + poopCount;
+  const latestHeight = [...appState.growth].filter(r=>r.height!=null).sort((a,b)=>b.date.localeCompare(a.date))[0]?.height;
+  const latestWeight = [...appState.growth].filter(r=>r.weight!=null).sort((a,b)=>b.date.localeCompare(a.date))[0]?.weight;
+  const fmtSleepTime = (m: number) => m === 0 ? '—' : m >= 60 ? `${Math.floor(m/60)}h${m%60>0?` ${m%60}m`:''}` : `${m}m`;
   const walkCount = todayLogs.filter(l=>l.type==='walk').length;
 
   const recentLogs = (() => {
@@ -1293,7 +1499,12 @@ ${headStyles}
 
   const filteredTodos = todoFilter==='all'?appState.todos:appState.todos.filter(t=>t.category===todoFilter);
   const sortedTodos = [...filteredTodos].sort((a,b)=>{
-    if(a.completed!==b.completed) return a.completed?1:-1; return b.createdAt-a.createdAt;
+    if(a.completed!==b.completed) return a.completed?1:-1;
+    if(!a.completed) {
+      if(a.date&&b.date) return a.date.localeCompare(b.date);
+      if(a.date) return -1; if(b.date) return 1;
+    }
+    return b.createdAt-a.createdAt;
   });
 
   const timelineLogs = appState.logs[timelineDate] || [];
@@ -1403,15 +1614,15 @@ ${headStyles}
             <button className="modal-close" onClick={()=>{setEditingLogId(null);setModal(null);}} aria-label="닫기">✕</button>
           </div>
           <div className="log-type-tabs" role="tablist">
-            {(['sleep','feed','pee','poop','cry','walk'] as LogType[]).map(type=>(
+            {(['sleep','feed','pee','poop','cry','walk','play','bath'] as LogType[]).map(type=>(
               <button key={type} className={`type-tab${addLogType===type?' active':''}`} role="tab"
-                onClick={()=>{setAddLogType(type); const now=nowHHMM(),end=minToHM((hmToMin(now)+60)%1440); setLfStart(now);setLfEnd(end);setLfTime(now);setLfNote('');setLfAmount('');setLfReason('');setLfColor('노란색');}}>
+                onClick={()=>{setAddLogType(type); const now=nowHHMM(),end=minToHM((hmToMin(now)+60)%1440); setLfStart(now);setLfEnd(end);setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
                 {TYPE_ICONS[type]} {TYPE_LABELS[type]}
               </button>
             ))}
           </div>
           <div className="log-form-content">
-            {(addLogType==='sleep'||addLogType==='cry'||addLogType==='walk') && (
+            {(addLogType==='sleep'||addLogType==='cry'||addLogType==='walk'||addLogType==='play'||addLogType==='bath') && (
               <div className="time-row">
                 <div className="form-group"><label>시작 시간</label><input type="time" value={lfStart} onChange={e=>setLfStart(e.target.value)} /></div>
                 <div className="form-group"><label>종료 시간</label><input type="time" value={lfEnd} onChange={e=>setLfEnd(e.target.value)} /></div>
@@ -1426,7 +1637,7 @@ ${headStyles}
                 <div className="form-group">
                   <label>수유 방법</label>
                   <select value={lfFeedType} onChange={e=>setLfFeedType(e.target.value)}>
-                    <option value="분유">🍼 분유</option><option value="모유">🤱 모유</option><option value="혼합">💛 혼합</option>
+                    <option value="분유">🍼 분유</option><option value="모유">🤱 모유</option><option value="유축모유">🍶 유축모유</option><option value="혼합">💛 혼합</option><option value="우유">🥛 우유</option><option value="이유식">🥣 이유식</option>
                   </select>
                 </div>
               </>
@@ -1688,14 +1899,18 @@ ${headStyles}
                     : appState.baby?.gender==='boy'?'👦':'👧'}
                 </div>
                 <div className="baby-hero-info">
-                  <div className="baby-hero-name hand" role="button" tabIndex={0} onClick={()=>{setModal('setup');}}>{appState.baby?.name||'베이비'}</div>
-                  <div className="baby-hero-pills">
-                    {ageInfo ? (
-                      <>
-                        <span className="hero-pill">{ageInfo.months<1?`D+${ageInfo.diffDays}`:`${ageInfo.months}개월 ${ageInfo.monthRemDays}일`}</span>
-                        <span className="hero-pill">{appState.baby?.gender==='boy'?'남아':'여아'}</span>
-                      </>
-                    ) : <span className="hero-pill">정보 설정 필요</span>}
+                  <div className="baby-hero-name hand" role="button" tabIndex={0} onClick={()=>{setModal('setup');}}>
+                    {appState.baby?.name||'베이비'}<span className="hero-day-suffix">의 하루</span>
+                  </div>
+                  <div className="hero-pills-row">
+                    {ageInfo && (
+                      <span className="hero-info-pill">{ageInfo.months}개월 {ageInfo.monthRemDays}일</span>
+                    )}
+                    {(latestHeight || latestWeight) && (
+                      <span className="hero-info-pill">
+                        {[latestHeight ? `${latestHeight}cm` : null, latestWeight ? `${latestWeight}kg` : null].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button className="hero-edit-btn" onClick={()=>setModal('setup')} aria-label="아기 정보 수정">
@@ -1703,11 +1918,53 @@ ${headStyles}
                 </button>
               </div>
               <div className="baby-hero-stats">
-                <div className="bhs-item"><div className="bhs-val hand">{feedCount>0?`${feedCount}회`:'—'}</div><div className="bhs-lbl">수유</div></div>
+                {/* 수유 */}
+                <div className="bhs-item">
+                  {feedCount === 0 ? <div className="bhs-cat-lbl">🍼</div> : (
+                    <div className="bhs-cols">
+                      <div className="bhs-col">
+                        <span className="bhs-col-num">{breastCount===0?'—':breastMl>0?`${breastMl}ml`:`${breastCount}회`}</span>
+                        <span className="bhs-col-lbl">모유</span>
+                      </div>
+                      <div className="bhs-col">
+                        <span className="bhs-col-num">{formulaCount===0?'—':formulaMl>0?`${formulaMl}ml`:`${formulaCount}회`}</span>
+                        <span className="bhs-col-lbl">분유</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="bhs-divider"/>
-                <div className="bhs-item"><div className="bhs-val hand">{sleepMin===0?'—':sleepMin>=60?`${Math.floor(sleepMin/60)}h${sleepMin%60>0?` ${sleepMin%60}m`:''}`:` ${sleepMin}m`}</div><div className="bhs-lbl">수면</div></div>
+                {/* 수면 */}
+                <div className="bhs-item">
+                  {sleepMin === 0 ? <div className="bhs-cat-lbl">😴</div> : (
+                    <div className="bhs-cols">
+                      <div className="bhs-col">
+                        <span className="bhs-col-num">{fmtSleepTime(napSleepMin)}</span>
+                        <span className="bhs-col-lbl">낮잠</span>
+                      </div>
+                      <div className="bhs-col">
+                        <span className="bhs-col-num">{fmtSleepTime(nightSleepMin)}</span>
+                        <span className="bhs-col-lbl">밤잠</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="bhs-divider"/>
-                <div className="bhs-item"><div className="bhs-val hand">{diaperCount>0?`${diaperCount}회`:'—'}</div><div className="bhs-lbl">기저귀</div></div>
+                {/* 기저귀 */}
+                <div className="bhs-item">
+                  {diaperCount === 0 ? <div className="bhs-cat-lbl">💩</div> : (
+                    <div className="bhs-cols">
+                      <div className="bhs-col">
+                        <span className="bhs-col-num">{peeCount}회</span>
+                        <span className="bhs-col-lbl">소변</span>
+                      </div>
+                      <div className="bhs-col">
+                        <span className="bhs-col-num">{poopCount}회</span>
+                        <span className="bhs-col-lbl">대변</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1755,14 +2012,78 @@ ${headStyles}
               </div>
             </div>
 
+            {(quickFeedOpen||quickDiaperOpen||quickOtherOpen) && (
+              <div style={{position:'fixed',inset:0,zIndex:150}} onClick={closeQuickMenus} />
+            )}
             <div className="section-card">
               <h3 className="section-title hand">빠른 기록</h3>
               <div className="quick-grid">
-                {(['sleep','feed','pee','poop','cry','walk'] as LogType[]).map(type=>(
-                  <button key={type} className={`quick-btn qbtn-${type}`} onClick={()=>openAddLog(type)}>
+                {/* 수유 */}
+                <div className="quick-other-wrap">
+                  <button className="quick-btn qbtn-feed" onClick={()=>{ closeQuickMenus(); setQuickFeedOpen(o=>!o); }}>
+                    <span className="quick-icon">🍼</span><span>수유</span>
+                  </button>
+                  {quickFeedOpen && (
+                    <div className="quick-other-menu">
+                      {[
+                        { icon:'🤱', label:'모유',     ft:'모유' },
+                        { icon:'🍼', label:'분유',     ft:'분유' },
+                        { icon:'🍶', label:'유축모유', ft:'유축모유' },
+                        { icon:'🥣', label:'이유식',  ft:'이유식' },
+                      ].map(item=>(
+                        <button key={item.label} className="quick-other-item" onClick={()=>{ openAddLog('feed', item.ft); closeQuickMenus(); }}>
+                          <span className="quick-other-icon">{item.icon}</span>{item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* 기저귀 */}
+                <div className="quick-other-wrap">
+                  <button className="quick-btn qbtn-diaper" onClick={()=>{ closeQuickMenus(); setQuickDiaperOpen(o=>!o); }}>
+                    <span className="quick-icon">💩</span><span>기저귀</span>
+                  </button>
+                  {quickDiaperOpen && (
+                    <div className="quick-other-menu">
+                      {[
+                        { icon:'💧', label:'소변', type:'pee'  as LogType },
+                        { icon:'💩', label:'대변', type:'poop' as LogType },
+                      ].map(item=>(
+                        <button key={item.label} className="quick-other-item" onClick={()=>{ openAddLog(item.type); closeQuickMenus(); }}>
+                          <span className="quick-other-icon">{item.icon}</span>{item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* 수면, 놀이, 목욕 */}
+                {(['sleep','play','bath'] as LogType[]).map(type=>(
+                  <button key={type} className={`quick-btn qbtn-${type}`} onClick={()=>{ closeQuickMenus(); openAddLog(type); }}>
                     <span className="quick-icon">{TYPE_ICONS[type]}</span><span>{TYPE_LABELS[type]}</span>
                   </button>
                 ))}
+                {/* 기타 */}
+                <div className="quick-other-wrap">
+                  <button className="quick-btn qbtn-other" onClick={()=>{ closeQuickMenus(); setQuickOtherOpen(o=>!o); }}>
+                    <span className="quick-icon">⋯</span><span>기타</span>
+                  </button>
+                  {quickOtherOpen && (
+                    <div className="quick-other-menu quick-other-menu-lg">
+                      {[
+                        { icon:'🌡️', label:'체온', action:()=>{ setHfType('temp');    openHealthModal('health');      closeQuickMenus(); } },
+                        { icon:'🏥', label:'병원', action:()=>{ setHfType('symptom'); openHealthModal('health');      closeQuickMenus(); } },
+                        { icon:'💊', label:'투약', action:()=>{ openHealthModal('medication');                        closeQuickMenus(); } },
+                        { icon:'🥛', label:'우유', action:()=>{ openAddLog('feed','우유');                            closeQuickMenus(); } },
+                        { icon:'😢', label:'울음', action:()=>{ openAddLog('cry');                                    closeQuickMenus(); } },
+                        { icon:'🌿', label:'산책', action:()=>{ openAddLog('walk');                                   closeQuickMenus(); } },
+                      ].map(item=>(
+                        <button key={item.label} className="quick-other-item" onClick={item.action}>
+                          <span className="quick-other-icon">{item.icon}</span>{item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1775,7 +2096,7 @@ ${headStyles}
                 {recentLogs.length===0 ? (
                   <div className="empty-state"><div className="empty-icon">📋</div><p>아직 기록이 없어요<br/>위 버튼으로 첫 기록을 남겨보세요!</p></div>
                 ) : recentLogs.map(l=>{
-                  let detail = TYPE_LABELS[l.type];
+                  let detail = l.type==='feed'?(l.feedType||'수유'):TYPE_LABELS[l.type];
                   if(l.type==='feed'&&l.amount) detail+=` ${l.amount}ml`;
                   if(l.type==='sleep'&&l.endTime) detail+=` (${fmtDuration(l.startTime!,l.endTime)})`;
                   if(l.type==='poop'&&l.color) detail+=` · ${l.color}`;
@@ -1818,6 +2139,8 @@ ${headStyles}
             <span className="legend-item poop-lg">💩 대변</span>
             <span className="legend-item cry-lg">😢 울음</span>
             <span className="legend-item walk-lg">🌿 산책</span>
+            <span className="legend-item play-lg">🧸 놀이</span>
+            <span className="legend-item bath-lg">🛁 목욕</span>
           </div>
           <div className="timeline-scroll-wrapper" ref={timelineScrollRef}>
             <div className="timeline-canvas">
@@ -1840,7 +2163,8 @@ ${headStyles}
                   const leftPct  = (col / totalCols) * 100;
                   const left  = col === 0            ? '4px'  : `calc(${leftPct}% + 2px)`;
                   const right = col === totalCols-1  ? '4px'  : `calc(${(1 - (col+1)/totalCols)*100}% + 2px)`;
-                  let label = TYPE_ICONS[log.type]+' '+TYPE_LABELS[log.type];
+                  const feedLabel = log.type==='feed'?(log.feedType||'수유'):TYPE_LABELS[log.type];
+                  let label = TYPE_ICONS[log.type]+' '+feedLabel;
                   if(totalCols > 1) label = TYPE_ICONS[log.type]; // 좁을 땐 아이콘만
                   if(totalCols === 1) {
                     if(log.type==='feed'&&log.amount) label+=` ${log.amount}ml`;
@@ -1848,7 +2172,7 @@ ${headStyles}
                     if(log.type==='walk'&&log.endTime) label+=` (${fmtDuration(log.startTime!,log.endTime)})`;
                   }
                   const fullLabel = (() => {
-                    let l = TYPE_ICONS[log.type]+' '+TYPE_LABELS[log.type];
+                    let l = TYPE_ICONS[log.type]+' '+feedLabel;
                     if(log.type==='feed'&&log.amount) l+=` ${log.amount}ml`;
                     if(log.type==='sleep'&&log.endTime) l+=` (${fmtDuration(log.startTime!,log.endTime)})`;
                     if(log.type==='walk'&&log.endTime) l+=` (${fmtDuration(log.startTime!,log.endTime)})`;
@@ -1880,6 +2204,7 @@ ${headStyles}
           </div>
           <div className="page-scroll" style={{paddingTop:'8px'}}>
             <div className="section-card">
+              <h3 className="section-title hand">일정 기록</h3>
               <div className="todo-add-row">
                 <input ref={todoInputRef} type="text" className="todo-input" placeholder="새 항목을 입력하세요..." autoComplete="off"
                   onKeyDown={e=>{ if(e.key==='Enter'){e.preventDefault();addTodo();} }} />
@@ -1889,8 +2214,12 @@ ${headStyles}
                 </select>
                 <button className="btn-primary" onClick={addTodo}>추가</button>
               </div>
+              <div style={{marginTop:'8px'}}>
+                <input type="date" className="todo-date-input" value={todoDate} onChange={e=>setTodoDate(e.target.value)} />
+              </div>
             </div>
-            <div className="todo-list" role="list">
+            <div className="todo-list" role="list" style={{paddingBottom:'var(--sp-md)'}}>
+
               {sortedTodos.length===0 ? (
                 <div className="empty-state"><div className="empty-icon">✅</div><p>등록된 항목이 없어요<br/>예방접종, 분유량 등을 추가해보세요!</p></div>
               ) : sortedTodos.map(todo=>(
@@ -1902,6 +2231,7 @@ ${headStyles}
                     <div className="todo-text">{todo.text}</div>
                     <div className="todo-meta">
                       <span className={`todo-badge badge-${todo.category}`}>{CAT_LABELS[todo.category]}</span>
+                      {todo.date && (() => { const [,m,d]=todo.date!.split('-').map(Number); return <span className="todo-date-badge">{m}/{d}</span>; })()}
                       <button className="todo-ask-btn" onClick={()=>{ navigate('chat'); const q={vaccine:'예방접종 일정 알려줘',formula:'월령별 분유량 알려줘',solid:'이유식 언제 시작해요?',other:'아기 건강 정보 알려줘'}; setTimeout(()=>sendChat(q[todo.category]),300); }}>💬 챗봇에게 묻기</button>
                     </div>
                   </div>
@@ -1915,7 +2245,7 @@ ${headStyles}
             {/* 맞춤 키워드 카드 */}
             <div className="section-card">
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}}>
-                <h3 className="section-title" style={{margin:0}}>🛒 맞춤 키워드 확인</h3>
+                <h3 className="section-title hand" style={{margin:0}}>맞춤 키워드 확인</h3>
                 {ageInfo && <span className="shop-age-badge">{ageInfo.months}개월 맞춤</span>}
               </div>
               <div className="shop-flow-desc">키워드를 눌러 YouTube, 당근마켓, 맘가이드에서 검색해보세요</div>
@@ -1941,7 +2271,7 @@ ${headStyles}
 
             {/* 육아 달력 */}
             <div className="section-card">
-              <h3 className="section-title">📅 육아 달력</h3>
+              <h3 className="section-title hand">육아 달력</h3>
               <div className="cal-legend-row" style={{marginBottom:'12px'}}>
                 <div className="cal-legend-dot dot-vaccine"></div><span>접종</span>
                 <div className="cal-legend-dot dot-food" style={{marginLeft:'8px'}}></div><span>이유식</span>
@@ -1969,6 +2299,14 @@ ${headStyles}
                     if (!dayEventsMap[d]) dayEventsMap[d] = new Set();
                     dayEventsMap[d].add(ev.type);
                   }
+                  const catToDotType: Record<TodoCat, string> = { vaccine:'vaccine', formula:'food', solid:'food', other:'check' };
+                  for (const todo of appState.todos) {
+                    if (!todo.date) continue;
+                    const [ty, tm, td] = todo.date.split('-').map(Number);
+                    if (ty !== calYear || tm - 1 !== calMonth) continue;
+                    if (!dayEventsMap[td]) dayEventsMap[td] = new Set();
+                    dayEventsMap[td].add(catToDotType[todo.category]);
+                  }
                   const cells: React.ReactElement[] = [];
                   for (let i=firstDow-1;i>=0;i--) cells.push(<div key={`prev-${i}`} className="cal-cell other-month">{daysInPrev-i}</div>);
                   for (let d=1;d<=daysInMon;d++) {
@@ -1993,12 +2331,20 @@ ${headStyles}
                   <div className="cal-no-baby">아기 정보를 먼저 등록해주세요 👶</div>
                 ) : (() => {
                   const evs = getMilestonesForMonth(appState.baby.birthDate, calYear, calMonth);
-                  if (evs.length===0) return <div className="cal-events-empty">이 달에는 일정이 없어요 🌱</div>;
+                  const catToDotType: Record<TodoCat, string> = { vaccine:'vaccine', formula:'food', solid:'food', other:'check' };
+                  const todosThisMonth = appState.todos.filter(t => {
+                    if (!t.date) return false;
+                    const [ty, tm] = t.date.split('-').map(Number);
+                    return ty === calYear && tm - 1 === calMonth;
+                  }).sort((a, b) => (a.date||'').localeCompare(b.date||''));
                   const typeLabel: Record<string,string> = { vaccine:'💉 접종', food:'🥣 이유식', check:'🏥 검진' };
+                  const catLabel: Record<TodoCat,string> = { vaccine:'💉 예방접종', formula:'🍼 분유', solid:'🥣 이유식', other:'📌 기타' };
+                  const total = evs.length + todosThisMonth.length;
+                  if (total === 0) return <div className="cal-events-empty">이 달에는 일정이 없어요 🌱</div>;
                   return <>
-                    <div className="cal-events-title">이달의 일정 ({evs.length}건)</div>
+                    <div className="cal-events-title">이달의 일정 ({total}건)</div>
                     {evs.map((ev,i)=>(
-                      <div key={i} className="cal-event-item">
+                      <div key={`ev-${i}`} className="cal-event-item">
                         <div className={`cal-event-date type-${ev.type}`}>{ev.date.getMonth()+1}월<br/>{ev.date.getDate()}일</div>
                         <div className="cal-event-info">
                           <div className="cal-event-label">{ev.label}</div>
@@ -2007,6 +2353,20 @@ ${headStyles}
                         <div className={`cal-event-badge type-${ev.type}`}>{typeLabel[ev.type]}</div>
                       </div>
                     ))}
+                    {todosThisMonth.map(todo=>{
+                      const [,tm,td] = (todo.date||'').split('-').map(Number);
+                      const dotType = catToDotType[todo.category];
+                      return (
+                        <div key={todo.id} className="cal-event-item">
+                          <div className={`cal-event-date type-${dotType}`}>{tm}월<br/>{td}일</div>
+                          <div className="cal-event-info">
+                            <div className="cal-event-label">{todo.text}</div>
+                            <div className="cal-event-sub">{catLabel[todo.category]}</div>
+                          </div>
+                          <div className={`cal-event-badge type-${dotType}`}>{todo.completed ? '✓ 완료' : '예정'}</div>
+                        </div>
+                      );
+                    })}
                   </>;
                 })()}
               </div>
@@ -2057,7 +2417,7 @@ ${headStyles}
           <div className={`h-section${healthTab==='logs'?' active':''} page-scroll`}>
             <div className="section-card">
               <div className="section-header">
-                <h3 className="section-title">건강 기록</h3>
+                <h3 className="section-title-lg hand">건강 기록</h3>
                 <button className="btn-secondary" onClick={()=>openHealthModal('health')}>+ 추가</button>
               </div>
               <div className="health-logs-list">
@@ -2077,7 +2437,7 @@ ${headStyles}
           <div className={`h-section${healthTab==='medication'?' active':''} page-scroll`}>
             <div className="section-card">
               <div className="section-header">
-                <h3 className="section-title">복약 정보</h3>
+                <h3 className="section-title-lg hand">복약 정보</h3>
                 <button className="btn-secondary" onClick={()=>openHealthModal('medication')}>+ 추가</button>
               </div>
               <div className="medication-list">
@@ -2106,7 +2466,7 @@ ${headStyles}
             <div className="section-card rpt-hero">
               <div className="rpt-title-row">
                 <div>
-                  <div className="rpt-title">📊 육아 리포트</div>
+                  <div className="rpt-title">육아 리포트</div>
                   <div className="rpt-baby-info">
                     {appState.baby && ageInfo
                       ? `${appState.baby.name} · ${ageInfo.months}개월 ${ageInfo.monthRemDays}일`
@@ -2207,7 +2567,7 @@ ${headStyles}
                     </div>
                   )}
                   <div className="growth-chart-wrap">
-                    <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'height', appState.baby?.gender || 'girl')}} />
+                    <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'height', appState.baby?.gender || 'girl', appState.baby?.birthDate)}} />
                   </div>
                   {(() => {
                     const sorted = [...appState.growth].filter(r => r.height != null).sort((a,b)=>b.date.localeCompare(a.date));
@@ -2232,7 +2592,7 @@ ${headStyles}
                 <div className="section-card">
                   <h3 className="section-title hand rpt-section-title">몸무게 성장 곡선</h3>
                   <div className="growth-chart-wrap">
-                    <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'weight', appState.baby?.gender || 'girl')}} />
+                    <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'weight', appState.baby?.gender || 'girl', appState.baby?.birthDate)}} />
                   </div>
                   {(() => {
                     const sorted = [...appState.growth].filter(r => r.weight != null).sort((a,b)=>b.date.localeCompare(a.date));
@@ -2325,18 +2685,6 @@ ${headStyles}
         <section id="page-info" className={`page${currentPage==='info'?' active':''}`}>
           <div className="page-scroll">
 
-            {/* Header — list view only */}
-            {ytView === 'list' && ytSelectedCat && (
-              <div className="yt-page-header">
-                <button className="yt-back-btn" onClick={() => { setYtView('home'); setYtSelectedCat(null); }}>
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-                </button>
-                <div>
-                  <div className="screen-title hand">{ytSelectedCat.label}</div>
-                  <div className="screen-sub">{ytSelectedCat.desc}</div>
-                </div>
-              </div>
-            )}
 
             {ytView === 'home' ? (
               <>
@@ -2348,8 +2696,8 @@ ${headStyles}
                       <div className="yt-stage-avatar">{appState.baby.gender === 'boy' ? '👦' : '👧'}</div>
                       <div className="yt-stage-text">
                         <div className="yt-stage-label">맞춤 추천</div>
-                        <div className="yt-stage-title">
-                          <span className="yt-stage-name">{appState.baby.name}</span>를 위한{' '}
+                        <div className="yt-stage-title hand">
+                          <span className="yt-stage-name">{appState.baby.name}</span>{koreanParticle(appState.baby.name,'을','를')} 위한{' '}
                           {YT_STAGE_MAP[ytAgeStage(ageInfo.months)]?.label} 영상
                         </div>
                         <div className="yt-stage-sub">{ageInfo.months}개월 · 발달에 맞는 영상부터 보여드려요</div>
@@ -2434,9 +2782,14 @@ ${headStyles}
               <>
                 {/* Category banner */}
                 <div className="yt-list-banner" style={{background: ytSelectedCat.tone}}>
+                  <button className="yt-back-btn" onClick={() => { setYtView('home'); setYtSelectedCat(null); }}>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                  </button>
                   <div className="yt-list-banner-emoji">{ytSelectedCat.emoji}</div>
-                  <div className="yt-list-banner-title" style={{color: ytSelectedCat.text}}>{ytSelectedCat.label}</div>
-                  <div className="yt-list-banner-desc">{ytSelectedCat.desc}</div>
+                  <div>
+                    <div className="yt-list-banner-title hand" style={{color: ytSelectedCat.text}}>{ytSelectedCat.label}</div>
+                    <div className="yt-list-banner-desc">{ytSelectedCat.desc}</div>
+                  </div>
                 </div>
 
                 {/* Keyword chips + sort */}
