@@ -600,7 +600,7 @@ function getBotResponse(text: string, babyMonths: number | null, babyName: strin
   }
   if(t.includes('안전')||t.includes('추락')||t.includes('질식')) return `<h4>🛡️ 영아 안전 수칙</h4><strong>수면 안전:</strong><ul><li>아기는 등을 바닥에 대고 단단한 침대에서 재워요</li><li>소프트 침구, 베개, 범퍼는 사용하지 않아요</li></ul><strong>일반 안전:</strong><ul><li>차 안에서는 항상 카시트를 사용해요</li><li>욕조에서 절대 눈을 떼지 않아요</li><li>작은 물건, 코드, 비닐봉지 주의</li></ul>`;
   const basics=[
-    {keys:['안녕','처음','시작'],ans:'안녕하세요! 😊 저는 베이비케어 도우미예요.<br>무엇이든 편하게 물어보세요!<br><br>💡 아래 주제들을 물어보실 수 있어요:<br>💉 예방접종 일정 · 🥣 이유식 · 🍼 분유량 · 😴 수면 · 👶 발달 · 🌡️ 열 대처'},
+    {keys:['안녕','처음','시작'],ans:'안녕하세요! 😊 저는 채아의 기록 도우미예요.<br>무엇이든 편하게 물어보세요!<br><br>💡 아래 주제들을 물어보실 수 있어요:<br>💉 예방접종 일정 · 🥣 이유식 · 🍼 분유량 · 😴 수면 · 👶 발달 · 🌡️ 열 대처'},
     {keys:['고마','감사','도움'],ans:'도움이 됐다니 기뻐요! 💛<br>육아 하시느라 정말 고생이 많으세요. 언제든 물어보세요!'},
     {keys:['힘들','지쳐','피곤','못 자'],ans:'😢 정말 수고 많으세요.<br>육아는 세상에서 가장 힘든 일 중 하나예요.<br>잠깐이라도 쉴 시간을 꼭 만들어보세요. 파이팅! 💪'},
   ];
@@ -985,7 +985,7 @@ ${headStyles}
   const handleShare = useCallback(async () => {
     const babyName = appState.baby?.name ?? '아기';
     const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 0;
-    const text = `${babyName} (${months}개월) 육아 리포트\n베이비케어 앱에서 확인해보세요!`;
+    const text = `${babyName} (${months}개월) 육아 리포트\n채아의 기록 앱에서 확인해보세요!`;
     if (navigator.share) {
       try { await navigator.share({ title: `${babyName} 육아 리포트`, text }); } catch { /* cancelled */ }
     } else {
@@ -1023,7 +1023,7 @@ ${headStyles}
     setCurrentPage(page);
     if (page === 'chat' && !chatBotReady) {
       setChatBotReady(true);
-      setChatMessages([{ id: uid(), role: 'bot', html: '안녕하세요! 👋<br>베이비케어 도우미예요.<br>예방접종, 이유식, 분유량, 발달 등 궁금한 것을 무엇이든 물어보세요!' }]);
+      setChatMessages([{ id: uid(), role: 'bot', html: '안녕하세요! 👋<br>채아의 기록 도우미예요.<br>예방접종, 이유식, 분유량, 발달 등 궁금한 것을 무엇이든 물어보세요!' }]);
     }
   };
 
@@ -2652,7 +2652,7 @@ ${headStyles}
         <section id="page-chat" className={`page page-chat-layout${currentPage==='chat'?' active':''}`}>
           <div className="chat-bot-header">
             <div className="bot-avatar-lg">🤱</div>
-            <div><div className="bot-name">베이비케어 도우미</div><div className="bot-status">🤖 RAG AI 모드</div></div>
+            <div><div className="bot-name">채아의 기록 도우미</div><div className="bot-status">🤖 RAG AI 모드</div></div>
           </div>
           <div className="chat-messages" ref={chatMessagesRef}>
             {chatMessages.map(msg=>(
