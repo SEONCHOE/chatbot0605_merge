@@ -89,8 +89,9 @@ const VOICE_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          text:     { type: 'string', description: '할일 내용 (간결하게)' },
+          text:     { type: 'string', description: '할일 내용 (간결하게, 날짜 표현 제외)' },
           category: { type: 'string', enum: ['health','food','play','etc'], description: 'health=건강/병원/접종, food=이유식/음식, play=놀이/발달, etc=기타' },
+          date:     { type: 'string', description: 'YYYY-MM-DD 형식. "다음주"→제공된 nextMonday, "다음달"→제공된 nextMonth1st, "내일"→오늘+1일, "모레"→오늘+2일, "6월5일"→해당 날짜. 특정 날짜 없으면 오늘 날짜.' },
         },
         required: ['text', 'category'],
       },
@@ -122,6 +123,23 @@ const VOICE_TOOLS = [
         properties: {
           action: { type: 'string', enum: ['start', 'end'], description: 'start=수면 시작, end=기상' },
           time:   { type: 'string', description: '시각 HH:MM. 없으면 생략' },
+        },
+        required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'track_feed',
+      description: '수유 진행 중 추적. "지금 분유/모유 주고 있어/시작해" → action=start, "다 먹었어/X ml 남겼어/X 남겼어" → action=end.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action:   { type: 'string', enum: ['start', 'end'], description: 'start=수유 시작, end=수유 완료' },
+          feedType: { type: 'string', enum: ['모유','분유','유축모유','혼합','이유식','우유'], description: '수유 종류' },
+          amount:   { type: 'number', description: 'start: 줄 예정 수유량(ml) / end: 남긴 양(ml). 다 먹었으면 0' },
+          time:     { type: 'string', description: '시각 HH:MM' },
         },
         required: ['action'],
       },
@@ -233,23 +251,75 @@ function uid() { return Date.now().toString(36)+Math.random().toString(36).slice
 function parseNaturalDate(text: string): string | null {
   const t = text.replace(/\s/g, '');
   const today = new Date();
+
   if (/다음달/.test(t)) {
-    const d = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    return localDateStr(d);
+    return localDateStr(new Date(today.getFullYear(), today.getMonth() + 1, 1));
+  }
+  // 다음주 X요일 (예: 다음주화요일)
+  const nextWeekDow = t.match(/다음주([월화수목금토일])요?일?/);
+  if (nextWeekDow) {
+    const dayMap: Record<string, number> = { 월:1, 화:2, 수:3, 목:4, 금:5, 토:6, 일:0 };
+    const target = dayMap[nextWeekDow[1]];
+    const dow = today.getDay();
+    const daysFromMonday = dow === 0 ? 6 : dow - 1;
+    const thisMonday = new Date(today); thisMonday.setDate(today.getDate() - daysFromMonday);
+    const nextMonday = new Date(thisMonday); nextMonday.setDate(thisMonday.getDate() + 7);
+    const diff = target === 0 ? 6 : target - 1; // 월요일 기준 offset
+    nextMonday.setDate(nextMonday.getDate() + diff);
+    return localDateStr(nextMonday);
   }
   if (/다음주/.test(t)) {
-    // 이번 주 월요일(ISO 기준) + 7일 = 다음 주 월요일
-    const dow = today.getDay(); // 0=일
-    const daysFromMonday = dow === 0 ? 6 : dow - 1; // 이번 주 월요일까지의 거리
-    const d = new Date(today);
-    d.setDate(today.getDate() - daysFromMonday + 7);
+    const dow = today.getDay();
+    const daysFromMonday = dow === 0 ? 6 : dow - 1;
+    const d = new Date(today); d.setDate(today.getDate() - daysFromMonday + 7);
+    return localDateStr(d);
+  }
+  // 이번주 X요일
+  const thisWeekDow = t.match(/이번주([월화수목금토일])요?일?/);
+  if (thisWeekDow) {
+    const dayMap: Record<string, number> = { 월:1, 화:2, 수:3, 목:4, 금:5, 토:6, 일:0 };
+    const target = dayMap[thisWeekDow[1]];
+    const dow = today.getDay();
+    const daysFromMonday = dow === 0 ? 6 : dow - 1;
+    const thisMonday = new Date(today); thisMonday.setDate(today.getDate() - daysFromMonday);
+    const diff = target === 0 ? 6 : target - 1;
+    thisMonday.setDate(thisMonday.getDate() + diff);
+    return localDateStr(thisMonday);
+  }
+  if (/모레/.test(t)) {
+    const d = new Date(today); d.setDate(today.getDate() + 2);
     return localDateStr(d);
   }
   if (/내일/.test(t)) {
     const d = new Date(today); d.setDate(today.getDate() + 1);
     return localDateStr(d);
   }
+  // "6월 5일", "6/5" 형태
+  const mdMatch = t.match(/(\d{1,2})월(\d{1,2})일?/) || t.match(/(\d{1,2})\/(\d{1,2})/);
+  if (mdMatch) {
+    const month = parseInt(mdMatch[1], 10) - 1;
+    const day   = parseInt(mdMatch[2], 10);
+    const year  = today.getMonth() > month || (today.getMonth() === month && today.getDate() > day)
+      ? today.getFullYear() + 1
+      : today.getFullYear();
+    return localDateStr(new Date(year, month, day));
+  }
   return null;
+}
+// LLM에 전달할 날짜 컨텍스트 계산 (save_schedule date 파라미터용)
+function buildDateContext(): { todayDate: string; nextMonday: string; nextMonth1st: string; todayDow: string } {
+  const today = new Date();
+  const dow = today.getDay();
+  const dowLabel = ['일','월','화','수','목','금','토'][dow];
+  const daysFromMonday = dow === 0 ? 6 : dow - 1;
+  const nm = new Date(today); nm.setDate(today.getDate() - daysFromMonday + 7);
+  const nm1 = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  return {
+    todayDate:   localDateStr(today),
+    todayDow:    dowLabel,
+    nextMonday:  localDateStr(nm),
+    nextMonth1st: localDateStr(nm1),
+  };
 }
 function getAgeInfo(birthStr: string) {
   const birth=parseDate(birthStr), now=new Date();
@@ -700,6 +770,7 @@ export default function BabyApp() {
   // Page state
   const [timelineDate, setTimelineDate] = useState(() => todayStr());
   const [voiceSleepStart, setVoiceSleepStart] = useState<{logId:string; time:string} | null>(null);
+  const [voiceFeedStart, setVoiceFeedStart] = useState<{logId:string; time:string; amount:number; feedType:string} | null>(null);
   const [quickFeedOpen,   setQuickFeedOpen]   = useState(false);
   const [quickDiaperOpen, setQuickDiaperOpen] = useState(false);
   const [quickOtherOpen,  setQuickOtherOpen]  = useState(false);
@@ -1296,17 +1367,20 @@ ${headStyles}
     newLogs.forEach(log => fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error));
   };
 
-  const handleVoiceSchedule = (args: { text: string; category: string }) => {
+  const handleVoiceSchedule = (args: { text: string; category: string; date?: string }) => {
     const catMap: Record<string, TodoCat> = { health:'vaccine', food:'solid', play:'other', etc:'other' };
     const cat: TodoCat = (catMap[args.category] as TodoCat) || 'other';
-    const naturalDate = parseNaturalDate(args.text);
-    const date = naturalDate || todayStr();
-    const newTodo: Todo = { id:uid(), text:args.text, category:cat, completed:false, createdAt:Date.now(), date };
+    // LLM이 date를 직접 반환하면 우선 사용, 없으면 텍스트에서 파싱, 그것도 없으면 오늘
+    const resolvedDate = (args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date))
+      ? args.date
+      : (parseNaturalDate(args.text) || todayStr());
+    const isScheduled = resolvedDate !== todayStr();
+    const newTodo: Todo = { id:uid(), text:args.text, category:cat, completed:false, createdAt:Date.now(), date:resolvedDate };
     const ns = { ...appState };
     ns.todos = [newTodo, ...ns.todos];
     saveAppState(ns);
-    const [,dm,dd] = date.split('-').map(Number);
-    showToast(naturalDate ? `🎤 ${dm}/${dd}에 추가됐어요: ${args.text}` : `🎤 스케줄에 추가됐어요: ${args.text}`);
+    const [,dm,dd] = resolvedDate.split('-').map(Number);
+    showToast(isScheduled ? `🎤 ${dm}/${dd}에 추가됐어요: ${args.text}` : `🎤 스케줄에 추가됐어요: ${args.text}`);
     navigate('schedule');
     fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newTodo, babyId: appState.babyId }) }).catch(console.error);
   };
@@ -1318,6 +1392,11 @@ ${headStyles}
       setVoiceTranscript(`"${transcript}"`);
       const babyMonths = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 5;
       const babyName = appState.baby?.name || '아기';
+      const { todayDate, todayDow, nextMonday, nextMonth1st } = buildDateContext();
+      const nowTime = nowHHMM();
+      const ago30 = (() => { const [h,m]=nowTime.split(':').map(Number); const t=(h*60+m-30+1440)%1440; return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`; })();
+      const ago20 = (() => { const [h,m]=nowTime.split(':').map(Number); const t=(h*60+m-20+1440)%1440; return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`; })();
+      const tomorrow = (() => { const d=new Date(); d.setDate(d.getDate()+1); return localDateStr(d); })();
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
@@ -1327,34 +1406,86 @@ ${headStyles}
             {
               role: 'system',
               content: `너는 아기 육아 앱의 음성 명령 분류기야.
-아기 이름: ${babyName}, 월령: ${babyMonths}개월, 현재 시각: ${nowHHMM()}.
+아기 이름: ${babyName}, 월령: ${babyMonths}개월
+현재 시각: ${nowTime} / 오늘: ${todayDate}(${todayDow}요일) / 다음주 월요일: ${nextMonday} / 다음달 1일: ${nextMonth1st}
 
-## 분류 규칙
-- "아기 키 Xcm/몸무게 Xkg/체온 X도" → record_measurement
-- "자고 있어/잠들었어/재웠어/낮잠 자" → track_sleep action=start
-- "깼어/일어났어/기상했어" → track_sleep action=end
-- "${babyName}" 또는 "아기"가 주어이고 활동을 말하면 → record_activity
-- 할일/예약/일정 저장 요청 → save_schedule
-- 질문/대화/정보 요청 → chat_response
+## 분류 우선순위
+1. 키/몸무게/체온 수치 언급 → record_measurement
+2. "자고 있어/잠들었어/재웠어/낮잠 자" → track_sleep(action=start)
+3. "깼어/일어났어/기상했어" → track_sleep(action=end)
+4. "지금 분유/모유 주고 있어/시작해/물리고 있어" → track_feed(action=start)
+5. "다 먹었어/Xml 남겼어/조금 남겼어" → track_feed(action=end)
+6. 미래 의도 ("살 거야", "예약해야", "맞혀야 해", "사야 해") → save_schedule
+7. "${babyName}"/"아기"/"아가" 주어 + 현재/과거 활동 서술 → record_activity
+8. 질문("~일까?","~야?","~해?","어떻게","얼마나","뭐야") 또는 정보 요청 → chat_response
 
-## record_activity 변환 규칙
-**활동 매핑:**
-- 젖 먹다/젖 물다/모유 먹다 → feed, feedType=모유
-- 분유 먹다/분유 타다 → feed, feedType=분유
+## record_activity 활동 매핑
+- 젖/모유/젖 물다/젖 먹다 → feed, feedType=모유
+- 분유/분유 먹다/분유 줬어/분유 타다 → feed, feedType=분유
 - 유축/유축모유 → feed, feedType=유축모유
-- 이유식 먹다 → feed, feedType=이유식
-- 오줌/쉬/소변 → pee
-- 똥/대변 → poop
-- 자다/잠들다/낮잠/밤잠 → sleep
-- 울다/보채다 → cry
-- 산책 → walk
-- 놀다/놀았다 → play
-- 목욕 → bath
+- 이유식 → feed, feedType=이유식
+- 쉬/오줌/소변/기저귀(소변 맥락) → pee
+- 똥/대변/응가/기저귀(대변 맥락) → poop
+- 울다/보채다/칭얼 → cry
+- 산책/나갔다왔어 → walk
+- 놀다/놀았다/터미타임/터미/놀이 → play
+- 목욕/씻겼어 → bath
 
-**시간 변환 (HH:MM 24시간제):**
-- "2시" → "02:00", "오전 10시" → "10:00", "오후 2시" → "14:00"
-- "방금/지금" → 현재 시각, "30분 전" → 현재-30분
-- 여러 시간이 언급되면 times 배열에 모두 포함 (예: "2시, 4시, 6시" → ["02:00","04:00","06:00"])`,
+## 시간 변환 (HH:MM 24시간제, 현재=${nowTime})
+- "방금/지금" → ${nowTime}
+- "30분 전" → ${ago30} / "20분 전" → ${ago20} / "X분 전" → 현재에서 X분 빼기
+- "2시" → "02:00", "오후 2시" → "14:00", "오전 10시" → "10:00"
+- 여러 시간 → times 배열 (예: "2시 4시 6시" → ["02:00","04:00","06:00"])
+- "X분 산책/놀이 다녀왔어/했어" → endTime=${nowTime}, time=현재-X분
+
+## Few-shot 예시
+
+[수유 — 이미 완료된 수유]
+"${babyName} 방금 모유 10분 먹었어" → record_activity(type=feed, feedType=모유, time=${nowTime}, note="10분")
+"채아 2시 4시 6시에 분유 50ml 먹었어" → record_activity(type=feed, feedType=분유, times=["02:00","04:00","06:00"], amount=50)
+"아기 오후 2시에 분유 150 줬어" → record_activity(type=feed, feedType=분유, time="14:00", amount=150)
+
+[수유 — 진행 중 추적 (track_feed)]
+"아기 지금 분유 150 주고 있어" → track_feed(action=start, feedType=분유, amount=150, time=${nowTime})
+"아기 지금 모유 물리고 있어" → track_feed(action=start, feedType=모유, time=${nowTime})
+"분유 30 밀리 남겼어" → track_feed(action=end, amount=30)
+"아기 다 먹었어" → track_feed(action=end, amount=0)
+
+[기저귀]
+"채아 방금 똥쌌어" → record_activity(type=poop, time=${nowTime})
+"아기 30분 전에 소변 기저귀 갈았어" → record_activity(type=pee, time=${ago30})
+"아기 응가했어" → record_activity(type=poop, time=${nowTime})
+
+[수면]
+"${babyName} 지금 자고 있어" → track_sleep(action=start, time=${nowTime})
+"${babyName} 방금 깼어" → track_sleep(action=end, time=${nowTime})
+"아기 20분 전에 잠들었어" → track_sleep(action=start, time=${ago20})
+
+[산책/놀이]
+"아기 방금 30분 산책 다녀왔어" → record_activity(type=walk, endTime=${nowTime}, time=${ago30})
+"아기 지금 10분 터미타임 했어" → record_activity(type=play, note="터미타임", endTime=${nowTime}, time=${ago20})
+"아기 오후 2시부터 3시까지 산책했어" → record_activity(type=walk, time="14:00", endTime="15:00")
+
+[측정]
+"아기 오늘 몸무게 3.2kg이야" → record_measurement(metric=weight, value=3.2)
+"아기 키 58cm" → record_measurement(metric=height, value=58)
+"체온 37.5도야" → record_measurement(metric=temp, value=37.5)
+
+[스케줄]
+"다음주에 기저귀 살거야" → save_schedule(text="기저귀 구매", category=etc, date="${nextMonday}")
+"다음주에 이유식 물품 살거야" → save_schedule(text="이유식 물품 구매", category=food, date="${nextMonday}")
+"다음달에 예방접종 맞혀야 해" → save_schedule(text="예방접종", category=health, date="${nextMonth1st}")
+"내일 소아과 가야 해" → save_schedule(text="소아과 방문", category=health, date="${tomorrow}")
+
+[챗봇]
+"분유 얼마나 먹여야 해?" → chat_response
+"아기 건강 체온은 몇 도야?" → chat_response
+
+## 오분류 주의
+- "기저귀 사야 해/살 거야" → save_schedule (구매 의도), poop/pee 아님
+- "똥 기저귀 다 떨어졌어" → save_schedule (구매 필요), poop 아님
+- "분유 얼마나 먹여?" → chat_response (질문), feed 기록 아님
+- "잠을 너무 못 자요" → chat_response (상담), track_sleep 아님`,
             },
             { role: 'user', content: transcript },
           ],
@@ -1434,6 +1565,62 @@ ${headStyles}
             fetch(`/api/logs/${voiceSleepStart.logId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ endTime: t }) }).catch(console.error);
           } else {
             showToast('수면 시작 기록이 없어요. "아기 자고 있어"를 먼저 말해주세요');
+          }
+        }
+      } else if (fn === 'track_feed') {
+        const { action, feedType, amount, time } = args as { action:'start'|'end'; feedType?:string; amount?:number; time?:string };
+        const t = time || nowHHMM();
+        const dateKey = todayStr();
+        if (action === 'start') {
+          // 즉시 기록 (A방식) + voiceFeedStart 상태 저장
+          const logId = uid();
+          const givenAmount = amount || 0;
+          const ft = feedType || '분유';
+          const log: Log = { id:logId, type:'feed', date:dateKey, time:t, startTime:t, feedType:ft, amount:givenAmount || null, note:'수유중' };
+          const ns = { ...appState };
+          if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
+          ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
+          saveAppState(ns);
+          setVoiceFeedStart({ logId, time:t, amount:givenAmount, feedType:ft });
+          const amountStr = givenAmount ? ` ${givenAmount}ml` : '';
+          showToast(`🍼 ${ft}${amountStr} 수유 시작. 완료되면 "다 먹었어" 또는 "Xml 남겼어"라고 말해주세요`);
+          navigate('timeline');
+          fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId:appState.babyId }) }).catch(console.error);
+        } else {
+          // 남긴 양 기반으로 실제 섭취량 계산 후 기존 로그 업데이트
+          if (voiceFeedStart) {
+            const remaining = amount ?? 0;
+            const consumed = voiceFeedStart.amount > 0
+              ? Math.max(0, voiceFeedStart.amount - remaining)
+              : null;
+            const ns = { ...appState };
+            if (ns.logs[dateKey]) {
+              ns.logs[dateKey] = ns.logs[dateKey].map(l =>
+                l.id === voiceFeedStart.logId
+                  ? { ...l, amount: consumed, note: remaining > 0 ? `${remaining}ml 남김` : '' }
+                  : l
+              );
+            }
+            saveAppState(ns);
+            setVoiceFeedStart(null);
+            const msg = consumed !== null
+              ? `🍼 수유 완료: ${consumed}ml 섭취${remaining > 0 ? ` (${remaining}ml 남김)` : ''}`
+              : `🍼 수유 완료`;
+            showToast(msg);
+            navigate('timeline');
+            fetch(`/api/logs/${voiceFeedStart.logId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount:consumed, note:remaining > 0 ? `${remaining}ml 남김` : '' }) }).catch(console.error);
+          } else {
+            // 시작 기록 없이 완료 발화 → 일반 수유 기록으로 처리
+            const consumed = amount || null;
+            const ft = feedType || '분유';
+            const log: Log = { id:uid(), type:'feed', date:dateKey, time:t, startTime:t, feedType:ft, amount:consumed, note:'' };
+            const ns = { ...appState };
+            if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
+            ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
+            saveAppState(ns);
+            showToast(`🍼 ${ft} 수유 기록 완료${consumed ? ` (${consumed}ml)` : ''}`);
+            navigate('timeline');
+            fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId:appState.babyId }) }).catch(console.error);
           }
         }
       } else {
@@ -2933,27 +3120,70 @@ ${headStyles}
               const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
               if (!SpeechRecognition) { alert('이 브라우저는 음성 인식을 지원하지 않습니다.'); return; }
               if (isRecording) { recognitionRef.current?.stop(); setVoiceOverlay(false); setVoiceProcessing(false); return; }
-              const recognition = new SpeechRecognition();
-              recognition.lang = 'ko-KR'; recognition.interimResults = true; recognition.maxAlternatives = 1;
-              recognition.onresult = (e: SpeechRecognitionEvent) => {
-                const interim = Array.from(e.results).map(r => r[0].transcript).join('');
-                setVoiceTranscript(interim);
-                if (e.results[e.results.length-1].isFinal) {
-                  recognitionRef.current?.stop();
-                  processVoiceInput(interim);
-                }
+
+              // iOS 감지 (Safari on iPhone/iPad)
+              const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+              setVoiceTranscript(''); setIsRecording(true); setVoiceOverlay(true);
+
+              let retryCount = 0;
+              const MAX_RETRIES = 2;
+
+              const startRecognition = () => {
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'ko-KR';
+                // iOS는 interimResults=true에서 불안정 → false로 고정
+                recognition.interimResults = !isIOS;
+                recognition.maxAlternatives = 1;
+
+                let lastTranscript = '';
+
+                recognition.onresult = (e: SpeechRecognitionEvent) => {
+                  const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+                  lastTranscript = transcript;
+                  setVoiceTranscript(transcript);
+                  // iOS는 onend에서 처리, 그 외는 isFinal 즉시 처리
+                  if (!isIOS && e.results[e.results.length - 1].isFinal) {
+                    recognitionRef.current?.stop();
+                    processVoiceInput(transcript);
+                  }
+                };
+
+                recognition.onerror = (e) => {
+                  const errMsg = (e as { error?: string }).error;
+                  // aborted: 사용자가 직접 중지한 경우 — 무시
+                  if (errMsg === 'aborted') return;
+                  // network 에러: 재시도 (iOS에서 가장 흔함)
+                  if (errMsg === 'network' && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    setVoiceTranscript(`네트워크 오류, 재시도 중... (${retryCount}/${MAX_RETRIES})`);
+                    setTimeout(startRecognition, 1000);
+                    return;
+                  }
+                  // 복구 불가 에러 → 오버레이 닫기
+                  setIsRecording(false); setVoiceOverlay(false); setVoiceProcessing(false);
+                  if (errMsg === 'no-speech')       showToast('🎤 음성이 감지되지 않았어요. 다시 시도해주세요');
+                  else if (errMsg === 'not-allowed') showToast('🎤 마이크 권한을 허용해주세요');
+                  else if (errMsg === 'network')     showToast('🎤 네트워크 오류로 음성 인식에 실패했어요');
+                  else if (errMsg === 'audio-capture') showToast('🎤 마이크를 사용할 수 없어요. 통화·Zoom 등 다른 앱이 마이크를 점유 중이면 종료 후 다시 시도해주세요');
+                  else                               showToast(`🎤 음성 인식 오류: ${errMsg}`);
+                };
+
+                recognition.onend = () => {
+                  // iOS: onresult에서 받은 마지막 텍스트로 처리
+                  if (isIOS && lastTranscript) {
+                    processVoiceInput(lastTranscript);
+                    return;
+                  }
+                  if (!voiceProcessing) setIsRecording(false);
+                };
+
+                recognitionRef.current = recognition;
+                recognition.start();
               };
-              recognition.onerror = (e) => {
-                const errMsg = (e as {error?: string}).error;
-                setIsRecording(false); setVoiceOverlay(false); setVoiceProcessing(false);
-                if (errMsg === 'no-speech') showToast('🎤 음성이 감지되지 않았어요');
-                else if (errMsg === 'not-allowed') showToast('🎤 마이크 권한을 허용해주세요');
-              };
-              recognition.onend = () => { if (!voiceProcessing) { setIsRecording(false); } };
-              recognitionRef.current = recognition;
-              recognition.start();
-              setVoiceTranscript('');
-              setIsRecording(true); setVoiceOverlay(true);
+
+              startRecognition();
             }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="9" y="1" width="6" height="11" rx="3"/>
