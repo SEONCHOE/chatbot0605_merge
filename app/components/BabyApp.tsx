@@ -793,11 +793,12 @@ export default function BabyApp() {
 
   // Load from DB via API
   useEffect(() => {
-    fetch('/api/state')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setAppState(Object.assign(defaultState(), data)); })
-      .catch(() => {})
-      .finally(() => setMounted(true));
+    const storedBabyId = localStorage.getItem('baby_id');
+    const stateUrl = storedBabyId ? `/api/state?babyId=${storedBabyId}` : null;
+    (stateUrl
+      ? fetch(stateUrl).then(r => r.ok ? r.json() : null).then(data => { if (data) setAppState(Object.assign(defaultState(), data)); }).catch(() => {})
+      : Promise.resolve()
+    ).finally(() => setMounted(true));
     const saved = localStorage.getItem('baby_photo');
     if (saved) setBabyPhoto(saved);
     const oaiKey = localStorage.getItem('user_openai_key') || '';
@@ -1191,6 +1192,7 @@ ${headStyles}
 
   // ── Setup ────────────────────────────────────────────────────
   const handleLogout = () => {
+    localStorage.clear();
     setAppState(prev => ({ ...prev, babyId: null, baby: null }));
     if (setupNameRef.current) setupNameRef.current.value = '';
     if (setupBirthRef.current) setupBirthRef.current.value = '';
@@ -1224,6 +1226,7 @@ ${headStyles}
         await fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...todo, babyId }) }).catch(console.error);
       }
     }
+    if (babyId) localStorage.setItem('baby_id', String(babyId));
     saveAppState(ns); setModal(null);
     showToast(`👶 ${name}${koreanParticle(name,'이의','의')} 기록을 시작해요!`);
   };
