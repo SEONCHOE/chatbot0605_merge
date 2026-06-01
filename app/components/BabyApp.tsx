@@ -15,10 +15,10 @@ interface SpeechRecognitionLike {
 }
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
-type LogType = 'sleep' | 'feed' | 'pee' | 'poop' | 'cry' | 'walk' | 'play' | 'bath' | 'measure';
+type LogType = 'sleep' | 'feed' | 'pee' | 'poop' | 'cry' | 'walk' | 'play' | 'bath' | 'measure' | 'other';
 type Page = 'home' | 'timeline' | 'schedule' | 'health' | 'chat' | 'info';
 type ModalState = 'setup' | 'addLog' | 'healthLog' | 'logDetail' | 'settings' | null;
-type TodoCat = 'vaccine' | 'formula' | 'solid' | 'other';
+type TodoCat = 'vaccine' | 'feeding' | 'play' | 'supplies' | 'other';
 type TodoFilter = 'all' | TodoCat;
 type HealthTab = 'development' | 'logs' | 'medication' | 'report';
 type HealthLogType = 'temp' | 'rash' | 'symptom' | 'other';
@@ -55,9 +55,9 @@ interface YtVideo { id:string; title:string; thumbnail:string; channelTitle:stri
 interface YtCat { id:string; label:string; desc:string; emoji:string; tone:string; text:string; queries:string[]; sortOrder:string; }
 
 // ── Constants ────────────────────────────────────────────────────
-const TYPE_LABELS: Record<LogType, string> = { sleep:'수면', feed:'수유', pee:'소변', poop:'대변', cry:'울음', walk:'산책', play:'놀이', bath:'목욕', measure:'측정' };
-const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿', play:'🧸', bath:'🛁', measure:'📏' };
-const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접종', formula:'분유', solid:'이유식', other:'기타' };
+const TYPE_LABELS: Record<LogType, string> = { sleep:'수면', feed:'수유', pee:'소변', poop:'대변', cry:'울음', walk:'산책', play:'놀이', bath:'목욕', measure:'측정', other:'기타' };
+const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿', play:'🧸', bath:'🛁', measure:'📏', other:'📝' };
+const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접종', feeding:'수유', play:'놀이', supplies:'생필품', other:'기타' };
 
 // ── Voice Tools (LLM intent router) ─────────────────────────────
 const VOICE_TOOLS = [
@@ -90,7 +90,7 @@ const VOICE_TOOLS = [
         type: 'object',
         properties: {
           text:     { type: 'string', description: '할일 내용 (간결하게, 날짜 표현 제외)' },
-          category: { type: 'string', enum: ['health','food','play','etc'], description: 'health=건강/병원/접종, food=이유식/음식, play=놀이/발달, etc=기타' },
+          category: { type: 'string', enum: ['vaccine','feeding','play','supplies','other'], description: 'vaccine=예방접종·백신(명확히 접종인 경우만), feeding=분유·이유식·수유 관련, play=장난감·놀이·발달 용품, supplies=기저귀·물티슈·생필품 구매, other=병원·기타(애매하면 other)' },
           date:     { type: 'string', description: 'YYYY-MM-DD 형식. "다음주"→제공된 nextMonday, "다음달"→제공된 nextMonth1st, "내일"→오늘+1일, "모레"→오늘+2일, "6월5일"→해당 날짜. 특정 날짜 없으면 오늘 날짜.' },
         },
         required: ['text', 'category'],
@@ -745,6 +745,8 @@ export default function BabyApp() {
   const [lfColor, setLfColor] = useState('노란색');
   const [lfReason, setLfReason] = useState('');
   const [lfNote, setLfNote] = useState('');
+  const [lfHeight, setLfHeight] = useState('');
+  const [lfWeight, setLfWeight] = useState('');
 
   // Health modal form
   const [healthModalMode, setHealthModalMode] = useState<HealthModalMode>('health');
@@ -1111,6 +1113,7 @@ ${headStyles}
     setEditingLogId(null);
     setAddLogType(type); setLfStart(now); setLfEnd(end); setLfTime(now);
     setLfAmount(''); setLfFeedType(initFeedType || '분유'); setLfColor('노란색'); setLfReason(''); setLfNote('');
+    setLfHeight(''); setLfWeight('');
     setModal('addLog');
   };
 
@@ -1121,15 +1124,33 @@ ${headStyles}
     if (addLogType === 'sleep' || addLogType === 'cry' || addLogType === 'walk' || addLogType === 'play' || addLogType === 'bath') {
       if (!lfStart) { showToast('시작 시간을 입력해주세요'); return; }
       log.startTime = lfStart; if (lfEnd) log.endTime = lfEnd;
-    } else {
+    } else if (addLogType !== 'measure') {
       if (!lfTime) { showToast('시간을 입력해주세요'); return; }
       log.time = lfTime; log.startTime = lfTime;
+    } else {
+      log.time = lfTime || nowHHMM(); log.startTime = log.time;
     }
     if (addLogType === 'feed') { log.amount = parseInt(lfAmount||'0')||null; log.feedType = lfFeedType; }
     if (addLogType === 'poop') log.color = lfColor;
     if (addLogType === 'cry')  log.reason = lfReason;
+    if (addLogType === 'other' && !lfNote.trim()) { showToast('내용을 입력해주세요'); return; }
+    if (addLogType === 'measure') {
+      const h = parseFloat(lfHeight), w = parseFloat(lfWeight);
+      if (isNaN(h) && isNaN(w)) { showToast('키 또는 몸무게를 입력해주세요'); return; }
+      log.note = [!isNaN(h)?`키 ${h}cm`:null, !isNaN(w)?`몸무게 ${w}kg`:null].filter(Boolean).join(' · ');
+    }
 
     const ns = { ...appState };
+    if (addLogType === 'measure') {
+      const h = parseFloat(lfHeight), w = parseFloat(lfWeight);
+      const existing = ns.growth.find(r => r.date === dateKey);
+      if (existing) {
+        if (!isNaN(h)) existing.height = h;
+        if (!isNaN(w)) existing.weight = w;
+      } else {
+        ns.growth = [...ns.growth, { id: uid(), date: dateKey, height: isNaN(h)?undefined:h, weight: isNaN(w)?undefined:w }];
+      }
+    }
     if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
     const sorted = (arr: Log[]) => arr.sort((a,b)=>(a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
     if (isEdit) {
@@ -1171,6 +1192,8 @@ ${headStyles}
     setLfColor(selectedLog.color || '노란색');
     setLfReason(selectedLog.reason || '');
     setLfNote(selectedLog.note || '');
+    setLfHeight((selectedLog.note?.match(/키 ([\d.]+)cm/)||[])[1]||'');
+    setLfWeight((selectedLog.note?.match(/몸무게 ([\d.]+)kg/)||[])[1]||'');
     setModal('addLog');
   };
 
@@ -1292,14 +1315,62 @@ ${headStyles}
     const url = babyId ? `/api/state?babyId=${babyId}` : '/api/state';
     const data = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
     const ns = Object.assign(defaultState(), data || { babyId, baby: newBaby });
-    const isFirstSetup = ns.todos.length === 0;
-    if (isFirstSetup) {
-      ns.todos = [
-        { id:uid(), text:'BCG 접종 (출생 후 4주 이내)', category:'vaccine' as const, completed:false, createdAt:Date.now() },
-        { id:uid(), text:'B형간염 2차 접종 (1개월)', category:'vaccine' as const, completed:false, createdAt:Date.now() },
-        { id:uid(), text:'이유식 시작 알아보기', category:'solid' as const, completed:false, createdAt:Date.now() },
-      ];
-      for (const todo of ns.todos) {
+    const AUTO_SCHED: { m: number; text: string; category: 'vaccine' | 'feeding' | 'other' }[] = [
+      // 예방접종
+      { m:0,  text:'BCG 접종 (출생 후 4주 이내)',            category:'vaccine' },
+      { m:0,  text:'B형간염 1차 접종 (출생)',                category:'vaccine' },
+      { m:1,  text:'B형간염 2차 접종 (1개월)',               category:'vaccine' },
+      { m:2,  text:'DTaP·Hib·PCV·폴리오 1차 접종 (2개월)',  category:'vaccine' },
+      { m:2,  text:'로타바이러스 1차 접종 (2개월)',           category:'vaccine' },
+      { m:4,  text:'DTaP·Hib·PCV·폴리오 2차 접종 (4개월)',  category:'vaccine' },
+      { m:4,  text:'로타바이러스 2차 접종 (4개월)',           category:'vaccine' },
+      { m:6,  text:'DTaP·Hib·PCV·B형간염 3차 접종 (6개월)', category:'vaccine' },
+      { m:6,  text:'로타바이러스 3차 접종 (6개월)',           category:'vaccine' },
+      { m:12, text:'MMR·수두 접종 (12개월)',                 category:'vaccine' },
+      { m:12, text:'A형간염 1차 접종 (12개월)',               category:'vaccine' },
+      { m:15, text:'DTaP 4차 접종 (15개월)',                 category:'vaccine' },
+      { m:18, text:'A형간염 2차 접종 (18개월)',               category:'vaccine' },
+      // 영유아 검진
+      { m:2,  text:'영유아 검진 1차 (2개월)',                 category:'other' },
+      { m:4,  text:'영유아 검진 2차 (4개월)',                 category:'other' },
+      { m:9,  text:'영유아 검진 3차 (9개월)',                 category:'other' },
+      { m:18, text:'영유아 검진 4차 (18개월)',                category:'other' },
+      { m:30, text:'영유아 검진 5차 (30개월)',                category:'other' },
+      { m:42, text:'영유아 검진 6차 (42개월)',                category:'other' },
+      // 이유식·수유
+      { m:6,  text:'이유식 시작 (6개월)',                     category:'feeding' },
+      { m:7,  text:'빨대컵 연습 시작 (7개월)',                category:'feeding' },
+      { m:9,  text:'중기 이유식 전환 (9개월)',                category:'feeding' },
+      { m:11, text:'후기 이유식 전환 (11개월)',               category:'feeding' },
+      { m:12, text:'분유 → 생우유 전환 시작 (12개월)',        category:'feeding' },
+    ];
+
+    // 아기 현재 월령 계산
+    const birthDt = new Date(newBaby.birthDate);
+    const nowDt = new Date();
+    const babyAgeMonths = (nowDt.getFullYear() - birthDt.getFullYear()) * 12
+      + (nowDt.getMonth() - birthDt.getMonth());
+
+    const addMonths = (d: string, m: number) => {
+      const dt = new Date(d); dt.setMonth(dt.getMonth() + m);
+      return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    };
+
+    const existingTexts = new Set(ns.todos.map((t: {text:string}) => t.text));
+
+    // 현재 개월 이후 항목만 시드 (앞으로 18개월 이내)
+    const newItems = AUTO_SCHED
+      .filter(s => s.m > babyAgeMonths && s.m <= babyAgeMonths + 18)
+      .filter(s => !existingTexts.has(s.text))
+      .map(s => ({
+        id: uid(), text: s.text, category: s.category,
+        completed: false as const, createdAt: Date.now(),
+        date: addMonths(newBaby.birthDate, s.m),
+      }));
+
+    if (newItems.length > 0) {
+      ns.todos = [...ns.todos, ...newItems].sort((a, b) => (a.date||'').localeCompare(b.date||''));
+      for (const todo of newItems) {
         await fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...todo, babyId }) }).catch(console.error);
       }
     }
@@ -1374,8 +1445,9 @@ ${headStyles}
   };
 
   const handleVoiceSchedule = (args: { text: string; category: string; date?: string }) => {
-    const catMap: Record<string, TodoCat> = { health:'vaccine', food:'solid', play:'other', etc:'other' };
-    const cat: TodoCat = (catMap[args.category] as TodoCat) || 'other';
+    const validCats: TodoCat[] = ['vaccine','feeding','play','supplies','other'];
+    const catRaw = args.category === 'formula' || args.category === 'solid' ? 'feeding' : args.category;
+    const cat: TodoCat = validCats.includes(catRaw as TodoCat) ? catRaw as TodoCat : 'other';
     // LLM이 date를 직접 반환하면 우선 사용, 없으면 텍스트에서 파싱, 그것도 없으면 오늘
     const resolvedDate = (args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date))
       ? args.date
@@ -1478,18 +1550,24 @@ ${headStyles}
 "체온 37.5도야" → record_measurement(metric=temp, value=37.5)
 
 [스케줄]
-"다음주에 기저귀 살거야" → save_schedule(text="기저귀 구매", category=etc, date="${nextMonday}")
-"다음주에 이유식 물품 살거야" → save_schedule(text="이유식 물품 구매", category=food, date="${nextMonday}")
-"다음달에 예방접종 맞혀야 해" → save_schedule(text="예방접종", category=health, date="${nextMonth1st}")
-"내일 소아과 가야 해" → save_schedule(text="소아과 방문", category=health, date="${tomorrow}")
+"다음주에 기저귀 살거야" → save_schedule(text="기저귀 구매", category=other, date="${nextMonday}")
+"다음주에 이유식 물품 살거야" → save_schedule(text="이유식 물품 구매", category=solid, date="${nextMonday}")
+"다음달에 예방접종 맞혀야 해" → save_schedule(text="예방접종", category=vaccine, date="${nextMonth1st}")
+"내일 소아과 가야 해" → save_schedule(text="소아과 방문", category=other, date="${tomorrow}")
 
 [챗봇]
 "분유 얼마나 먹여야 해?" → chat_response
 "아기 건강 체온은 몇 도야?" → chat_response
 
+## save_schedule category 기준
+- vaccine: 예방접종·백신 명확히 언급된 경우만
+- formula: 분유 구매/관련
+- solid: 이유식 구매/관련
+- other: 병원·쇼핑·구매·기타 모든 것 (애매하면 반드시 other)
+
 ## 오분류 주의
-- "기저귀 사야 해/살 거야" → save_schedule (구매 의도), poop/pee 아님
-- "똥 기저귀 다 떨어졌어" → save_schedule (구매 필요), poop 아님
+- "기저귀 사야 해/살 거야" → save_schedule(category=other), poop/pee 아님
+- "똥 기저귀 다 떨어졌어" → save_schedule(category=other), poop 아님
 - "분유 얼마나 먹여?" → chat_response (질문), feed 기록 아님
 - "잠을 너무 못 자요" → chat_response (상담), track_sleep 아님`,
             },
@@ -1693,7 +1771,10 @@ ${headStyles}
     return list;
   })();
 
-  const filteredTodos = todoFilter==='all'?appState.todos:appState.todos.filter(t=>t.category===todoFilter);
+  const today = todayStr();
+  const oneMonthLater = (() => { const d = new Date(); d.setDate(d.getDate() + 35); return localDateStr(d); })();
+  const filteredTodos = (todoFilter==='all'?appState.todos:appState.todos.filter(t=>t.category===todoFilter))
+    .filter(t => !t.date || (t.date >= today && t.date <= oneMonthLater));
   const sortedTodos = [...filteredTodos].sort((a,b)=>{
     if(a.completed!==b.completed) return a.completed?1:-1;
     if(!a.completed) {
@@ -1810,7 +1891,7 @@ ${headStyles}
             <button className="modal-close" onClick={()=>{setEditingLogId(null);setModal(null);}} aria-label="닫기">✕</button>
           </div>
           <div className="log-type-tabs" role="tablist">
-            {(['sleep','feed','pee','poop','cry','walk','play','bath'] as LogType[]).map(type=>(
+            {(['sleep','feed','pee','poop','cry','walk','play','bath','measure','other'] as LogType[]).map(type=>(
               <button key={type} className={`type-tab${addLogType===type?' active':''}`} role="tab"
                 onClick={()=>{setAddLogType(type); const now=nowHHMM(),end=minToHM((hmToMin(now)+60)%1440); setLfStart(now);setLfEnd(end);setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
                 {TYPE_ICONS[type]} {TYPE_LABELS[type]}
@@ -1856,10 +1937,22 @@ ${headStyles}
                 </select>
               </div>
             )}
+            {addLogType==='measure' && (
+              <>
+                <div className="form-group"><label>시간</label><input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} /></div>
+                <div className="time-row">
+                  <div className="form-group"><label>키 (cm)</label><input type="number" value={lfHeight} onChange={e=>setLfHeight(e.target.value)} placeholder="예: 60.5" min="30" max="130" step="0.1" /></div>
+                  <div className="form-group"><label>몸무게 (kg)</label><input type="number" value={lfWeight} onChange={e=>setLfWeight(e.target.value)} placeholder="예: 5.2" min="1" max="30" step="0.01" /></div>
+                </div>
+              </>
+            )}
+            {addLogType==='other' && (
+              <div className="form-group"><label>시간</label><input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} /></div>
+            )}
             <div className="form-group">
-              <label>메모</label>
+              <label>{addLogType==='other' ? '내용 (필수)' : '메모'}</label>
               <div style={{position:'relative'}}>
-                <textarea value={lfNote} onChange={e=>setLfNote(e.target.value)} placeholder="특이사항을 입력하세요" style={{paddingRight:'2.8rem'}} />
+                <textarea value={lfNote} onChange={e=>setLfNote(e.target.value)} placeholder={addLogType==='other'?'기록할 내용을 입력하세요':'특이사항을 입력하세요'} style={{paddingRight:'2.8rem'}} />
                 <button type="button" onClick={startVoiceRecognition} title={isRecording?'음성 인식 중지':'음성으로 입력'} style={{position:'absolute',right:'0.5rem',bottom:'0.5rem',background:isRecording?'#ef4444':'#6366f1',color:'#fff',border:'none',borderRadius:'50%',width:'2rem',height:'2rem',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:'1rem',flexShrink:0}}>
                   {isRecording ? '⏹' : '🎤'}
                 </button>
@@ -2000,37 +2093,45 @@ ${headStyles}
           </div>
           <div style={{padding:'16px',display:'flex',flexDirection:'column',gap:'20px'}}>
             <p style={{fontSize:'13px',color:'#666',margin:0,lineHeight:1.5}}>
-              챗봇과 유튜브 기능을 사용하려면 아래에 API 키를 입력하세요.<br/>키는 이 기기에만 저장되며 서버에 보관되지 않습니다.
+              키를 입력하지 않으면 <strong>기본 키</strong>로 작동합니다.<br/>개인 키를 입력하면 해당 키를 우선 사용합니다.
             </p>
 
             <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-              <label style={{fontSize:'13px',fontWeight:600}}>OpenAI API Key <span style={{color:'#aaa',fontWeight:400}}>(챗봇)</span></label>
+              <label style={{fontSize:'13px',fontWeight:600}}>
+                OpenAI API Key <span style={{color:'#aaa',fontWeight:400}}>(챗봇)</span>
+                {!userOpenAIKey && <span style={{marginLeft:'8px',fontSize:'11px',color:'#22c55e',fontWeight:600}}>✓ 기본 키 사용 중</span>}
+              </label>
               <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
                 <input
                   type={showOpenAIKey ? 'text' : 'password'}
                   value={userOpenAIKey}
                   onChange={e => setUserOpenAIKey(e.target.value)}
-                  placeholder="sk-proj-..."
+                  placeholder="개인 키 입력 (선택사항)"
                   style={{flex:1,padding:'10px 12px',borderRadius:'10px',border:'1.5px solid #e0e0e0',fontSize:'13px',outline:'none'}}
                 />
                 <button onClick={()=>setShowOpenAIKey(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'16px',padding:'4px'}}>{showOpenAIKey?'🙈':'👁️'}</button>
               </div>
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'#7c6ef7'}}>키 발급받기 →</a>
+              {userOpenAIKey && <button onClick={()=>{ setUserOpenAIKey(''); localStorage.removeItem('user_openai_key'); userOpenAIKeyRef.current=''; showToast('개인 키가 삭제됐어요. 기본 키로 작동합니다.'); }} style={{alignSelf:'flex-start',background:'none',border:'none',fontSize:'12px',color:'#ef4444',cursor:'pointer',padding:0}}>✕ 개인 키 삭제 (기본 키로 복원)</button>}
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'#7c6ef7'}}>개인 키 발급받기 →</a>
             </div>
 
             <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-              <label style={{fontSize:'13px',fontWeight:600}}>YouTube Data API Key <span style={{color:'#aaa',fontWeight:400}}>(유튜브)</span></label>
+              <label style={{fontSize:'13px',fontWeight:600}}>
+                YouTube Data API Key <span style={{color:'#aaa',fontWeight:400}}>(유튜브)</span>
+                {!userYoutubeKey && <span style={{marginLeft:'8px',fontSize:'11px',color:'#22c55e',fontWeight:600}}>✓ 기본 키 사용 중</span>}
+              </label>
               <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
                 <input
                   type={showYoutubeKey ? 'text' : 'password'}
                   value={userYoutubeKey}
                   onChange={e => setUserYoutubeKey(e.target.value)}
-                  placeholder="AIzaSy..."
+                  placeholder="개인 키 입력 (선택사항)"
                   style={{flex:1,padding:'10px 12px',borderRadius:'10px',border:'1.5px solid #e0e0e0',fontSize:'13px',outline:'none'}}
                 />
                 <button onClick={()=>setShowYoutubeKey(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'16px',padding:'4px'}}>{showYoutubeKey?'🙈':'👁️'}</button>
               </div>
-              <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'#7c6ef7'}}>키 발급받기 →</a>
+              {userYoutubeKey && <button onClick={()=>{ setUserYoutubeKey(''); localStorage.removeItem('user_youtube_key'); userYoutubeKeyRef.current=''; setYtRepVideos({}); setYtRefetchTrigger(t=>t+1); showToast('개인 키가 삭제됐어요. 기본 키로 작동합니다.'); }} style={{alignSelf:'flex-start',background:'none',border:'none',fontSize:'12px',color:'#ef4444',cursor:'pointer',padding:0}}>✕ 개인 키 삭제 (기본 키로 복원)</button>}
+              <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'#7c6ef7'}}>개인 키 발급받기 →</a>
             </div>
 
             <button
@@ -2042,7 +2143,7 @@ ${headStyles}
                 setYtRepVideos({});
                 setYtRefetchTrigger(t => t + 1);
                 setModal(null);
-                showToast('API 키가 저장됐어요!');
+                showToast('설정이 저장됐어요!');
               }}
               className="btn-primary"
               style={{width:'100%',padding:'12px',borderRadius:'12px',fontSize:'15px',fontWeight:600}}
@@ -2063,7 +2164,7 @@ ${headStyles}
                 : appState.baby?.gender==='boy'?'👦':'👧'}
             </div>
             <div>
-              <div className="header-name">{appState.baby?.name||'베이비'}</div>
+              <div className="header-name">{appState.baby?.name ? `${appState.baby.name}의 기록` : '아기의 기록'}</div>
               <div className="header-age">
                 {ageInfo ? (ageInfo.months < 1 ? `D+${ageInfo.diffDays} · ${ageInfo.weeks}주 ${ageInfo.remDays}일` : `D+${ageInfo.diffDays} · ${ageInfo.months}개월 ${ageInfo.monthRemDays}일`) : '정보 설정 필요'}
               </div>
@@ -2201,7 +2302,7 @@ ${headStyles}
                   <div className="empty-state" style={{padding:'12px'}}><div className="empty-icon" style={{fontSize:'28px'}}>📅</div><p style={{fontSize:'12px'}}>스케줄에서 항목을 추가해보세요</p></div>
                 ) : appState.todos.filter(t=>!t.completed).slice(0,3).map(t=>(
                   <div key={t.id} className="upcoming-item">
-                    <div className={`upcoming-cat-icon cat-${t.category}`}>{t.category==='vaccine'?'💉':t.category==='formula'?'🍼':t.category==='solid'?'🥣':'📌'}</div>
+                    <div className={`upcoming-cat-icon cat-${t.category}`}>{t.category==='vaccine'?'💉':t.category==='feeding'?'🍼':t.category==='play'?'🧸':t.category==='supplies'?'🛒':'📌'}</div>
                     <div className="upcoming-text"><div className="upcoming-title">{t.text}</div><div className="upcoming-cat">{CAT_LABELS[t.category]}</div></div>
                   </div>
                 ))}
@@ -2269,7 +2370,7 @@ ${headStyles}
                         { icon:'🌡️', label:'체온', action:()=>{ setHfType('temp');    openHealthModal('health');      closeQuickMenus(); } },
                         { icon:'🏥', label:'병원', action:()=>{ setHfType('symptom'); openHealthModal('health');      closeQuickMenus(); } },
                         { icon:'💊', label:'투약', action:()=>{ openHealthModal('medication');                        closeQuickMenus(); } },
-                        { icon:'🥛', label:'우유', action:()=>{ openAddLog('feed','우유');                            closeQuickMenus(); } },
+                        { icon:'📏', label:'키/몸무게', action:()=>{ openAddLog('measure');                          closeQuickMenus(); } },
                         { icon:'😢', label:'울음', action:()=>{ openAddLog('cry');                                    closeQuickMenus(); } },
                         { icon:'🌿', label:'산책', action:()=>{ openAddLog('walk');                                   closeQuickMenus(); } },
                       ].map(item=>(
@@ -2329,14 +2430,22 @@ ${headStyles}
             <button className="date-nav-btn" onClick={()=>{ if(timelineDate>=todayStr()){showToast('오늘 이후의 날짜는 볼 수 없어요');return;} setTimelineDate(d=>shiftDate(d,1)); }} aria-label="다음 날">›</button>
           </div>
           <div className="timeline-legend">
-            <span className="legend-item sleep-lg">😴 수면</span>
-            <span className="legend-item feed-lg">🍼 수유</span>
-            <span className="legend-item pee-lg">💧 소변</span>
-            <span className="legend-item poop-lg">💩 대변</span>
-            <span className="legend-item cry-lg">😢 울음</span>
-            <span className="legend-item walk-lg">🌿 산책</span>
-            <span className="legend-item play-lg">🧸 놀이</span>
-            <span className="legend-item bath-lg">🛁 목욕</span>
+            {([
+              ['sleep','sleep-lg','😴 수면'],
+              ['feed','feed-lg','🍼 수유'],
+              ['pee','pee-lg','💧 소변'],
+              ['poop','poop-lg','💩 대변'],
+              ['cry','cry-lg','😢 울음'],
+              ['walk','walk-lg','🌿 산책'],
+              ['play','play-lg','🧸 놀이'],
+              ['bath','bath-lg','🛁 목욕'],
+              ['measure','measure-lg','📏 키/몸무게'],
+              ['other','other-lg','📝 기타'],
+            ] as [LogType,string,string][]).map(([type,cls,label])=>(
+              <button key={type} className={`legend-item ${cls}`} onClick={()=>openAddLog(type)}>
+                {label}
+              </button>
+            ))}
           </div>
           <div className="timeline-scroll-wrapper" ref={timelineScrollRef}>
             <div className="timeline-canvas">
@@ -2392,9 +2501,9 @@ ${headStyles}
         {/* ❸ SCHEDULE */}
         <section id="page-schedule" className={`page${currentPage==='schedule'?' active':''}`} style={{display:'flex',flexDirection:'column'}}>
           <div className="cat-tabs" role="tablist">
-            {(['all','vaccine','formula','solid','other'] as (TodoFilter)[]).map(cat=>(
+            {(['all','vaccine','feeding','play','supplies','other'] as (TodoFilter)[]).map(cat=>(
               <button key={cat} className={`cat-tab${todoFilter===cat?' active':''}`} role="tab" onClick={()=>setTodoFilter(cat)}>
-                {cat==='all'?'전체':cat==='vaccine'?'💉 예방접종':cat==='formula'?'🍼 분유':cat==='solid'?'🥣 이유식':'📌 기타'}
+                {cat==='all'?'전체':cat==='vaccine'?'💉 예방접종':cat==='feeding'?'🍼 수유':cat==='play'?'🧸 놀이':cat==='supplies'?'🛒 생필품':'📌 기타'}
               </button>
             ))}
           </div>
@@ -2405,8 +2514,9 @@ ${headStyles}
                 <input ref={todoInputRef} type="text" className="todo-input" placeholder="새 항목을 입력하세요..." autoComplete="off"
                   onKeyDown={e=>{ if(e.key==='Enter'){e.preventDefault();addTodo();} }} />
                 <select className="todo-cat-select" value={todoCat} onChange={e=>setTodoCat(e.target.value as TodoCat)}>
-                  <option value="vaccine">💉 예방</option><option value="formula">🍼 분유</option>
-                  <option value="solid">🥣 이유식</option><option value="other">📌 기타</option>
+                  <option value="other">📌 기타</option><option value="vaccine">💉 예방</option>
+                  <option value="feeding">🍼 수유</option>
+                  <option value="play">🧸 놀이</option><option value="supplies">🛒 생필품</option>
                 </select>
                 <button className="btn-primary" onClick={addTodo}>추가</button>
               </div>
@@ -2428,7 +2538,7 @@ ${headStyles}
                     <div className="todo-meta">
                       <span className={`todo-badge badge-${todo.category}`}>{CAT_LABELS[todo.category]}</span>
                       {todo.date && (() => { const [,m,d]=todo.date!.split('-').map(Number); return <span className="todo-date-badge">{m}/{d}</span>; })()}
-                      <button className="todo-ask-btn" onClick={()=>{ navigate('chat'); const q={vaccine:'예방접종 일정 알려줘',formula:'월령별 분유량 알려줘',solid:'이유식 언제 시작해요?',other:'아기 건강 정보 알려줘'}; setTimeout(()=>sendChat(q[todo.category]),300); }}>💬 챗봇에게 묻기</button>
+                      <button className="todo-ask-btn" onClick={()=>{ navigate('chat'); const q:Record<TodoCat,string>={vaccine:'예방접종 일정 알려줘',feeding:'이유식 언제 시작해요?',play:'이 시기 추천 장난감 알려줘',supplies:'아기 생필품 추천해줘',other:'아기 건강 정보 알려줘'}; setTimeout(()=>sendChat(q[todo.category]),300); }}>💬 챗봇에게 묻기</button>
                     </div>
                   </div>
                   <div className="todo-actions">
@@ -2495,7 +2605,7 @@ ${headStyles}
                     if (!dayEventsMap[d]) dayEventsMap[d] = new Set();
                     dayEventsMap[d].add(ev.type);
                   }
-                  const catToDotType: Record<TodoCat, string> = { vaccine:'vaccine', formula:'food', solid:'food', other:'check' };
+                  const catToDotType: Record<TodoCat, string> = { vaccine:'vaccine', feeding:'food', play:'check', supplies:'check', other:'check' };
                   for (const todo of appState.todos) {
                     if (!todo.date) continue;
                     const [ty, tm, td] = todo.date.split('-').map(Number);
@@ -2527,7 +2637,7 @@ ${headStyles}
                   <div className="cal-no-baby">아기 정보를 먼저 등록해주세요 👶</div>
                 ) : (() => {
                   const evs = getMilestonesForMonth(appState.baby.birthDate, calYear, calMonth);
-                  const catToDotType: Record<TodoCat, string> = { vaccine:'vaccine', formula:'food', solid:'food', other:'check' };
+                  const catToDotType: Record<TodoCat, string> = { vaccine:'vaccine', feeding:'food', play:'check', supplies:'check', other:'check' };
                   const todosThisMonth = appState.todos.filter(t => {
                     if (!t.date) return false;
                     const [ty, tm] = t.date.split('-').map(Number);
@@ -2686,47 +2796,6 @@ ${headStyles}
               </div>
             </div>
 
-            {/* Summary stats bar */}
-            {(() => {
-              const days = reportMode === 'week' ? 7 : 30;
-              let totalSleepMin = 0, totalFeed = 0, totalDiaper = 0;
-              for (let i = 0; i < days; i++) {
-                const d = new Date(); d.setDate(d.getDate() - i);
-                const ls = appState.logs[localDateStr(d)] || [];
-                totalSleepMin += ls.filter(l => l.type === 'sleep' && l.endTime).reduce((acc, l) => {
-                  let dur = hmToMin(l.endTime!) - hmToMin(l.startTime || '00:00');
-                  if (dur < 0) dur += 1440;
-                  return acc + dur;
-                }, 0);
-                totalFeed += ls.filter(l => l.type === 'feed').length;
-                totalDiaper += ls.filter(l => l.type === 'pee' || l.type === 'poop').length;
-              }
-              const avgSleepH = (totalSleepMin / days / 60).toFixed(1);
-              const avgFeed = (totalFeed / days).toFixed(1);
-              const avgDiaper = (totalDiaper / days).toFixed(1);
-              return (
-                <div className="rpt-stats-bar">
-                  <div className="rpt-stat-item">
-                    <span className="rpt-stat-icon">😴</span>
-                    <span className="rpt-stat-val">{avgSleepH}h</span>
-                    <span className="rpt-stat-label">수면</span>
-                  </div>
-                  <div className="rpt-stat-div"/>
-                  <div className="rpt-stat-item">
-                    <span className="rpt-stat-icon">🍼</span>
-                    <span className="rpt-stat-val">{avgFeed}회</span>
-                    <span className="rpt-stat-label">수유</span>
-                  </div>
-                  <div className="rpt-stat-div"/>
-                  <div className="rpt-stat-item">
-                    <span className="rpt-stat-icon">💧</span>
-                    <span className="rpt-stat-val">{avgDiaper}회</span>
-                    <span className="rpt-stat-label">기저귀</span>
-                  </div>
-                </div>
-              );
-            })()}
-
             <div className="rpt-print-cols">
               <div className="rpt-col-left">
                 {/* Activity chart */}
@@ -2824,7 +2893,7 @@ ${headStyles}
                 <div className="section-card">
                   <h3 className="section-title hand rpt-section-title">최근 건강 이슈</h3>
                   {(!appState.health.logs || appState.health.logs.length === 0) ? (
-                    <div className="rpt-empty">건강 기록이 없어요</div>
+                    <div className="rpt-empty-sm">해당 내용이 없습니다</div>
                   ) : (
                     <div className="rpt-issues">
                       {[...appState.health.logs].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,5).map(l=>(
@@ -2848,7 +2917,7 @@ ${headStyles}
         <section id="page-chat" className={`page page-chat-layout${currentPage==='chat'?' active':''}`}>
           <div className="chat-bot-header">
             <div className="bot-avatar-lg">🤱</div>
-            <div><div className="bot-name">{appState.baby?.name || '아기'}의 기록 도우미</div><div className="bot-status">🤖 RAG AI 모드</div></div>
+            <div><div className="bot-name">{appState.baby?.name ? `${appState.baby.name}의 기록` : '아기의 기록'}</div><div className="bot-status">🤖 RAG AI 모드</div></div>
           </div>
           <div className="chat-messages" ref={chatMessagesRef}>
             {chatMessages.map(msg=>(
@@ -2865,9 +2934,92 @@ ${headStyles}
             ))}
           </div>
           <div className="quick-replies">
-            {[{msg:'예방접종 일정 알려줘',label:'💉 예방접종'},{msg:'이유식 언제 시작해요?',label:'🥣 이유식'},{msg:'월령별 분유량 알려줘',label:'🍼 분유량'},{msg:'우리 아기 발달 알려줘',label:'👶 발달정보'},{msg:'수면 교육 방법 알려줘',label:'😴 수면교육'},{msg:'이 시기 추천 장난감 알려줘',label:'🎮 장난감'}].map(({msg,label})=>(
-              <button key={msg} className="qr-btn" onClick={()=>sendChat(msg)}>{label}</button>
-            ))}
+            {(()=>{
+              const m = ageInfo?.months ?? null;
+              const chips: {msg:string;label:string}[] =
+                m === null ? [
+                  {msg:'아기 발달 단계 알려줘',      label:'👶 발달 단계'},
+                  {msg:'예방접종 일정 알려줘',        label:'💉 예방접종'},
+                  {msg:'신생아 수유 방법 알려줘',     label:'🍼 수유 방법'},
+                  {msg:'아기 수면 교육 방법 알려줘',  label:'😴 수면 교육'},
+                  {msg:'이유식 시작 시기 알려줘',     label:'🥣 이유식'},
+                  {msg:'이 시기 추천 장난감 알려줘',  label:'🎮 장난감'},
+                  {msg:'아기 울음 달래는 방법',       label:'😢 울음 달래기'},
+                  {msg:'신생아 배꼽 관리 방법',       label:'🩹 배꼽 관리'},
+                ] :
+                m < 1 ? [
+                  {msg:'신생아 황달 대처법 알려줘',   label:'🌡️ 황달'},
+                  {msg:'신생아 배앓이 달래는 방법',   label:'😣 배앓이'},
+                  {msg:'모유수유 자세와 방법 알려줘', label:'🤱 모유수유'},
+                  {msg:'신생아 분유 먹이는 방법',     label:'🍼 분유 수유'},
+                  {msg:'신생아 수면 패턴 알려줘',     label:'😴 수면 패턴'},
+                  {msg:'BCG 예방접종 언제 맞혀야 해', label:'💉 BCG 접종'},
+                  {msg:'신생아 배꼽 관리 방법',       label:'🩹 배꼽 관리'},
+                  {msg:'신생아 목욕 방법 알려줘',     label:'🛁 목욕 방법'},
+                ] :
+                m < 3 ? [
+                  {msg:`${m}개월 아기 발달 정보 알려줘`,  label:`👶 ${m}개월 발달`},
+                  {msg:'월령별 분유량 알려줘',             label:'🍼 분유량'},
+                  {msg:'배앓이 달래는 방법 알려줘',        label:'😣 배앓이'},
+                  {msg:'예방접종 일정 알려줘',             label:'💉 예방접종'},
+                  {msg:'아기 수면 교육 방법 알려줘',       label:'😴 수면 교육'},
+                  {msg:`${m}개월 아기 추천 장난감 알려줘`, label:'🎮 장난감'},
+                  {msg:'아기 뒤집기 시작 시기 알려줘',     label:'🔄 뒤집기'},
+                  {msg:'신생아 옹알이 발달 과정',          label:'💬 옹알이'},
+                ] :
+                m < 6 ? [
+                  {msg:`${m}개월 아기 발달 정보 알려줘`,  label:`👶 ${m}개월 발달`},
+                  {msg:'이유식 시작 시기와 방법 알려줘',   label:'🥣 이유식 시작'},
+                  {msg:'예방접종 일정 알려줘',             label:'💉 예방접종'},
+                  {msg:`${m}개월 분유량 알려줘`,           label:'🍼 분유량'},
+                  {msg:`${m}개월 아기 추천 장난감 알려줘`, label:'🎮 장난감'},
+                  {msg:'아기 뒤집기 연습 방법 알려줘',     label:'🔄 뒤집기'},
+                  {msg:'아기 목 가누기 발달 시기',         label:'🧠 목 가누기'},
+                  {msg:'아기 수면 교육 방법 알려줘',       label:'😴 수면 교육'},
+                ] :
+                m < 9 ? [
+                  {msg:`${m}개월 아기 발달 정보 알려줘`,  label:`👶 ${m}개월 발달`},
+                  {msg:'초기 이유식 레시피 알려줘',        label:'🥣 초기 이유식'},
+                  {msg:'이유식 알레르기 주의 식재료',      label:'⚠️ 알레르기'},
+                  {msg:'예방접종 이유식 시작 후 일정',     label:'💉 예방접종'},
+                  {msg:'빨대컵 연습 시작 시기',            label:'🥤 빨대컵'},
+                  {msg:`${m}개월 아기 추천 장난감 알려줘`, label:'🎮 장난감'},
+                  {msg:'이앓이 시기와 대처법',             label:'🦷 이앓이'},
+                  {msg:'아기 앉기 연습 방법',              label:'🪑 앉기 연습'},
+                ] :
+                m < 12 ? [
+                  {msg:`${m}개월 아기 발달 정보 알려줘`,   label:`👶 ${m}개월 발달`},
+                  {msg:'중기 후기 이유식 레시피 알려줘',   label:'🥣 이유식 레시피'},
+                  {msg:'영유아 검진 무엇을 확인하나요',    label:'🏥 영유아 검진'},
+                  {msg:`${m}개월 아기 추천 장난감 알려줘`, label:'🎮 장난감'},
+                  {msg:'아기 첫 걸음마 준비 방법',         label:'🚶 걸음마 준비'},
+                  {msg:'아기 손가락 음식 추천',            label:'🍌 핑거푸드'},
+                  {msg:'아기 언어 발달 자극 방법',         label:'💬 언어 발달'},
+                  {msg:'이앓이 시기와 대처법',             label:'🦷 이앓이'},
+                ] :
+                m < 18 ? [
+                  {msg:`${m}개월 아기 발달 정보 알려줘`,   label:`👶 ${m}개월 발달`},
+                  {msg:'생우유 전환 시기와 방법 알려줘',   label:'🥛 생우유 전환'},
+                  {msg:'돌 이후 식단 구성 알려줘',         label:'🍽️ 돌 이후 식단'},
+                  {msg:'MMR 수두 예방접종 알려줘',         label:'💉 MMR·수두'},
+                  {msg:`${m}개월 아기 추천 장난감 알려줘`, label:'🎮 장난감'},
+                  {msg:'아기 걸음마 완성 시기 알려줘',     label:'🚶 걸음마'},
+                  {msg:'아기 첫 단어 언어 발달',           label:'💬 언어 발달'},
+                  {msg:'영유아 검진 무엇을 확인하나요',    label:'🏥 영유아 검진'},
+                ] : [
+                  {msg:`${m}개월 아기 발달 정보 알려줘`,   label:`👶 ${m}개월 발달`},
+                  {msg:'두돌 아기 언어 발달 알려줘',       label:'💬 언어 발달'},
+                  {msg:`${m}개월 아기 추천 장난감 알려줘`, label:'🎮 장난감'},
+                  {msg:'A형간염 예방접종 알려줘',          label:'💉 A형간염'},
+                  {msg:'영유아 검진 무엇을 확인하나요',    label:'🏥 영유아 검진'},
+                  {msg:'아기 편식 대처 방법 알려줘',       label:'🥦 편식 대처'},
+                  {msg:'아이 훈육 방법 알려줘',            label:'🧑‍🏫 훈육 방법'},
+                  {msg:'아기 수면 습관 개선 방법',         label:'😴 수면 습관'},
+                ];
+              return chips.map(({msg,label})=>(
+                <button key={msg} className="qr-btn" onClick={()=>sendChat(msg)}>{label}</button>
+              ));
+            })()}
           </div>
           <div className="chat-input-row">
             <input type="text" className="chat-input" placeholder="궁금한 것을 물어보세요..." value={chatInput}

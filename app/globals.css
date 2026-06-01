@@ -317,13 +317,23 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .timeline-legend {
   display: flex; gap: var(--sp-xs);
   padding: var(--sp-sm) var(--sp-md);
-  background: var(--surface); overflow-x: auto; scrollbar-width: none;
+  padding-bottom: calc(var(--sp-sm) + 4px);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0;
 }
-.timeline-legend::-webkit-scrollbar { display: none; }
+.timeline-legend::-webkit-scrollbar { height: 4px; }
+.timeline-legend::-webkit-scrollbar-track { background: transparent; }
+.timeline-legend::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .legend-item {
-  font-size: 11px; font-weight: 700; padding: 3px 10px;
+  font-size: 11px; font-weight: 700; padding: 5px 12px;
   border-radius: var(--r-pill); white-space: nowrap; flex-shrink: 0;
+  cursor: pointer; transition: transform .1s, opacity .1s;
 }
+.legend-item:active { transform: scale(.93); opacity: .8; }
 .sleep-lg { background: var(--bg-sleep); color: var(--c-sleep); }
 .feed-lg  { background: var(--bg-feed);  color: var(--c-feed); }
 .pee-lg   { background: var(--bg-pee);   color: #b89000; }
@@ -332,6 +342,8 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .walk-lg  { background: var(--bg-walk);  color: var(--c-walk); }
 .play-lg  { background: var(--bg-play);  color: var(--c-play); }
 .bath-lg  { background: var(--bg-bath);  color: var(--c-bath); }
+.measure-lg { background: #f0ece6; color: #7c6a52; }
+.other-lg   { background: #f0f0f0; color: #555; }
 
 .timeline-scroll-wrapper {
   flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -424,10 +436,16 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .cat-tabs {
   display: flex; gap: var(--sp-xs);
   padding: var(--sp-sm) var(--sp-md);
+  padding-bottom: calc(var(--sp-sm) + 4px);
   background: var(--surface); border-bottom: 1px solid var(--border);
-  overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+  overflow-x: auto; scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0;
 }
-.cat-tabs::-webkit-scrollbar { display: none; }
+.cat-tabs::-webkit-scrollbar { height: 4px; }
+.cat-tabs::-webkit-scrollbar-track { background: transparent; }
+.cat-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .cat-tab {
   font-size: 12px; font-weight: 700; padding: 7px 14px;
   border-radius: var(--r-pill); background: var(--bg); color: var(--text-mid);
@@ -494,10 +512,11 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .todo-text { font-size: 14px; font-weight: 600; }
 .todo-meta { display: flex; align-items: center; gap: var(--sp-sm); margin-top: 3px; flex-wrap: wrap; }
 .todo-badge { font-size: 10px; padding: 2px 8px; border-radius: var(--r-pill); font-weight: 700; }
-.badge-vaccine { background: var(--bg-cry);  color: var(--c-cry); }
-.badge-formula { background: var(--bg-feed); color: var(--c-feed); }
-.badge-solid   { background: var(--bg-walk); color: var(--c-walk); }
-.badge-other   { background: var(--bg);      color: var(--text-mid); }
+.badge-vaccine   { background: var(--bg-cry);   color: var(--c-cry);   }
+.badge-feeding   { background: var(--bg-feed);  color: var(--c-feed);  }
+.badge-play      { background: var(--bg-play);  color: var(--c-play);  }
+.badge-supplies  { background: #E6F7FD;          color: #2A7D9A;        }
+.badge-other     { background: var(--bg);        color: var(--text-mid); }
 .todo-ask-btn {
   font-size: 11px; color: var(--orange); font-weight: 700;
   padding: 3px 9px; border-radius: var(--r-pill); background: var(--orange-pale);
@@ -659,12 +678,15 @@ body { display: flex; justify-content: center; overflow: hidden; }
 }
 
 .quick-replies {
-  display: flex; gap: var(--sp-xs);
+  display: flex; flex-wrap: nowrap; gap: 6px;
   padding: var(--sp-sm) var(--sp-md);
   background: var(--surface); border-top: 1px solid var(--border);
-  overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+  overflow-x: scroll; -webkit-overflow-scrolling: touch;
+  flex-shrink: 0; min-width: 0; max-width: 100%;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
 }
-.quick-replies::-webkit-scrollbar { display: none; }
+.quick-replies::-webkit-scrollbar { height: 3px; }
+.quick-replies::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
 .qr-btn {
   font-size: 12px; font-weight: 700; padding: 7px 14px;
   border-radius: var(--r-pill); background: var(--orange-pale); color: var(--orange);
@@ -782,10 +804,19 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .gender-btn.active { background: var(--orange-pale); color: var(--orange); border-color: var(--orange-light); }
 
 .log-type-tabs {
-  display: flex; gap: var(--sp-xs); overflow-x: auto; scrollbar-width: none;
-  margin-bottom: var(--sp-md); padding-bottom: 2px;
+  display: flex; gap: var(--sp-xs);
+  overflow-x: auto; scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: var(--sp-md); padding-bottom: 6px;
+  margin-left: calc(-1 * var(--sp-lg));
+  margin-right: calc(-1 * var(--sp-lg));
+  padding-left: var(--sp-lg);
+  padding-right: var(--sp-lg);
 }
-.log-type-tabs::-webkit-scrollbar { display: none; }
+.log-type-tabs::-webkit-scrollbar { height: 4px; }
+.log-type-tabs::-webkit-scrollbar-track { background: transparent; }
+.log-type-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .type-tab {
   font-size: 12px; font-weight: 700; padding: 7px 13px;
   border-radius: var(--r-pill); background: var(--bg); color: var(--text-mid);
@@ -1139,7 +1170,8 @@ body { display: flex; justify-content: center; overflow: hidden; }
 }
 .rpt-issue-date { font-size: 11px; color: var(--text-light); }
 .rpt-issue-detail { font-size: 13px; color: var(--text); line-height: 1.55; }
-.rpt-empty { text-align: center; padding: 20px; font-size: 13px; color: var(--text-light); }
+.rpt-empty    { text-align: center; padding: 20px; font-size: 13px; color: var(--text-light); }
+.rpt-empty-sm { font-size: 11px; color: var(--text-light); padding: 8px 0; }
 
 /* ── INFO PAGE ──────────────────────────────────────────────── */
 .screen-title { font-size: 22px; font-weight: 700; color: var(--text); }

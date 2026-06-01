@@ -1,0 +1,3171 @@
+{
+  "_meta": {
+    "description": "육아 앱 시드 데이터 (stages × categories × sections, recipes, vaccines)",
+    "version": "2.0.0",
+    "generated_at": "2026-05-24T12:52:58.401Z",
+    "tables": [
+      "stages",
+      "categories",
+      "sections",
+      "section_items",
+      "recipe_groups",
+      "recipes",
+      "recipe_steps",
+      "vaccines",
+      "vaccine_effects"
+    ]
+  },
+  "stages": [
+    {
+      "id": "s0",
+      "label": "신생아",
+      "sub_label": "0~4주",
+      "tip": "초유·원시반사·신생아 황달·BCG·B형간염 접종",
+      "order_num": 1
+    },
+    {
+      "id": "s1",
+      "label": "1~3개월",
+      "sub_label": null,
+      "tip": "사회적 미소·쿠잉·DTaP 1-2차·영아 산통",
+      "order_num": 2
+    },
+    {
+      "id": "s2",
+      "label": "4~6개월",
+      "sub_label": null,
+      "tip": "이유식 준비·뒤집기·DTaP 3차·수면 훈련 시작",
+      "order_num": 3
+    },
+    {
+      "id": "s3",
+      "label": "7~9개월",
+      "sub_label": null,
+      "tip": "혼자 앉기·기기·핑거푸드·8개월 수면 회귀",
+      "order_num": 4
+    },
+    {
+      "id": "s4",
+      "label": "10~12개월",
+      "sub_label": null,
+      "tip": "첫 걸음마·첫 단어·MMR·수두 접종",
+      "order_num": 5
+    },
+    {
+      "id": "s5",
+      "label": "12~18개월",
+      "sub_label": null,
+      "tip": "어휘 폭발·M-CHAT 자폐 선별·단유 고려",
+      "order_num": 6
+    },
+    {
+      "id": "s6",
+      "label": "19~24개월",
+      "sub_label": null,
+      "tip": "두 단어 조합·역할놀이·24개월 언어 점검",
+      "order_num": 7
+    },
+    {
+      "id": "s7",
+      "label": "25~36개월",
+      "sub_label": null,
+      "tip": "문장 말하기·배변 훈련·시력·청력 검사",
+      "order_num": 8
+    }
+  ],
+  "categories": [
+    {
+      "id": "eat",
+      "label": "먹기",
+      "description": "수유 및 이유식",
+      "icon": "droplet",
+      "order_num": 1
+    },
+    {
+      "id": "play",
+      "label": "놀기",
+      "description": "장난감·교구·도서",
+      "icon": "puzzle",
+      "order_num": 2
+    },
+    {
+      "id": "sleep",
+      "label": "자기",
+      "description": "수면 및 수면교육",
+      "icon": "moon",
+      "order_num": 3
+    },
+    {
+      "id": "dev",
+      "label": "발달",
+      "description": "시기별 발달 체크",
+      "icon": "trending-up",
+      "order_num": 4
+    },
+    {
+      "id": "health",
+      "label": "건강",
+      "description": "예방접종·응급처치",
+      "icon": "heart-rate-monitor",
+      "order_num": 5
+    }
+  ],
+  "stage_content": {
+    "s0": {
+      "eat": [
+        {
+          "order_num": 1,
+          "title": "모유수유",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "초유: 황금빛, 면역글로불린 풍부 (산후 3-5일간)"
+            },
+            {
+              "order_num": 2,
+              "content": "수유 빈도: 2-3시간마다 (하루 8-12회)"
+            },
+            {
+              "order_num": 3,
+              "content": "1회 수유량: 30-60ml"
+            },
+            {
+              "order_num": 4,
+              "content": "수유 자세: 크래들홀드, 풋볼홀드, 눕혀서 수유"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "분유수유",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "신생아 분유 (NB 단계)"
+            },
+            {
+              "order_num": 2,
+              "content": "1회 30-60ml → 점차 증가"
+            },
+            {
+              "order_num": 3,
+              "content": "분유병·젖꼭지 매회 멸균 필수"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "주의사항",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "출생 후 체중 5-7% 감소는 정상 범위"
+            },
+            {
+              "order_num": 2,
+              "content": "10-14일 내 체중 회복 여부 확인"
+            },
+            {
+              "order_num": 3,
+              "content": "황달 시에도 모유수유 지속 가능"
+            }
+          ]
+        }
+      ],
+      "play": [
+        {
+          "order_num": 1,
+          "title": "적합 장난감",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "흑백 카드 (20-30cm 거리에서 제시)"
+            },
+            {
+              "order_num": 2,
+              "content": "흑백·단순 패턴 모빌"
+            },
+            {
+              "order_num": 3,
+              "content": "부드러운 딸랑이 (청각 자극)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "감각 자극 놀이",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "얼굴 바라보기·눈 맞추기"
+            },
+            {
+              "order_num": 2,
+              "content": "말 걸기·노래 부르기"
+            },
+            {
+              "order_num": 3,
+              "content": "부드러운 신체 마사지"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "추천 도서·교구",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "흑백 감각 카드 세트"
+            },
+            {
+              "order_num": 2,
+              "content": "베이비 센서리 모빌"
+            },
+            {
+              "order_num": 3,
+              "content": "아기 흑백 그림책 시리즈"
+            }
+          ]
+        }
+      ],
+      "sleep": [
+        {
+          "order_num": 1,
+          "title": "수면 패턴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 총 수면: 16-17시간"
+            },
+            {
+              "order_num": 2,
+              "content": "2-3시간마다 깨어남"
+            },
+            {
+              "order_num": 3,
+              "content": "수면 주기: 50-60분"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "안전 수면 (SIDS 예방)",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "등을 대고 눕혀서 재우기 (엎드려 재우지 않기)"
+            },
+            {
+              "order_num": 2,
+              "content": "단단하고 평평한 매트리스 사용"
+            },
+            {
+              "order_num": 3,
+              "content": "침대에 베개·쿠션·인형 없이"
+            },
+            {
+              "order_num": 4,
+              "content": "실내 온도 18-22°C 유지"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "수면 팁",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "백색소음 활용"
+            },
+            {
+              "order_num": 2,
+              "content": "스와들링(포대기 감기)"
+            },
+            {
+              "order_num": 3,
+              "content": "낮과 밤 구분 환경 조성"
+            }
+          ]
+        }
+      ],
+      "dev": [
+        {
+          "order_num": 1,
+          "title": "원시반사",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "탐색반사 (볼 쓰다듬으면 고개 돌림)"
+            },
+            {
+              "order_num": 2,
+              "content": "빨기반사 · 파악반사"
+            },
+            {
+              "order_num": 3,
+              "content": "모로반사 (깜짝 반응)"
+            },
+            {
+              "order_num": 4,
+              "content": "바빈스키반사 (발바닥 자극 시 발가락 펼침)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "감각 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "시력: 20-30cm 거리 인식"
+            },
+            {
+              "order_num": 2,
+              "content": "소리·목소리 구별 반응"
+            },
+            {
+              "order_num": 3,
+              "content": "얼굴 응시 선호"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "발달 점검",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "큰 소리에 깜짝 반응이 있는지"
+            },
+            {
+              "order_num": 2,
+              "content": "사지 움직임이 좌우 대칭인지"
+            },
+            {
+              "order_num": 3,
+              "content": "모로반사 비대칭 시 진찰 필요"
+            }
+          ]
+        }
+      ],
+      "health": [
+        {
+          "order_num": 1,
+          "title": "이 시기 예방접종",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "출생 즉시: B형간염 1차"
+            },
+            {
+              "order_num": 2,
+              "content": "4주 이내: BCG (결핵, 피내접종)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "신생아 황달",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "생리적 황달: 2-3일 출현, 1-2주 소실"
+            },
+            {
+              "order_num": 2,
+              "content": "빌리루빈 수치 주기적 확인 필수"
+            },
+            {
+              "order_num": 3,
+              "content": "15 mg/dL 이상 → 광선치료 필요"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "응급 징후",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "중앙 청색증 (입술·혀 파란색) → 즉시 응급실"
+            },
+            {
+              "order_num": 2,
+              "content": "38°C 이상 발열 → 즉시 소아과"
+            },
+            {
+              "order_num": 3,
+              "content": "24시간 이상 구토·설사"
+            },
+            {
+              "order_num": 4,
+              "content": "무호흡 20초 이상"
+            }
+          ]
+        }
+      ]
+    },
+    "s1": {
+      "eat": [
+        {
+          "order_num": 1,
+          "title": "모유수유",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "수유 간격 3시간으로 점차 늘어남"
+            },
+            {
+              "order_num": 2,
+              "content": "4-6주: 모유 공급 안정화 시기"
+            },
+            {
+              "order_num": 3,
+              "content": "젖 양 부족 시: 자주 수유·유축"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "분유수유",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "1개월: 60-120ml/회, 하루 6-8회"
+            },
+            {
+              "order_num": 2,
+              "content": "3개월: 150-180ml/회, 하루 5-6회"
+            },
+            {
+              "order_num": 3,
+              "content": "수유 후 트림 반드시 시키기"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "수유 확인",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "기저귀 하루 6회 이상 (수분 충분 확인)"
+            },
+            {
+              "order_num": 2,
+              "content": "체중 주 150-200g 증가 확인"
+            },
+            {
+              "order_num": 3,
+              "content": "젖량 부족 의심 시 수유 상담"
+            }
+          ]
+        }
+      ],
+      "play": [
+        {
+          "order_num": 1,
+          "title": "적합 장난감",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "컬러풀 모빌 (색각 발달)"
+            },
+            {
+              "order_num": 2,
+              "content": "베이비 짐(아기 체육관)"
+            },
+            {
+              "order_num": 3,
+              "content": "텍스처 부드러운 인형"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "발달 놀이",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "거울 보여주기 (자기 얼굴 인식 시작)"
+            },
+            {
+              "order_num": 2,
+              "content": "얼굴 표정 따라하기"
+            },
+            {
+              "order_num": 3,
+              "content": "팔·다리 움직임 보조 스트레칭"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "추천 도서",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "컬러풀 보드북"
+            },
+            {
+              "order_num": 2,
+              "content": "이 세상의 모든 아기"
+            },
+            {
+              "order_num": 3,
+              "content": "사진 그림책 (얼굴 사진 있는 것)"
+            }
+          ]
+        }
+      ],
+      "sleep": [
+        {
+          "order_num": 1,
+          "title": "수면 패턴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 총 수면: 14-16시간"
+            },
+            {
+              "order_num": 2,
+              "content": "밤 수유: 2-3회"
+            },
+            {
+              "order_num": 3,
+              "content": "낮잠: 3-4회"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "수면 의식 시작",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "목욕 → 수유 → 수면 루틴 만들기"
+            },
+            {
+              "order_num": 2,
+              "content": "조명 어둡게·조용한 환경"
+            },
+            {
+              "order_num": 3,
+              "content": "일정한 시간에 재우기 시도"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "주의사항",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "뒤집기 전까지 등 대고 자기 유지"
+            },
+            {
+              "order_num": 2,
+              "content": "수유 후 트림 시키고 재우기"
+            }
+          ]
+        }
+      ],
+      "dev": [
+        {
+          "order_num": 1,
+          "title": "운동 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "고개 가누기 시작 (터미 타임 하루 2-3회, 5-10분)"
+            },
+            {
+              "order_num": 2,
+              "content": "손발 움직임 점점 증가"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "사회·언어 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "2개월: 사회적 미소 시작"
+            },
+            {
+              "order_num": 2,
+              "content": "쿠잉(cooing) - 모음 소리 내기"
+            },
+            {
+              "order_num": 3,
+              "content": "움직이는 물체 눈으로 추적"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "2개월 발달 점검",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "사회적 미소 없으면 소아과 평가"
+            },
+            {
+              "order_num": 2,
+              "content": "소리에 반응 없으면 청력 검사"
+            },
+            {
+              "order_num": 3,
+              "content": "눈으로 추적 안 되면 시력 검사"
+            }
+          ]
+        }
+      ],
+      "health": [
+        {
+          "order_num": 1,
+          "title": "예방접종 (2개월)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "DTaP 1차 (디프테리아·파상풍·백일해)"
+            },
+            {
+              "order_num": 2,
+              "content": "IPV 1차 (폴리오)"
+            },
+            {
+              "order_num": 3,
+              "content": "Hib 1차 (b형 헤모필루스 인플루엔자)"
+            },
+            {
+              "order_num": 4,
+              "content": "PCV 1차 (폐렴구균)"
+            },
+            {
+              "order_num": 5,
+              "content": "로타바이러스 1차"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "예방접종 (4개월)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "DTaP 2차 · IPV 2차"
+            },
+            {
+              "order_num": 2,
+              "content": "Hib 2차 · PCV 2차"
+            },
+            {
+              "order_num": 3,
+              "content": "로타바이러스 2차"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "이 시기 주의",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "영아 산통(콜릭): 하루 3시간↑, 주 3일↑, 3주 이상 지속"
+            },
+            {
+              "order_num": 2,
+              "content": "38°C 이상 발열 → 즉시 소아과"
+            },
+            {
+              "order_num": 3,
+              "content": "접종 후 발열·보채는 것은 정상 반응 (1-2일)"
+            }
+          ]
+        }
+      ]
+    },
+    "s2": {
+      "eat": [
+        {
+          "order_num": 1,
+          "title": "수유 지속",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "모유 또는 분유 계속"
+            },
+            {
+              "order_num": 2,
+              "content": "분유: 180-240ml/회, 하루 4-6회"
+            },
+            {
+              "order_num": 3,
+              "content": "모유 수유 시 비타민D·철분 보충 고려"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "이유식 시작 신호",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "목 완전히 가누기"
+            },
+            {
+              "order_num": 2,
+              "content": "음식 보고 관심 보이기"
+            },
+            {
+              "order_num": 3,
+              "content": "설반사 소실 (혀로 음식 밀어내지 않음)"
+            },
+            {
+              "order_num": 4,
+              "content": "만 4-6개월 시작 권장"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "이유식 준비물",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "이유식 메이커 또는 믹서기"
+            },
+            {
+              "order_num": 2,
+              "content": "납작하고 작은 실리콘 스푼"
+            },
+            {
+              "order_num": 3,
+              "content": "이유식 그릇 및 냉동 보관 용기"
+            },
+            {
+              "order_num": 4,
+              "content": "방수 앞치마·이유식 매트"
+            }
+          ]
+        },
+        {
+          "order_num": 4,
+          "title": "초기 이유식 원칙",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "처음 2주: 쌀 미음만 단독 시도"
+            },
+            {
+              "order_num": 2,
+              "content": "새 재료: 4일 간격으로 한 가지씩"
+            },
+            {
+              "order_num": 3,
+              "content": "한 번 제공량: 30-50ml"
+            },
+            {
+              "order_num": 4,
+              "content": "알레르기 반응 관찰 (발진·구토·설사)"
+            }
+          ]
+        }
+      ],
+      "play": [
+        {
+          "order_num": 1,
+          "title": "적합 장난감",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "컬러 딸랑이·링크 장난감"
+            },
+            {
+              "order_num": 2,
+              "content": "소프트 텍스처 볼"
+            },
+            {
+              "order_num": 3,
+              "content": "아기 거울 장난감"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "발달 놀이",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "터미 타임 늘리기 (뒤집기 준비)"
+            },
+            {
+              "order_num": 2,
+              "content": "물체 손으로 잡기 연습"
+            },
+            {
+              "order_num": 3,
+              "content": "까꿍 놀이 시작"
+            },
+            {
+              "order_num": 4,
+              "content": "목소리 흉내 내기"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "추천 도서",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "동물 친구들 팝업북"
+            },
+            {
+              "order_num": 2,
+              "content": "촉감 보드북"
+            }
+          ]
+        }
+      ],
+      "sleep": [
+        {
+          "order_num": 1,
+          "title": "수면 패턴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 총 수면: 12-16시간"
+            },
+            {
+              "order_num": 2,
+              "content": "밤 수면: 6-8시간 연속 가능"
+            },
+            {
+              "order_num": 3,
+              "content": "낮잠: 3회 → 2회 전환 시기"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "수면 훈련 방법",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "퍼버법(점진적 소거법): 울도록 두고 간격 늘리며 확인"
+            },
+            {
+              "order_num": 2,
+              "content": "무울음 수면 훈련(노 크라이): 수면 연상 바꾸기"
+            },
+            {
+              "order_num": 3,
+              "content": "취침 루틴 일관되게 유지"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "낮잠 스케줄 예시",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "1회: 오전 9-10시"
+            },
+            {
+              "order_num": 2,
+              "content": "2회: 오후 12-14시"
+            },
+            {
+              "order_num": 3,
+              "content": "3회(선택): 오후 16-17시"
+            }
+          ]
+        }
+      ],
+      "dev": [
+        {
+          "order_num": 1,
+          "title": "운동 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "4개월: 뒤집기 시작 (배→등)"
+            },
+            {
+              "order_num": 2,
+              "content": "5개월: 양방향 뒤집기"
+            },
+            {
+              "order_num": 3,
+              "content": "6개월: 받쳐주면 잠깐 앉기"
+            },
+            {
+              "order_num": 4,
+              "content": "손으로 물건 잡기 가능"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "인지·언어 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "옹알이 시작 (바바·마마 등 자음+모음)"
+            },
+            {
+              "order_num": 2,
+              "content": "이름에 반응"
+            },
+            {
+              "order_num": 3,
+              "content": "인과관계 인식 시작"
+            },
+            {
+              "order_num": 4,
+              "content": "거울 속 자기 얼굴에 관심"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "4-6개월 발달 점검",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "4개월: 소리 내기 없으면 평가"
+            },
+            {
+              "order_num": 2,
+              "content": "6개월: 뒤집기 전혀 안 하면 상담"
+            },
+            {
+              "order_num": 3,
+              "content": "6개월: 옹알이 없으면 청력 검사"
+            }
+          ]
+        }
+      ],
+      "health": [
+        {
+          "order_num": 1,
+          "title": "예방접종 (6개월)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "DTaP 3차 · IPV 3차"
+            },
+            {
+              "order_num": 2,
+              "content": "Hib 3차 · PCV 3차"
+            },
+            {
+              "order_num": 3,
+              "content": "로타바이러스 3차"
+            },
+            {
+              "order_num": 4,
+              "content": "B형간염 3차"
+            },
+            {
+              "order_num": 5,
+              "content": "인플루엔자 (6개월 이후 매년, 첫해 2회)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "이 시기 건강 주의",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "이앓이 시작 (4-7개월): 침 과다·잇몸 간지러움"
+            },
+            {
+              "order_num": 2,
+              "content": "새 식재료 추가 후 알레르기 반응 관찰 (발진·구토·설사)"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "고열 대처법",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "38°C 이상: 아세트아미노펜(타이레놀) 투여 가능"
+            },
+            {
+              "order_num": 2,
+              "content": "38.9°C 이상: 소아과 방문"
+            },
+            {
+              "order_num": 3,
+              "content": "39.4°C 이상: 즉시 응급실"
+            },
+            {
+              "order_num": 4,
+              "content": "6개월 미만 발열 → 무조건 즉시 병원"
+            }
+          ]
+        }
+      ]
+    },
+    "s3": {
+      "eat": [
+        {
+          "order_num": 1,
+          "title": "이유식 중기 (7-8개월)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 2회 이유식"
+            },
+            {
+              "order_num": 2,
+              "content": "으깬 형태로 입자감 추가 (7배죽, 쌀:물=1:7)"
+            },
+            {
+              "order_num": 3,
+              "content": "새로운 식재료 계속 도전"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "분유·모유",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 700-800ml 유지"
+            },
+            {
+              "order_num": 2,
+              "content": "이유식 후 부족분 수유로 보충"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "핑거푸드 (8-9개월)",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "1-2cm 이내 크기 (질식 예방)"
+            },
+            {
+              "order_num": 2,
+              "content": "부드럽게 익힌 채소 조각·과일"
+            },
+            {
+              "order_num": 3,
+              "content": "아기용 쌀과자·바나나 조각"
+            },
+            {
+              "order_num": 4,
+              "content": "항상 보호자가 옆에서 지켜보기"
+            }
+          ]
+        }
+      ],
+      "play": [
+        {
+          "order_num": 1,
+          "title": "적합 장난감",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "큰 쌓기 블록"
+            },
+            {
+              "order_num": 2,
+              "content": "물 놀이 장난감"
+            },
+            {
+              "order_num": 3,
+              "content": "끌거나 밀기 장난감"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "발달 놀이",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "까꿍 놀이 (대상영속성 발달)"
+            },
+            {
+              "order_num": 2,
+              "content": "용기 속에 물건 넣고 빼기"
+            },
+            {
+              "order_num": 3,
+              "content": "그림책 읽어주기 (하루 15분)"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "추천 도서",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "배고픈 애벌레"
+            },
+            {
+              "order_num": 2,
+              "content": "터치·사운드 북"
+            }
+          ]
+        }
+      ],
+      "sleep": [
+        {
+          "order_num": 1,
+          "title": "수면 패턴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 총 수면: 12-15시간"
+            },
+            {
+              "order_num": 2,
+              "content": "밤 수면: 9-10시간 연속 가능"
+            },
+            {
+              "order_num": 3,
+              "content": "낮잠: 오전·오후 2회"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "8개월 수면 회귀",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "분리불안으로 밤에 자주 깨기 시작"
+            },
+            {
+              "order_num": 2,
+              "content": "이전에 잘 자던 아기도 다시 깰 수 있음"
+            },
+            {
+              "order_num": 3,
+              "content": "퇴행이 아닌 정상 발달 과정"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "대처법",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "일관된 수면 루틴 유지 최우선"
+            },
+            {
+              "order_num": 2,
+              "content": "달래기 최소화·스스로 잠드는 연습 지속"
+            }
+          ]
+        }
+      ],
+      "dev": [
+        {
+          "order_num": 1,
+          "title": "운동 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "7개월: 혼자 앉기 가능"
+            },
+            {
+              "order_num": 2,
+              "content": "8개월: 기기 시작"
+            },
+            {
+              "order_num": 3,
+              "content": "9개월: 핀서 그립 (엄지·검지로 집기)"
+            },
+            {
+              "order_num": 4,
+              "content": "가구 잡고 서기 시도"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "인지·사회 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "낯가림 심화 (8개월 불안)"
+            },
+            {
+              "order_num": 2,
+              "content": "대상영속성 형성 (가려도 있다는 것 앎)"
+            },
+            {
+              "order_num": 3,
+              "content": "몸짓 의사소통 시작"
+            },
+            {
+              "order_num": 4,
+              "content": "모방 행동 급증"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "7-9개월 발달 점검",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "9개월: 혼자 앉기 안 되면 상담"
+            },
+            {
+              "order_num": 2,
+              "content": "9개월: 옹알이 없으면 청력 검사"
+            },
+            {
+              "order_num": 3,
+              "content": "이름 불러도 전혀 반응 없으면 평가"
+            }
+          ]
+        }
+      ],
+      "health": [
+        {
+          "order_num": 1,
+          "title": "안전사고 예방",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "낙상 주의 (침대·소파 추락)"
+            },
+            {
+              "order_num": 2,
+              "content": "작은 물건 손에 닿지 않게"
+            },
+            {
+              "order_num": 3,
+              "content": "계단 안전문 설치 (기기 시작 전)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "영아 하임리히법",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "이물질 흡입 시: 아기 엎드려 등 두드리기 5회"
+            },
+            {
+              "order_num": 2,
+              "content": "앙와위(눕혀서) 가슴 압박 5회 반복"
+            },
+            {
+              "order_num": 3,
+              "content": "두 단계 반복 후에도 반응 없으면 119 신고 + 심폐소생술"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "이앓이 관리",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "잇몸 마사지 (깨끗한 손가락)"
+            },
+            {
+              "order_num": 2,
+              "content": "차가운 이앓이 링"
+            },
+            {
+              "order_num": 3,
+              "content": "이앓이 젤은 의사 상담 후 사용"
+            }
+          ]
+        }
+      ]
+    },
+    "s4": {
+      "eat": [
+        {
+          "order_num": 1,
+          "title": "이유식 후기 (10-12개월)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 3회 이유식 (진밥 형태, 5배죽, 쌀:물=1:5)"
+            },
+            {
+              "order_num": 2,
+              "content": "1회 제공량: 120-180ml"
+            },
+            {
+              "order_num": 3,
+              "content": "가족 식사와 유사한 형태 시작"
+            },
+            {
+              "order_num": 4,
+              "content": "스스로 먹기 시도 격려"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "금지 식품",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "생우유: 12개월 이전 금지"
+            },
+            {
+              "order_num": 2,
+              "content": "꿀: 12개월 이전 금지 (보툴리눔 독소)"
+            },
+            {
+              "order_num": 3,
+              "content": "통 견과류·포도·방울토마토: 질식 위험"
+            },
+            {
+              "order_num": 4,
+              "content": "짠 음식·가공식품 최소화"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "컵 연습",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "빨대 컵으로 물 마시기 연습"
+            },
+            {
+              "order_num": 2,
+              "content": "12개월 이후 젖병 떼기 시작"
+            }
+          ]
+        }
+      ],
+      "play": [
+        {
+          "order_num": 1,
+          "title": "적합 장난감",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "장난감 악기 (실로폰·드럼)"
+            },
+            {
+              "order_num": 2,
+              "content": "끌기·밀기 장난감"
+            },
+            {
+              "order_num": 3,
+              "content": "소꿉놀이 세트"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "발달 놀이",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "블록 쌓고 무너뜨리기"
+            },
+            {
+              "order_num": 2,
+              "content": "보드북 읽기"
+            },
+            {
+              "order_num": 3,
+              "content": "음악에 맞춰 몸 흔들기"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "추천 도서",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "곰 사냥을 떠나자"
+            },
+            {
+              "order_num": 2,
+              "content": "팝업북 시리즈"
+            }
+          ]
+        }
+      ],
+      "sleep": [
+        {
+          "order_num": 1,
+          "title": "수면 패턴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 총 수면: 12-14시간"
+            },
+            {
+              "order_num": 2,
+              "content": "낮잠: 1-2회 (합계 2-3시간)"
+            },
+            {
+              "order_num": 3,
+              "content": "밤잠: 10-12시간"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "낮잠 전환",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "2회 → 1회 낮잠으로 전환 시기"
+            },
+            {
+              "order_num": 2,
+              "content": "이른 취침 시간으로 조정"
+            },
+            {
+              "order_num": 3,
+              "content": "낮잠 없애면 저녁 과각성 주의"
+            }
+          ]
+        }
+      ],
+      "dev": [
+        {
+          "order_num": 1,
+          "title": "운동 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "10개월: 가구 잡고 서기"
+            },
+            {
+              "order_num": 2,
+              "content": "11개월: 잠깐 혼자 서기"
+            },
+            {
+              "order_num": 3,
+              "content": "12개월: 첫 걸음마 (10-14개월 정상 범위)"
+            },
+            {
+              "order_num": 4,
+              "content": "손가락 세밀한 동작 발달"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "언어 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "첫 단어 출현 (마마·빠빠·물 등)"
+            },
+            {
+              "order_num": 2,
+              "content": "손가락으로 원하는 것 가리키기"
+            },
+            {
+              "order_num": 3,
+              "content": "간단한 지시 이해 (\"안 돼\", \"줘\")"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "12개월 발달 점검",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "옹알이 없으면 언어 평가"
+            },
+            {
+              "order_num": 2,
+              "content": "가리키기(pointing) 없으면 자폐 선별 검사"
+            },
+            {
+              "order_num": 3,
+              "content": "걸음마 15개월까지 안 하면 상담"
+            }
+          ]
+        }
+      ],
+      "health": [
+        {
+          "order_num": 1,
+          "title": "예방접종 (12개월)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "MMR 1차 (홍역·유행성이하선염·풍진)"
+            },
+            {
+              "order_num": 2,
+              "content": "수두 1차"
+            },
+            {
+              "order_num": 3,
+              "content": "A형간염 1차"
+            },
+            {
+              "order_num": 4,
+              "content": "일본뇌염 1차 (사백신 기준)"
+            },
+            {
+              "order_num": 5,
+              "content": "PCV 4차"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "안전사고 예방",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "전기 콘센트 커버 설치"
+            },
+            {
+              "order_num": 2,
+              "content": "문 손가락 끼임 방지대"
+            },
+            {
+              "order_num": 3,
+              "content": "목욕 시 절대 혼자 두지 않기"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "구강 관리",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "이닦기 시작 (작은 칫솔 + 쌀알 크기 불소 치약)"
+            },
+            {
+              "order_num": 2,
+              "content": "하루 2회 양치"
+            },
+            {
+              "order_num": 3,
+              "content": "12개월 첫 치과 방문 권장"
+            }
+          ]
+        }
+      ]
+    },
+    "s5": {
+      "eat": [
+        {
+          "order_num": 1,
+          "title": "유아식 전환",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "이유식 졸업, 세 끼 식사 시작"
+            },
+            {
+              "order_num": 2,
+              "content": "생우유 하루 400-500ml 가능"
+            },
+            {
+              "order_num": 3,
+              "content": "간 최소화, 자극적 음식 피하기"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "단유 방법",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "WHO: 최소 24개월 모유 권장"
+            },
+            {
+              "order_num": 2,
+              "content": "점진적 단유: 수유 횟수 서서히 줄이기"
+            },
+            {
+              "order_num": 3,
+              "content": "낮 수유 먼저, 밤 수유 나중에 끊기"
+            },
+            {
+              "order_num": 4,
+              "content": "유관 막힘 예방: 충분히 짜기"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "편식 대처",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "반복 제공 (10-15회 도전)"
+            },
+            {
+              "order_num": 2,
+              "content": "억지로 먹이지 않기"
+            },
+            {
+              "order_num": 3,
+              "content": "좋아하는 음식과 섞어 제공"
+            }
+          ]
+        }
+      ],
+      "play": [
+        {
+          "order_num": 1,
+          "title": "적합 장난감",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "밀기 장난감 (워커)"
+            },
+            {
+              "order_num": 2,
+              "content": "굵은 크레용·낙서 보드"
+            },
+            {
+              "order_num": 3,
+              "content": "2-4피스 퍼즐"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "발달 놀이",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "음악에 맞춰 춤추기"
+            },
+            {
+              "order_num": 2,
+              "content": "간단한 역할 놀이"
+            },
+            {
+              "order_num": 3,
+              "content": "야외 놀이 (공원·모래 놀이터)"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "추천 도서",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "사랑해 사랑해 사랑해"
+            },
+            {
+              "order_num": 2,
+              "content": "으뜸 헤엄이"
+            },
+            {
+              "order_num": 3,
+              "content": "감정 표현 그림책"
+            }
+          ]
+        }
+      ],
+      "sleep": [
+        {
+          "order_num": 1,
+          "title": "수면 패턴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 총 수면: 11-14시간"
+            },
+            {
+              "order_num": 2,
+              "content": "낮잠: 1회로 정착"
+            },
+            {
+              "order_num": 3,
+              "content": "밤잠: 11-12시간"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "수면 문제",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "분리불안으로 잠들기 어려워짐"
+            },
+            {
+              "order_num": 2,
+              "content": "밤중 깨서 부모 찾기"
+            },
+            {
+              "order_num": 3,
+              "content": "일관된 루틴·수면 친구(인형)가 핵심"
+            }
+          ]
+        }
+      ],
+      "dev": [
+        {
+          "order_num": 1,
+          "title": "운동 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "걷기 완전히 가능"
+            },
+            {
+              "order_num": 2,
+              "content": "빠르게 걷기·달리기 시작"
+            },
+            {
+              "order_num": 3,
+              "content": "계단 잡고 오르기"
+            },
+            {
+              "order_num": 4,
+              "content": "공 차기·던지기"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "언어 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "어휘 폭발기 (단어 수 급증)"
+            },
+            {
+              "order_num": 2,
+              "content": "18개월: 단어 20개 이상"
+            },
+            {
+              "order_num": 3,
+              "content": "두 단어 조합 시작 (\"더 줘\", \"맘마 줘\")"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "18개월 M-CHAT 자폐 선별",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "이름 부르면 돌아보는지"
+            },
+            {
+              "order_num": 2,
+              "content": "눈 맞추기 가능한지"
+            },
+            {
+              "order_num": 3,
+              "content": "가리키기(pointing) 하는지"
+            },
+            {
+              "order_num": 4,
+              "content": "모방 행동 있는지"
+            },
+            {
+              "order_num": 5,
+              "content": "18개월 단어 없으면 즉시 전문가 평가"
+            }
+          ]
+        }
+      ],
+      "health": [
+        {
+          "order_num": 1,
+          "title": "예방접종 (18개월)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "DTaP 4차"
+            },
+            {
+              "order_num": 2,
+              "content": "Hib 4차"
+            },
+            {
+              "order_num": 3,
+              "content": "A형간염 2차 (1차 접종 6개월 후)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "건강 검진",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "국가 영유아 건강검진 18개월 (무료)"
+            },
+            {
+              "order_num": 2,
+              "content": "언어·발달 평가 포함"
+            },
+            {
+              "order_num": 3,
+              "content": "치과 검진 (6개월마다)"
+            }
+          ]
+        }
+      ]
+    },
+    "s6": {
+      "eat": [
+        {
+          "order_num": 1,
+          "title": "유아식",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "세 끼 + 오전·오후 간식"
+            },
+            {
+              "order_num": 2,
+              "content": "균형 식단 (단백질·채소·탄수화물)"
+            },
+            {
+              "order_num": 3,
+              "content": "가족과 함께 식탁에서 식사"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "편식 관리",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "싫어하는 음식 강요 금지"
+            },
+            {
+              "order_num": 2,
+              "content": "다양한 조리법으로 반복 시도"
+            },
+            {
+              "order_num": 3,
+              "content": "간식은 식사 2시간 전까지 제한"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "자율 식사",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "숟가락·포크 스스로 사용"
+            },
+            {
+              "order_num": 2,
+              "content": "흘려도 괜찮음, 자율 식사 격려"
+            },
+            {
+              "order_num": 3,
+              "content": "먹는 즐거움 위주로 접근"
+            }
+          ]
+        }
+      ],
+      "play": [
+        {
+          "order_num": 1,
+          "title": "적합 장난감",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "역할 놀이 세트 (주방·병원)"
+            },
+            {
+              "order_num": 2,
+              "content": "큰 블록 쌓기"
+            },
+            {
+              "order_num": 3,
+              "content": "크레용·물감 색칠하기"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "발달 놀이",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "상상 놀이 충분히 격려"
+            },
+            {
+              "order_num": 2,
+              "content": "또래와 병행 놀이"
+            },
+            {
+              "order_num": 3,
+              "content": "그림책 읽기 하루 20분 이상"
+            },
+            {
+              "order_num": 4,
+              "content": "노래·율동"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "추천 도서",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "강아지 똥"
+            },
+            {
+              "order_num": 2,
+              "content": "구름빵"
+            },
+            {
+              "order_num": 3,
+              "content": "감정·일상 이야기 그림책"
+            }
+          ]
+        }
+      ],
+      "sleep": [
+        {
+          "order_num": 1,
+          "title": "수면 패턴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 총 수면: 11-14시간"
+            },
+            {
+              "order_num": 2,
+              "content": "낮잠: 1회"
+            },
+            {
+              "order_num": 3,
+              "content": "밤잠: 10-12시간"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "수면 루틴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "목욕 → 그림책 → 수면"
+            },
+            {
+              "order_num": 2,
+              "content": "일정한 취침 시간 (오후 7-8시 권장)"
+            }
+          ]
+        }
+      ],
+      "dev": [
+        {
+          "order_num": 1,
+          "title": "언어 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "두 단어 → 세 단어 조합"
+            },
+            {
+              "order_num": 2,
+              "content": "자기 이름 말하기"
+            },
+            {
+              "order_num": 3,
+              "content": "간단한 질문 이해·대답"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "운동 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "뛰기 능숙·점프 시도"
+            },
+            {
+              "order_num": 2,
+              "content": "공 차기·던지기"
+            },
+            {
+              "order_num": 3,
+              "content": "계단 잡고 오르내리기"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "24개월 발달 점검",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "단어 50개 미만이면 언어 평가"
+            },
+            {
+              "order_num": 2,
+              "content": "두 단어 조합 없으면 언어 치료 상담"
+            },
+            {
+              "order_num": 3,
+              "content": "눈 맞추기·사회적 상호작용 확인"
+            }
+          ]
+        }
+      ],
+      "health": [
+        {
+          "order_num": 1,
+          "title": "예방접종 (24개월)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "A형간염 2차 (미접종 시)"
+            },
+            {
+              "order_num": 2,
+              "content": "일본뇌염 추가접종"
+            },
+            {
+              "order_num": 3,
+              "content": "독감 (매년)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "건강 관리",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "국가 영유아 건강검진 24개월 (무료)"
+            },
+            {
+              "order_num": 2,
+              "content": "치과 불소 도포 (6개월마다)"
+            },
+            {
+              "order_num": 3,
+              "content": "시력·청력 이상 여부 점검"
+            }
+          ]
+        }
+      ]
+    },
+    "s7": {
+      "eat": [
+        {
+          "order_num": 1,
+          "title": "가족 식사 완전 합류",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "가족과 동일한 음식"
+            },
+            {
+              "order_num": 2,
+              "content": "짠 음식·가공식품·탄산음료 제한"
+            },
+            {
+              "order_num": 3,
+              "content": "물 하루 충분히 마시기"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "자율 식사",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "숟가락·포크 능숙하게 사용"
+            },
+            {
+              "order_num": 2,
+              "content": "식사 예절 가르치기 (앉아서 먹기)"
+            },
+            {
+              "order_num": 3,
+              "content": "식사 시간 20-30분으로 제한"
+            }
+          ]
+        }
+      ],
+      "play": [
+        {
+          "order_num": 1,
+          "title": "적합 장난감",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "세발자전거·킥보드"
+            },
+            {
+              "order_num": 2,
+              "content": "6-12피스 퍼즐"
+            },
+            {
+              "order_num": 3,
+              "content": "그림 그리기 도구 (크레용·물감)"
+            },
+            {
+              "order_num": 4,
+              "content": "역할 놀이 (소꿉·병원·마트)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "발달 놀이",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "상상·역할 놀이 충분히"
+            },
+            {
+              "order_num": 2,
+              "content": "또래와 함께 놀기"
+            },
+            {
+              "order_num": 3,
+              "content": "그림책·동화 매일 읽기"
+            },
+            {
+              "order_num": 4,
+              "content": "음악·춤·신체 놀이"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "추천 도서",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "괴물들이 사는 나라"
+            },
+            {
+              "order_num": 2,
+              "content": "레오 리오니 시리즈"
+            },
+            {
+              "order_num": 3,
+              "content": "그림·이야기 결합 도서"
+            }
+          ]
+        }
+      ],
+      "sleep": [
+        {
+          "order_num": 1,
+          "title": "수면 패턴",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "하루 총 수면: 10-13시간"
+            },
+            {
+              "order_num": 2,
+              "content": "낮잠: 줄어들거나 없어짐 (3세경)"
+            },
+            {
+              "order_num": 3,
+              "content": "밤잠: 10-11시간"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "수면 문제",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "악몽·야경증 시작 (정상)"
+            },
+            {
+              "order_num": 2,
+              "content": "잠들기 거부 (독립심 발달)"
+            },
+            {
+              "order_num": 3,
+              "content": "일관된 루틴과 정서적 안정 제공"
+            }
+          ]
+        }
+      ],
+      "dev": [
+        {
+          "order_num": 1,
+          "title": "언어 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "3-4단어 문장 사용"
+            },
+            {
+              "order_num": 2,
+              "content": "36개월: 200-300 단어"
+            },
+            {
+              "order_num": 3,
+              "content": "간단한 대화 가능"
+            },
+            {
+              "order_num": 4,
+              "content": "이름·나이 말하기"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "운동 발달",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "뛰기·점프 능숙"
+            },
+            {
+              "order_num": 2,
+              "content": "세발자전거 타기"
+            },
+            {
+              "order_num": 3,
+              "content": "계단 혼자 오르내리기"
+            },
+            {
+              "order_num": 4,
+              "content": "공 주고받기"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "자조 능력",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "화장실 훈련 시작·완성 (개인차 큼)"
+            },
+            {
+              "order_num": 2,
+              "content": "간단한 옷 혼자 입기"
+            },
+            {
+              "order_num": 3,
+              "content": "손 씻기·양치 스스로"
+            }
+          ]
+        },
+        {
+          "order_num": 4,
+          "title": "36개월 발달 점검",
+          "is_warning": true,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "문장 사용 안 하면 언어 평가"
+            },
+            {
+              "order_num": 2,
+              "content": "또래 관심 없으면 사회성 평가"
+            },
+            {
+              "order_num": 3,
+              "content": "주의집중 어려움·과잉행동 점검"
+            }
+          ]
+        }
+      ],
+      "health": [
+        {
+          "order_num": 1,
+          "title": "예방접종 (만 4-6세)",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "DTaP 5차 · IPV 4차 (만 4-6세)"
+            },
+            {
+              "order_num": 2,
+              "content": "MMR 2차 (만 4-6세)"
+            },
+            {
+              "order_num": 3,
+              "content": "일본뇌염 추가 (만 6세)"
+            },
+            {
+              "order_num": 4,
+              "content": "독감 (매년)"
+            }
+          ]
+        },
+        {
+          "order_num": 2,
+          "title": "건강 검진",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "국가 영유아 건강검진 30·36개월 (무료)"
+            },
+            {
+              "order_num": 2,
+              "content": "시력 검사 (사시·약시 조기 발견)"
+            },
+            {
+              "order_num": 3,
+              "content": "청력 검사"
+            },
+            {
+              "order_num": 4,
+              "content": "치과 검진 (6개월마다)"
+            }
+          ]
+        },
+        {
+          "order_num": 3,
+          "title": "배변 훈련 신호",
+          "is_warning": false,
+          "items": [
+            {
+              "order_num": 1,
+              "content": "기저귀 젖어도 말로 알려줌"
+            },
+            {
+              "order_num": 2,
+              "content": "2시간 이상 건조 유지"
+            },
+            {
+              "order_num": 3,
+              "content": "낮 배변 먼저, 밤 배변은 나중"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "recipe_groups": [
+    {
+      "id": "early",
+      "stage_range": "4~6개월",
+      "order_num": 1,
+      "label": "초기 이유식 — 미음 형태 (10배죽)",
+      "note": "쌀 : 물 = 1 : 10 / 1회 제공량 30-50ml / 새 재료는 4일 간격으로 한 가지씩",
+      "recipes": [
+        {
+          "name": "기본 쌀 미음",
+          "ingredient": "불린 쌀 15g + 물 150ml",
+          "tip": "처음 1-2주는 쌀 미음만 단독으로 시도",
+          "order_num": 1,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "쌀을 30분 이상 물에 불린다"
+            },
+            {
+              "step_num": 2,
+              "content": "믹서에 쌀과 물을 넣고 곱게 간다"
+            },
+            {
+              "step_num": 3,
+              "content": "냄비에 넣고 약불에서 10분 저으며 끓인다"
+            },
+            {
+              "step_num": 4,
+              "content": "체에 한 번 걸러 부드럽게 만든다"
+            }
+          ]
+        },
+        {
+          "name": "단호박 미음",
+          "ingredient": "불린 쌀 15g + 단호박 30g + 물 150ml",
+          "tip": "단호박의 단맛으로 아기가 잘 받아들이는 편",
+          "order_num": 2,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "단호박은 껍질·씨 제거 후 찜기에 10분 찐다"
+            },
+            {
+              "step_num": 2,
+              "content": "쌀과 단호박, 물을 함께 믹서에 간다"
+            },
+            {
+              "step_num": 3,
+              "content": "약불에서 8-10분 저으며 끓인다"
+            }
+          ]
+        },
+        {
+          "name": "고구마 미음",
+          "ingredient": "불린 쌀 15g + 고구마 30g + 물 150ml",
+          "tip": "섬유질 풍부, 변비 예방에 도움",
+          "order_num": 3,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "고구마는 껍질 제거 후 찜기에 15분 찐다"
+            },
+            {
+              "step_num": 2,
+              "content": "쌀, 고구마, 물 함께 믹서에 간다"
+            },
+            {
+              "step_num": 3,
+              "content": "약불에서 8-10분 저으며 끓인다"
+            }
+          ]
+        },
+        {
+          "name": "브로콜리 미음",
+          "ingredient": "불린 쌀 15g + 브로콜리 20g + 물 150ml",
+          "tip": "비타민C·철분 풍부, 꽃 부분만 사용",
+          "order_num": 4,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "브로콜리 꽃 부분만 분리해 끓는 물에 5분 데친다"
+            },
+            {
+              "step_num": 2,
+              "content": "쌀, 브로콜리, 물 함께 믹서에 간다"
+            },
+            {
+              "step_num": 3,
+              "content": "약불에서 10분 저으며 끓인 후 체에 거른다"
+            }
+          ]
+        },
+        {
+          "name": "완두콩 미음",
+          "ingredient": "불린 쌀 15g + 완두콩(냉동) 20g + 물 150ml",
+          "tip": "식물성 단백질 보충, 4개월 이후 시도",
+          "order_num": 5,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "냉동 완두콩을 끓는 물에 5분 데친다"
+            },
+            {
+              "step_num": 2,
+              "content": "껍질 제거 후 쌀, 물과 함께 믹서에 간다"
+            },
+            {
+              "step_num": 3,
+              "content": "약불에서 10분 저으며 끓인 후 체에 거른다"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mid",
+      "stage_range": "7~9개월",
+      "order_num": 2,
+      "label": "중기 이유식 — 죽 형태 (7배죽), 으깬 입자 포함",
+      "note": "쌀 : 물 = 1 : 7 / 1회 제공량 80-120ml / 하루 2회 / 소고기·닭고기 적극 도입",
+      "recipes": [
+        {
+          "name": "소고기 애호박죽",
+          "ingredient": "불린 쌀 30g + 소고기(다짐육) 20g + 애호박 20g + 물 210ml",
+          "tip": "소고기는 철분 보충에 필수, 주 3-4회 권장",
+          "order_num": 1,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "소고기는 찬물에 10분 담가 핏물 제거"
+            },
+            {
+              "step_num": 2,
+              "content": "애호박은 껍질 제거 후 잘게 다진다"
+            },
+            {
+              "step_num": 3,
+              "content": "소고기, 애호박을 각각 볶다가 쌀, 물 넣어 끓인다"
+            },
+            {
+              "step_num": 4,
+              "content": "약불에서 15분 저으며 죽 농도로 끓임"
+            }
+          ]
+        },
+        {
+          "name": "닭고기 당근죽",
+          "ingredient": "불린 쌀 30g + 닭가슴살 20g + 당근 15g + 물 210ml",
+          "tip": "닭가슴살은 지방이 적어 소화 잘됨",
+          "order_num": 2,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "닭가슴살은 끓는 물에 10분 삶아 잘게 찢는다"
+            },
+            {
+              "step_num": 2,
+              "content": "당근은 잘게 다진다"
+            },
+            {
+              "step_num": 3,
+              "content": "쌀, 닭고기, 당근, 물을 냄비에 넣고 끓인다"
+            },
+            {
+              "step_num": 4,
+              "content": "중약불에서 15분 저으며 죽 농도로 끓임"
+            }
+          ]
+        },
+        {
+          "name": "두부 시금치죽",
+          "ingredient": "불린 쌀 30g + 두부 30g + 시금치 15g + 물 210ml",
+          "tip": "식물성 단백질·철분 보충, 시금치는 잎만 사용",
+          "order_num": 3,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "두부는 끓는 물에 데쳐 잘게 으깬다"
+            },
+            {
+              "step_num": 2,
+              "content": "시금치는 잎 부분만 끓는 물에 데쳐 잘게 다진다"
+            },
+            {
+              "step_num": 3,
+              "content": "쌀, 두부, 시금치, 물 넣고 약불에서 15분 끓인다"
+            }
+          ]
+        },
+        {
+          "name": "연어 감자죽",
+          "ingredient": "불린 쌀 30g + 연어 20g + 감자 20g + 물 210ml",
+          "tip": "DHA 풍부, 처음 도입 시 소량으로 알레르기 확인",
+          "order_num": 4,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "연어는 가시 제거 후 찜기에 8분 쪄 잘게 으깬다"
+            },
+            {
+              "step_num": 2,
+              "content": "감자는 삶아서 으깬다"
+            },
+            {
+              "step_num": 3,
+              "content": "쌀, 연어, 감자, 물 넣고 약불에서 15분 끓인다"
+            }
+          ]
+        },
+        {
+          "name": "달걀 노른자죽",
+          "ingredient": "불린 쌀 30g + 달걀 노른자 1개 + 물 210ml",
+          "tip": "흰자는 알레르기 위험, 노른자만 먼저 시도 (7-8개월)",
+          "order_num": 5,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "달걀을 완숙으로 삶아 노른자만 분리한다"
+            },
+            {
+              "step_num": 2,
+              "content": "노른자를 곱게 으깬다"
+            },
+            {
+              "step_num": 3,
+              "content": "쌀, 물로 기본 죽을 끓인 후 노른자 넣어 섞는다"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "late",
+      "stage_range": "10~12개월",
+      "order_num": 3,
+      "label": "후기 이유식 — 진밥 형태 (5배죽), 입자 굵게",
+      "note": "쌀 : 물 = 1 : 5 / 1회 제공량 120-180ml / 하루 3회 / 가족 식사와 유사 형태",
+      "recipes": [
+        {
+          "name": "소고기 채소 진밥",
+          "ingredient": "불린 쌀 40g + 소고기(다짐육) 25g + 당근 15g + 애호박 15g + 물 200ml",
+          "tip": "이 시기부터 입자를 씹는 연습이 중요",
+          "order_num": 1,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "소고기 핏물 제거 후 잘게 다진다"
+            },
+            {
+              "step_num": 2,
+              "content": "당근, 애호박은 3-5mm 크기로 다진다"
+            },
+            {
+              "step_num": 3,
+              "content": "냄비에 소고기 먼저 볶다가 채소, 쌀, 물 넣는다"
+            },
+            {
+              "step_num": 4,
+              "content": "중약불에서 20분 저으며 진밥 농도로 끓임"
+            }
+          ]
+        },
+        {
+          "name": "달걀 야채 진밥",
+          "ingredient": "불린 쌀 40g + 달걀 1개 + 양파 10g + 당근 10g + 물 200ml",
+          "tip": "달걀 흰자 도입 가능 (알레르기 확인 필수)",
+          "order_num": 2,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "달걀은 완숙으로 잘게 다진다"
+            },
+            {
+              "step_num": 2,
+              "content": "양파·당근은 3-5mm로 다져 볶는다"
+            },
+            {
+              "step_num": 3,
+              "content": "쌀, 채소, 물 넣고 15분 끓인 후 달걀 넣어 5분 더 끓임"
+            }
+          ]
+        },
+        {
+          "name": "닭고기 브로콜리 진밥",
+          "ingredient": "불린 쌀 40g + 닭가슴살 25g + 브로콜리 20g + 물 200ml",
+          "tip": "부드러운 씹기 연습에 좋음",
+          "order_num": 3,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "닭가슴살 삶아서 3-5mm로 다진다"
+            },
+            {
+              "step_num": 2,
+              "content": "브로콜리 데쳐 잘게 다진다"
+            },
+            {
+              "step_num": 3,
+              "content": "쌀, 닭고기, 브로콜리, 물 넣고 20분 끓인다"
+            }
+          ]
+        },
+        {
+          "name": "두부 미역 진밥",
+          "ingredient": "불린 쌀 40g + 두부 30g + 불린 미역 10g + 참기름 0.5ml + 물 200ml",
+          "tip": "미역은 요오드·칼슘 풍부, 이 시기부터 소량 도입",
+          "order_num": 4,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "미역은 짧게 불려 잘게 다진다"
+            },
+            {
+              "step_num": 2,
+              "content": "두부는 끓는 물에 데쳐 으깬다"
+            },
+            {
+              "step_num": 3,
+              "content": "쌀, 미역, 물 끓이다가 두부 넣고 15분 더 끓임"
+            },
+            {
+              "step_num": 4,
+              "content": "완성 후 참기름 한 방울 추가"
+            }
+          ]
+        },
+        {
+          "name": "흰살생선 감자 진밥",
+          "ingredient": "불린 쌀 40g + 대구살(또는 명태) 25g + 감자 20g + 물 200ml",
+          "tip": "흰살 생선은 단백질·DHA 풍부, 가시 제거 철저히",
+          "order_num": 5,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "생선은 찜기에 8분 쪄 가시 완전히 제거 후 으깬다"
+            },
+            {
+              "step_num": 2,
+              "content": "감자는 삶아 5mm 크기로 자른다"
+            },
+            {
+              "step_num": 3,
+              "content": "쌀, 생선, 감자, 물 넣고 20분 끓인다"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "finger",
+      "stage_range": "8~12개월",
+      "order_num": 4,
+      "label": "핑거푸드 — 손으로 집어 먹기",
+      "note": "크기: 1-2cm 이내 / 반드시 부드럽게 익혀서 / 항상 보호자가 옆에서 지켜볼 것",
+      "recipes": [
+        {
+          "name": "연두부 조각",
+          "ingredient": "연두부 50g",
+          "tip": "가장 부드러운 핑거푸드 입문용",
+          "order_num": 1,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "연두부를 1-1.5cm 크기로 잘라 그대로 제공"
+            }
+          ]
+        },
+        {
+          "name": "당근 스틱",
+          "ingredient": "당근 적당량",
+          "tip": "단단하게 익히면 질식 위험, 반드시 손가락으로 으깨질 정도로",
+          "order_num": 2,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "당근을 손가락 크기로 자른다"
+            },
+            {
+              "step_num": 2,
+              "content": "끓는 물에 10-15분 푹 삶아 완전히 물러야 안전"
+            }
+          ]
+        },
+        {
+          "name": "바나나 조각",
+          "ingredient": "바나나 1/3개",
+          "tip": "가장 접하기 쉬운 핑거푸드, 에너지원",
+          "order_num": 3,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "바나나를 1-2cm 크기로 잘라 제공"
+            }
+          ]
+        },
+        {
+          "name": "찐 고구마 조각",
+          "ingredient": "고구마 1/2개",
+          "tip": "달콤해서 아기가 좋아함, 섬유질 풍부",
+          "order_num": 4,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "고구마 껍질 제거 후 1-2cm 크기로 자른다"
+            },
+            {
+              "step_num": 2,
+              "content": "찜기에 15분 이상 푹 찐다"
+            }
+          ]
+        },
+        {
+          "name": "완숙 달걀 조각",
+          "ingredient": "달걀 1개",
+          "tip": "흰자 알레르기 확인 후 제공 (10개월 이후 권장)",
+          "order_num": 5,
+          "steps": [
+            {
+              "step_num": 1,
+              "content": "달걀을 12분 완숙으로 삶는다"
+            },
+            {
+              "step_num": 2,
+              "content": "껍질 제거 후 1-2cm 크기로 자른다"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "vaccines": [
+    {
+      "id": "BCG",
+      "name": "BCG (결핵)",
+      "timing": "출생 후 4주 이내",
+      "description": "피내접종, 왼쪽 상완",
+      "order_num": 1,
+      "effects": {
+        "normal": [
+          "접종 후 2-4주: 붉은 구진 형성",
+          "4-8주: 화농성 결절 → 딱지 형성",
+          "3개월 내 자연 소실 (3-5mm 반흔 남음)",
+          "해당 림프절 부어오를 수 있음 (10mm 이내 정상)"
+        ],
+        "caution": [
+          "10mm 이상 림프절 종창 → 소아과 방문",
+          "화농성 림프절염 → 의사 상담 필요",
+          "접종 부위 임의로 짜거나 소독하지 말 것"
+        ],
+        "emergency": []
+      }
+    },
+    {
+      "id": "HepB",
+      "name": "B형간염",
+      "timing": "출생 즉시 / 1개월 / 6개월 (총 3회)",
+      "description": "근육주사",
+      "order_num": 2,
+      "effects": {
+        "normal": [
+          "접종 부위 발적·부종 (24-48시간)",
+          "접종 부위 통증·압통",
+          "미열 (38°C 미만)"
+        ],
+        "caution": [
+          "발적이 7일 이상 지속 시 상담"
+        ],
+        "emergency": [
+          "호흡곤란·두드러기·혈압저하 → 즉시 응급실 (아나필락시스)"
+        ]
+      }
+    },
+    {
+      "id": "DTaP",
+      "name": "DTaP (디프테리아·파상풍·백일해)",
+      "timing": "2·4·6개월 / 15-18개월 / 만 4-6세 (총 5회)",
+      "description": "근육주사",
+      "order_num": 3,
+      "effects": {
+        "normal": [
+          "접종 부위 발적·부종·통증 (24-48시간)",
+          "발열 38-39°C (1-2일 내 소실)",
+          "보채기·식욕 저하·졸림"
+        ],
+        "caution": [
+          "접종 부위 직경 5cm 이상 부종 → 상담",
+          "39°C 이상 발열 → 소아과 방문",
+          "48시간 이상 지속 보채기 → 상담"
+        ],
+        "emergency": [
+          "경련 (발열성 경련 포함) → 즉시 응급실",
+          "의식 변화·극심한 보채기 → 즉시 응급실",
+          "아나필락시스 증상 → 즉시 응급실"
+        ]
+      }
+    },
+    {
+      "id": "IPV",
+      "name": "IPV (폴리오)",
+      "timing": "2·4·6개월 / 만 4-6세 (총 4회)",
+      "description": "근육주사 또는 피하주사",
+      "order_num": 4,
+      "effects": {
+        "normal": [
+          "접종 부위 통증·발적·부종",
+          "미열"
+        ],
+        "caution": [
+          "부종이 심하면 상담"
+        ],
+        "emergency": [
+          "아나필락시스 증상 → 즉시 응급실"
+        ]
+      }
+    },
+    {
+      "id": "Hib",
+      "name": "Hib (b형 헤모필루스 인플루엔자)",
+      "timing": "2·4·6개월 / 12-15개월 (총 4회)",
+      "description": "근육주사",
+      "order_num": 5,
+      "effects": {
+        "normal": [
+          "접종 부위 발적·부종·통증 (12-24시간)",
+          "미열 (38°C 미만)",
+          "보채기"
+        ],
+        "caution": [
+          "38°C 이상 발열 지속 시 상담"
+        ],
+        "emergency": [
+          "아나필락시스 증상 → 즉시 응급실"
+        ]
+      }
+    },
+    {
+      "id": "PCV",
+      "name": "PCV (폐렴구균)",
+      "timing": "2·4·6개월 / 12-15개월 (총 4회)",
+      "description": "근육주사",
+      "order_num": 6,
+      "effects": {
+        "normal": [
+          "접종 부위 발적·부종·통증 (24-48시간)",
+          "발열 38-39°C (DTaP 동시 접종 시 높아질 수 있음)",
+          "식욕 감소·보채기·졸림"
+        ],
+        "caution": [
+          "39°C 이상 발열 → 소아과 방문",
+          "접종 부위 직경 7cm 이상 부종 → 상담"
+        ],
+        "emergency": [
+          "아나필락시스 증상 → 즉시 응급실"
+        ]
+      }
+    },
+    {
+      "id": "Rota",
+      "name": "로타바이러스",
+      "timing": "2·4개월 (2가 백신) / 2·4·6개월 (5가 백신)",
+      "description": "경구 투여 (먹는 백신)",
+      "order_num": 7,
+      "effects": {
+        "normal": [
+          "구토 (접종 후 수일 내)",
+          "설사 (묽은 변)",
+          "보채기·식욕 감소·미열"
+        ],
+        "caution": [
+          "설사·구토가 2일 이상 지속 → 상담",
+          "혈변 발생 시 → 즉시 소아과 (장중첩증 의심)"
+        ],
+        "emergency": [
+          "심한 복통·혈변·구토 반복 → 즉시 응급실 (장중첩증)"
+        ]
+      }
+    },
+    {
+      "id": "MMR",
+      "name": "MMR (홍역·유행성이하선염·풍진)",
+      "timing": "12-15개월 / 만 4-6세 (총 2회)",
+      "description": "피하주사",
+      "order_num": 8,
+      "effects": {
+        "normal": [
+          "접종 7-12일 후 발열 (38-39°C, 1-5일)",
+          "접종 7-10일 후 희미한 발진 (홍역 유사, 2-3일)",
+          "귀밑 림프절·침샘 가볍게 부음 (접종 2-3주 후)",
+          "열성 경련 (드물게, 발열성)"
+        ],
+        "caution": [
+          "발진이 7일 이상 지속 → 상담",
+          "고열 (40°C 이상) → 소아과 방문"
+        ],
+        "emergency": [
+          "경련 동반 의식 소실 → 즉시 응급실",
+          "아나필락시스 증상 → 즉시 응급실"
+        ]
+      }
+    },
+    {
+      "id": "Varicella",
+      "name": "수두",
+      "timing": "12-15개월 (1회)",
+      "description": "피하주사",
+      "order_num": 9,
+      "effects": {
+        "normal": [
+          "접종 부위 발적·부종",
+          "접종 7-21일 후 가벼운 수두 유사 발진 (수포 5개 미만)",
+          "미열"
+        ],
+        "caution": [
+          "발진이 전신으로 퍼질 경우 상담",
+          "면역저하 가족원 있으면 사전에 의사 상담"
+        ],
+        "emergency": [
+          "아나필락시스 증상 → 즉시 응급실"
+        ]
+      }
+    },
+    {
+      "id": "HepA",
+      "name": "A형간염",
+      "timing": "12개월 이후 1차 / 6개월 후 2차 (총 2회)",
+      "description": "근육주사",
+      "order_num": 10,
+      "effects": {
+        "normal": [
+          "접종 부위 통증·발적·부종 (24-48시간)",
+          "두통·피로감",
+          "미열"
+        ],
+        "caution": [
+          "심한 구토·복통 지속 시 상담"
+        ],
+        "emergency": [
+          "아나필락시스 증상 → 즉시 응급실"
+        ]
+      }
+    },
+    {
+      "id": "JE",
+      "name": "일본뇌염 (사백신)",
+      "timing": "12·13개월 / 24개월 / 만 6세 / 만 12세 (총 5회)",
+      "description": "피하주사",
+      "order_num": 11,
+      "effects": {
+        "normal": [
+          "접종 부위 발적·부종·통증",
+          "발열 (38°C 미만)",
+          "두통·근육통"
+        ],
+        "caution": [
+          "39°C 이상 발열 지속 → 소아과 방문"
+        ],
+        "emergency": [
+          "신경계 증상 (경련·의식변화) → 즉시 응급실",
+          "아나필락시스 증상 → 즉시 응급실"
+        ]
+      }
+    },
+    {
+      "id": "Flu",
+      "name": "인플루엔자 (독감)",
+      "timing": "6개월 이후 매년 (첫해 4주 간격 2회)",
+      "description": "근육주사, 매년 10월 이전 권장",
+      "order_num": 12,
+      "effects": {
+        "normal": [
+          "접종 부위 발적·통증·부종 (1-2일)",
+          "미열·피로감·근육통"
+        ],
+        "caution": [
+          "달걀 알레르기 심한 경우 의사 상담 후 접종",
+          "38.5°C 이상 발열 지속 → 소아과"
+        ],
+        "emergency": [
+          "아나필락시스 증상 → 즉시 응급실 (접종 후 15-30분 의료기관 대기 필수)"
+        ]
+      }
+    }
+  ]
+}

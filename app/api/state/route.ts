@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
         category:  t.category,
         completed: Boolean(t.completed),
         createdAt: Number(t.created_at),
+        date:      t.todo_date ? String(t.todo_date).slice(0, 10) : undefined,
       })),
       health: {
         logs: hlRows[0].map(l => ({
