@@ -2695,7 +2695,7 @@ ${headStyles}
                     return ty === calYear && tm - 1 === calMonth;
                   }).sort((a, b) => (a.date||'').localeCompare(b.date||''));
                   const typeLabel: Record<string,string> = { vaccine:'💉 접종', food:'🥣 이유식', check:'🏥 검진' };
-                  const catLabel: Record<TodoCat,string> = { vaccine:'💉 예방접종', formula:'🍼 분유', solid:'🥣 이유식', other:'📌 기타' };
+                  const catLabel: Record<TodoCat,string> = { vaccine:'💉 예방접종', feeding:'🍼 수유', play:'🧸 놀이', supplies:'🛒 생필품', other:'📌 기타' };
                   const total = evs.length + todosThisMonth.length;
                   if (total === 0) return <div className="cal-events-empty">이 달에는 일정이 없어요 🌱</div>;
                   return <>
