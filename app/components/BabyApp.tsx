@@ -1013,10 +1013,10 @@ export default function BabyApp() {
     setAppState(s);
   }, []);
 
-  const showToast = useCallback((msg: string) => {
+  const showToast = useCallback((msg: string, duration = 2400) => {
     setToast(msg); setToastVisible(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToastVisible(false), 2400);
+    toastTimer.current = setTimeout(() => setToastVisible(false), duration);
   }, []);
 
   // ── Report download / share ───────────────────────────────────
@@ -3166,7 +3166,7 @@ ${headStyles}
                   if (errMsg === 'no-speech')       showToast('🎤 음성이 감지되지 않았어요. 다시 시도해주세요');
                   else if (errMsg === 'not-allowed') showToast('🎤 마이크 권한을 허용해주세요');
                   else if (errMsg === 'network')     showToast('🎤 네트워크 오류로 음성 인식에 실패했어요');
-                  else if (errMsg === 'audio-capture') showToast('🎤 마이크를 사용할 수 없어요. 통화·Zoom 등 다른 앱이 마이크를 점유 중이면 종료 후 다시 시도해주세요');
+                  else if (errMsg === 'audio-capture') showToast('🎤 마이크를 사용할 수 없어요. 통화·Zoom 등 다른 앱이 마이크를 점유 중이면 종료 후 다시 시도해주세요', 5000);
                   else                               showToast(`🎤 음성 인식 오류: ${errMsg}`);
                 };
 
