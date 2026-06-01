@@ -759,6 +759,7 @@ export default function BabyApp() {
   const [hfFreq, setHfFreq] = useState('');
   const [hfMedNote, setHfMedNote] = useState('');
   const [hfMedDate, setHfMedDate] = useState('');
+  const [isMedOcrLoading, setIsMedOcrLoading] = useState(false);
 
   // Baby photo
   const [babyPhoto, setBabyPhoto] = useState<string|null>(null);
@@ -1995,6 +1996,56 @@ ${headStyles}
             )}
             {healthModalMode==='medication' && (
               <>
+                {/* OCR 촬영 버튼 */}
+                <div style={{marginBottom:'12px'}}>
+                  <label style={{display:'block',fontSize:'13px',fontWeight:600,marginBottom:'6px'}}>약 봉투 OCR 인식</label>
+                  <label style={{
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',
+                    padding:'10px',borderRadius:'12px',border:'2px dashed #6366f1',
+                    cursor: isMedOcrLoading ? 'not-allowed' : 'pointer',
+                    background:'#f5f3ff',color:'#6366f1',fontWeight:600,fontSize:'14px',
+                    opacity: isMedOcrLoading ? 0.6 : 1,
+                  }}>
+                    <input type="file" accept="image/*" capture="environment" style={{display:'none'}}
+                      disabled={isMedOcrLoading}
+                      onChange={async e => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setIsMedOcrLoading(true);
+                        try {
+                          const base64 = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                          });
+                          const res = await fetch('/api/ocr-medicine', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}),
+                            },
+                            body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
+                          });
+                          const data = await res.json();
+                          if (data.error) { showToast('인식 실패: ' + data.error); return; }
+                          if (data.name)  setHfMedname(data.name);
+                          if (data.dose)  setHfDose(data.dose);
+                          if (data.freq)  setHfFreq(data.freq);
+                          if (data.note)  setHfMedNote(data.note);
+                          showToast('📷 약 봉투 인식 완료! 내용을 확인해주세요.');
+                        } catch {
+                          showToast('이미지 처리 중 오류가 발생했어요.');
+                        } finally {
+                          setIsMedOcrLoading(false);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                    {isMedOcrLoading ? '📷 인식 중...' : '📷 약 봉투 촬영하기'}
+                  </label>
+                  <p style={{fontSize:'11px',color:'#999',margin:'4px 0 0',textAlign:'center'}}>촬영하면 약 이름·용량·횟수가 자동 입력돼요</p>
+                </div>
                 <div className="form-group"><label>약 이름</label><input type="text" value={hfMedname} onChange={e=>setHfMedname(e.target.value)} placeholder="예: 타이레놀 시럽, 훼스탈 등" /></div>
                 <div className="time-row">
                   <div className="form-group"><label>1회 용량</label><input type="text" value={hfDose} onChange={e=>setHfDose(e.target.value)} placeholder="예: 5ml" /></div>
@@ -2737,6 +2788,17 @@ ${headStyles}
                 ))}
               </div>
             </div>
+            <div className="section-card">
+              <p className="info-note">💡 비대면 진료가 필요하시면 아래 서비스를 이용해보세요</p>
+              <div className="telehealth-links">
+                {([{icon:'🏥',name:'닥터나우',desc:'24시간 비대면 진료 서비스',url:'https://www.doctornow.co.kr'},{icon:'👨‍⚕️',name:'올라케어',desc:'소아과 전문 비대면 상담',url:'https://www.ollacare.com'}] as {icon:string;name:string;desc:string;url:string}[]).map(({icon,name,desc,url})=>(
+                  <a key={name} href={url} target="_blank" rel="noopener noreferrer" className="telehealth-card" style={{textDecoration:'none',color:'inherit'}}>
+                    <span className="telehealth-icon">{icon}</span>
+                    <div><strong>{name}</strong><p>{desc}</p></div>
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Medication Tab */}
@@ -2754,14 +2816,6 @@ ${headStyles}
                     <div className="med-name">💊 {m.name}</div>
                     <div className="med-detail">{m.dose?m.dose+' · ':''}{m.freq||''}{m.note?' · '+m.note:''}<span style={{marginLeft:'4px',color:'var(--text-light)',fontSize:'11px'}}>{m.date}</span></div>
                   </div>
-                ))}
-              </div>
-            </div>
-            <div className="section-card">
-              <p className="info-note">💡 비대면 진료가 필요하시면 아래 서비스를 이용해보세요</p>
-              <div className="telehealth-links">
-                {[{icon:'🏥',name:'닥터나우',desc:'24시간 비대면 진료 서비스'},{icon:'👨‍⚕️',name:'올라케어',desc:'소아과 전문 비대면 상담'},{icon:'📱',name:'메디히어',desc:'소아청소년과 전문의 연결'}].map(({icon,name,desc})=>(
-                  <div key={name} className="telehealth-card"><span className="telehealth-icon">{icon}</span><div><strong>{name}</strong><p>{desc}</p></div></div>
                 ))}
               </div>
             </div>
