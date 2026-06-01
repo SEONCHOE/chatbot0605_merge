@@ -5,8 +5,8 @@ import { Gaegu } from "next/font/google";
 const gaegu = Gaegu({ weight: ['400', '700'], subsets: ['latin'], display: 'swap', variable: '--font-gaegu' });
 
 export const metadata: Metadata = {
-  title: "채아의 기록",
-  description: "채아의 수면, 수유, 기저귀, 건강, 발달을 기록하는 육아 일지",
+  title: "아기의 기록",
+  description: "아기의 수면, 수유, 기저귀, 건강, 발달을 기록하는 육아 일지",
 };
 
 export const viewport: Viewport = {
