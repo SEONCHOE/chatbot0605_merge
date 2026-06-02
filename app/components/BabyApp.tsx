@@ -33,7 +33,7 @@ interface Log {
   amount?: number | null; feedType?: string; color?: string; reason?: string;
 }
 interface Todo { id: string; text: string; category: TodoCat; completed: boolean; createdAt: number; date?: string; }
-interface HealthLog { id: string; type: HealthLogType; detail: string; date: string; time: string; }
+interface HealthLog { id: string; type: HealthLogType; detail: string; date: string; time: string; photo?: string; }
 interface Medication { id: string; name: string; dose: string; freq: string; note: string; date: string; }
 interface Growth { id: string; date: string; height?: number; weight?: number; }
 interface AppState {
@@ -754,6 +754,9 @@ export default function BabyApp() {
   const [hfDetail, setHfDetail] = useState('');
   const [hfDate, setHfDate] = useState('');
   const [hfTime2, setHfTime2] = useState('');
+  const [hfPhoto, setHfPhoto] = useState<string>('');
+  const [isHfRecording, setIsHfRecording] = useState(false);
+  const hfRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const [hfMedname, setHfMedname] = useState('');
   const [hfDose, setHfDose] = useState('');
   const [hfFreq, setHfFreq] = useState('');
@@ -1201,13 +1204,13 @@ ${headStyles}
   // ── Health ───────────────────────────────────────────────────
   const openHealthModal = (mode: HealthModalMode) => {
     setHealthModalMode(mode);
-    setHfDetail(''); setHfDate(todayStr()); setHfTime2(nowHHMM());
+    setHfDetail(''); setHfDate(todayStr()); setHfTime2(nowHHMM()); setHfPhoto('');
     setHfMedname(''); setHfDose(''); setHfFreq(''); setHfMedNote(''); setHfMedDate(todayStr());
     setModal('healthLog');
   };
   const saveHealthLog = () => {
     if (!hfDetail.trim()) { showToast('내용을 입력해주세요'); return; }
-    const newLog = { id:uid(), type:hfType, detail:hfDetail.trim(), date:hfDate, time:hfTime2 };
+    const newLog: HealthLog = { id:uid(), type:hfType, detail:hfDetail.trim(), date:hfDate, time:hfTime2, ...(hfPhoto ? { photo: hfPhoto } : {}) };
     const ns = { ...appState, health: { ...appState.health } };
     ns.health.logs = [...(ns.health.logs||[]), newLog];
     saveAppState(ns); setModal(null); showToast('🌡️ 건강 기록이 저장됐어요!');
@@ -1986,7 +1989,48 @@ ${headStyles}
                     <option value="symptom">😷 증상</option><option value="other">📝 기타</option>
                   </select>
                 </div>
-                <div className="form-group"><label>상세 내용</label><textarea value={hfDetail} onChange={e=>setHfDetail(e.target.value)} placeholder="예: 37.8℃, 좌측 뺨에 발진 등" rows={3} /></div>
+                <div className="form-group">
+                  <label>상세 내용</label>
+                  <div style={{position:'relative'}}>
+                    <textarea value={hfDetail} onChange={e=>setHfDetail(e.target.value)} placeholder="예: 37.8℃, 좌측 뺨에 발진 등" rows={3} style={{paddingRight:'2.8rem'}} />
+                    <button type="button" title={isHfRecording?'음성 인식 중지':'음성으로 입력'}
+                      onClick={()=>{
+                        const SR = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
+                        if (!SR) { alert('이 브라우저는 음성 인식을 지원하지 않습니다.'); return; }
+                        if (isHfRecording) { hfRecognitionRef.current?.stop(); return; }
+                        const r = new SR();
+                        r.lang='ko-KR'; r.interimResults=false; r.maxAlternatives=1;
+                        r.onresult=(e:SpeechRecognitionEvent)=>{ const t=e.results[0][0].transcript; setHfDetail(prev=>prev?prev+' '+t:t); };
+                        r.onerror=()=>setIsHfRecording(false);
+                        r.onend=()=>setIsHfRecording(false);
+                        hfRecognitionRef.current=r; r.start(); setIsHfRecording(true);
+                      }}
+                      style={{position:'absolute',right:'0.5rem',bottom:'0.5rem',background:isHfRecording?'#ef4444':'#6366f1',color:'#fff',border:'none',borderRadius:'50%',width:'2rem',height:'2rem',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:'1rem',flexShrink:0}}>
+                      {isHfRecording?'⏹':'🎤'}
+                    </button>
+                  </div>
+                </div>
+                {/* 사진 첨부 */}
+                <div className="form-group">
+                  <label>사진 첨부 <span style={{fontWeight:400,color:'#aaa',fontSize:'12px'}}>(선택)</span></label>
+                  <label style={{display:'flex',alignItems:'center',gap:'8px',padding:'9px 12px',borderRadius:'10px',border:'2px dashed #e0e0e0',cursor:'pointer',fontSize:'13px',color:'#888',background:'#fafafa'}}>
+                    <input type="file" accept="image/*" capture="environment" style={{display:'none'}}
+                      onChange={async e=>{
+                        const file=e.target.files?.[0]; if(!file) return;
+                        const reader=new FileReader();
+                        reader.onload=()=>setHfPhoto(reader.result as string);
+                        reader.readAsDataURL(file);
+                        e.target.value='';
+                      }} />
+                    📷 {hfPhoto ? '사진 변경' : '촬영 또는 갤러리에서 선택'}
+                  </label>
+                  {hfPhoto && (
+                    <div style={{marginTop:'8px',position:'relative',display:'inline-block'}}>
+                      <img src={hfPhoto} alt="첨부 사진" style={{maxWidth:'100%',maxHeight:'160px',borderRadius:'10px',objectFit:'cover'}} />
+                      <button onClick={()=>setHfPhoto('')} style={{position:'absolute',top:'4px',right:'4px',background:'rgba(0,0,0,0.5)',color:'#fff',border:'none',borderRadius:'50%',width:'22px',height:'22px',cursor:'pointer',fontSize:'12px',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+                    </div>
+                  )}
+                </div>
                 <div className="time-row">
                   <div className="form-group"><label>날짜</label><input type="date" value={hfDate} onChange={e=>setHfDate(e.target.value)} /></div>
                   <div className="form-group"><label>시간</label><input type="time" value={hfTime2} onChange={e=>setHfTime2(e.target.value)} /></div>
@@ -2783,7 +2827,11 @@ ${headStyles}
                 ) : [...appState.health.logs].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).map(l=>(
                   <div key={l.id} className="health-log-item">
                     <span className={`hl-badge ${l.type}`}>{{temp:'체온',rash:'피부',symptom:'증상',other:'기타'}[l.type]}</span>
-                    <div><div className="hl-detail">{l.detail}</div><div className="hl-time">{l.date} {l.time}</div></div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div className="hl-detail">{l.detail}</div>
+                      <div className="hl-time">{l.date} {l.time}</div>
+                      {l.photo && <img src={l.photo} alt="건강 기록 사진" style={{marginTop:'6px',maxWidth:'100%',maxHeight:'120px',borderRadius:'8px',objectFit:'cover',display:'block'}} />}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2957,6 +3005,32 @@ ${headStyles}
                             <span className="rpt-issue-date">{l.date} {l.time}</span>
                           </div>
                           <div className="rpt-issue-detail">{l.detail}</div>
+                          {l.photo && (
+                            <img src={l.photo} alt="건강 기록 사진"
+                              style={{marginTop:'8px',width:'100%',maxHeight:'140px',objectFit:'cover',borderRadius:'8px',display:'block'}} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Medications */}
+                <div className="section-card">
+                  <h3 className="section-title hand rpt-section-title">복약 정보</h3>
+                  {(!appState.health.medications || appState.health.medications.length === 0) ? (
+                    <div className="rpt-empty-sm">해당 내용이 없습니다</div>
+                  ) : (
+                    <div className="rpt-issues">
+                      {[...appState.health.medications].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(m=>(
+                        <div key={m.id} className="rpt-issue-card">
+                          <div className="rpt-issue-top">
+                            <span className="rpt-issue-type">💊 {m.name}</span>
+                            <span className="rpt-issue-date">{m.date}</span>
+                          </div>
+                          <div className="rpt-issue-detail">
+                            {[m.dose, m.freq, m.note].filter(Boolean).join(' · ')}
+                          </div>
                         </div>
                       ))}
                     </div>
