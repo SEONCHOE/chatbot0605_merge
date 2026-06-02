@@ -870,20 +870,32 @@ export default function BabyApp() {
 
   // Load from DB via API
   useEffect(() => {
-    const storedBabyId = localStorage.getItem('baby_id');
-    const stateUrl = storedBabyId ? `/api/state?babyId=${storedBabyId}` : null;
-    (stateUrl
-      ? fetch(stateUrl).then(r => r.ok ? r.json() : null).then(data => { if (data) setAppState(Object.assign(defaultState(), data)); }).catch(() => {})
-      : Promise.resolve()
-    ).finally(() => setMounted(true));
+    // localStorage 보조 데이터 즉시 로드
     const saved = localStorage.getItem('baby_photo');
     if (saved) setBabyPhoto(saved);
     const oaiKey = localStorage.getItem('user_openai_key') || '';
-    const ytKey = localStorage.getItem('user_youtube_key') || '';
-    setUserOpenAIKey(oaiKey);
-    setUserYoutubeKey(ytKey);
-    userOpenAIKeyRef.current = oaiKey;
-    userYoutubeKeyRef.current = ytKey;
+    const ytKey  = localStorage.getItem('user_youtube_key') || '';
+    setUserOpenAIKey(oaiKey); setUserYoutubeKey(ytKey);
+    userOpenAIKeyRef.current = oaiKey; userYoutubeKeyRef.current = ytKey;
+
+    // 캐시가 있으면 즉시 렌더링 (체감 속도 향상)
+    const storedBabyId = localStorage.getItem('baby_id');
+    const cachedRaw = localStorage.getItem('app_state_cache');
+    if (cachedRaw) {
+      try {
+        const cached = JSON.parse(cachedRaw);
+        setAppState(Object.assign(defaultState(), cached));
+      } catch {}
+    }
+    setMounted(true); // 캐시 유무와 무관하게 즉시 화면 표시
+
+    // DB에서 최신 데이터 백그라운드 갱신
+    if (storedBabyId) {
+      fetch(`/api/state?babyId=${storedBabyId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) { setAppState(Object.assign(defaultState(), data)); try { localStorage.setItem('app_state_cache', JSON.stringify(data)); } catch {} } })
+        .catch(() => {});
+    }
   }, []);
 
   useEffect(() => { userOpenAIKeyRef.current = userOpenAIKey; }, [userOpenAIKey]);
@@ -1023,6 +1035,7 @@ export default function BabyApp() {
   // ── Helpers ──────────────────────────────────────────────────
   const saveAppState = useCallback((s: AppState) => {
     setAppState(s);
+    try { localStorage.setItem('app_state_cache', JSON.stringify(s)); } catch {}
   }, []);
 
   const showToast = useCallback((msg: string, duration = 2400) => {
