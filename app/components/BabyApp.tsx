@@ -2461,7 +2461,7 @@ ${headStyles}
             </div>
 
             <div className="section-card">
-              <h3 className="section-title hand">오늘의 알림 🔔</h3>
+              <h3 className="section-title hand">오늘의 알림</h3>
               <div className="alerts-list">
                 {alerts.length===0 ? (
                   <div className="empty-state" style={{padding:'12px'}}><div className="empty-icon" style={{fontSize:'28px'}}>🔕</div><p style={{fontSize:'12px'}}>오늘은 특별한 알림이 없어요</p></div>
