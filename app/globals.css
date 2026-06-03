@@ -522,6 +522,13 @@ body { display: flex; justify-content: center; overflow: hidden; }
   padding: 3px 9px; border-radius: var(--r-pill); background: var(--orange-pale);
 }
 .todo-actions { display: flex; align-items: center; gap: var(--sp-xs); }
+.todo-edit-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--border);
+  font-size: 13px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .12s;
+}
+.todo-edit-btn:hover { background: var(--orange-pale); }
 .todo-delete-btn {
   width: 28px; height: 28px; border-radius: 50%;
   background: #fff2f2; color: #d44; font-size: 15px;

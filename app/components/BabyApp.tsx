@@ -140,19 +140,15 @@ function calcBabyAgeMonths(birthDate: string): number {
 
 function buildSeedItems(birthDate: string, babyId: number|null, existingTexts: Set<string>): Todo[] {
   const age = calcBabyAgeMonths(birthDate);
-  const addM = (d: string, m: number) => {
-    const dt = new Date(d); dt.setMonth(dt.getMonth() + m);
-    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-  };
   return AUTO_SCHED
-    .filter(s => s.m >= age && s.m <= age + 3) // >= 포함: 현재 개월 항목도 시드
+    .filter(s => s.m >= age && s.m <= age + 3)
     .filter(s => !existingTexts.has(s.text))
     .map(s => ({
       id: uid(), text: s.text, category: s.category as TodoCat,
       completed: false as const, createdAt: Date.now(),
-      date: addM(birthDate, s.m),
+      // 날짜 미지정: 부모가 직접 예약일을 설정하도록
     }));
-  void babyId; // used externally
+  void babyId;
 }
 const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿', play:'🧸', bath:'🛁', measure:'📏', other:'📝' };
 const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접종', feeding:'수유', play:'놀이', supplies:'생필품', other:'기타' };
@@ -1058,6 +1054,12 @@ export default function BabyApp() {
   const [healthTab, setHealthTab] = useState<HealthTab>('report');
   const todoInputRef = useRef<HTMLInputElement>(null);
 
+  // Todo 수정 모달
+  const [editingTodo, setEditingTodo] = useState<Todo|null>(null);
+  const [editTodoText, setEditTodoText] = useState('');
+  const [editTodoCat, setEditTodoCat] = useState<TodoCat>('vaccine');
+  const [editTodoDate, setEditTodoDate] = useState('');
+
   // Report
   const [reportMode, setReportMode] = useState<ReportMode>('week');
   const [showGrowthForm, setShowGrowthForm] = useState(false);
@@ -1475,10 +1477,9 @@ export default function BabyApp() {
     const headStyles = Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'))
       .map(e => e.outerHTML).join('\n');
 
-    const win = window.open('', '_blank', 'width=960,height=700');
-    if (!win) { window.print(); return; }
-
-    win.document.write(`<!DOCTYPE html><html><head>
+    // 모바일/팝업 차단 대비: iframe 우선, 실패 시 window.open 시도
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const printContent = `<!DOCTYPE html><html><head>
 <meta charset="utf-8"><title>육아 리포트</title>
 ${headStyles}
 <style>
@@ -1563,11 +1564,71 @@ ${headStyles}
   .vac-name { font-size:11px; font-weight:700; }
   .vac-sub  { font-size:9px; color:#9ca3af; }
 </style>
-</head><body>${el.outerHTML}</body></html>`);
+</head><body>${el.outerHTML}</body></html>`;
+    if (isMobile) {
+      // 모바일: 숨겨진 iframe으로 인쇄 (PDF 저장 가능)
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:0;z-index:9999;background:#fff;';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc) {
+        doc.open(); doc.write(printContent); doc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          // iOS는 print() 후 사용자가 PDF 저장 선택
+          setTimeout(() => document.body.removeChild(iframe), 3000);
+        }, 600);
+      } else {
+        document.body.removeChild(iframe);
+        showToast('PDF 출력을 지원하지 않는 브라우저예요');
+      }
+      return;
+    }
+    // 데스크톱: 새 창으로 인쇄
+    const win = window.open('', '_blank', 'width=960,height=700');
+    if (!win) { window.print(); return; }
+    win.document.write(printContent);
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); win.close(); }, 700);
   }, []);
+
+  const handleKakaoShare = useCallback(() => {
+    const appKey = process.env.NEXT_PUBLIC_KAKAO_APP_KEY;
+    const babyName = appState.baby?.name ?? '아기';
+    const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 0;
+    const url = window.location.href;
+    const text = `👶 ${babyName} (${months}개월) 육아 리포트\n${babyName}의 성장·건강 기록을 확인해보세요!`;
+
+    const doShare = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const K = (window as any).Kakao;
+      if (!K) { showToast('카카오 SDK를 불러오지 못했어요'); return; }
+      if (!K.isInitialized()) K.init(appKey);
+      K.Share.sendDefault({
+        objectType: 'text',
+        text,
+        link: { mobileWebUrl: url, webUrl: url },
+        buttons: [{ title: '리포트 보기', link: { mobileWebUrl: url, webUrl: url } }],
+      });
+    };
+
+    if (!appKey) {
+      // 앱 키 없으면 네이티브 공유로 대체
+      if (navigator.share) { navigator.share({ title: `${babyName} 육아 리포트`, text, url }).catch(()=>{}); }
+      else { navigator.clipboard.writeText(`${text}\n${url}`).catch(()=>{}); showToast('📋 링크가 복사됐어요! 카톡에 붙여넣기 해보세요.'); }
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(window as any).Kakao) {
+      const s = document.createElement('script');
+      s.src = 'https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js';
+      s.crossOrigin = 'anonymous';
+      s.onload = doShare;
+      s.onerror = () => showToast('카카오 SDK 로딩 실패');
+      document.head.appendChild(s);
+    } else { doShare(); }
+  }, [appState.baby]);
 
   const handleShare = useCallback(async () => {
     const babyName = appState.baby?.name ?? '아기';
@@ -1767,6 +1828,23 @@ ${headStyles}
     ns.todos = ns.todos.filter(t => t.id!==id);
     saveAppState(ns);
     fetch(`/api/todos/${id}`, { method:'DELETE' }).catch(console.error);
+  };
+
+  const openEditTodo = (todo: Todo) => {
+    setEditingTodo(todo);
+    setEditTodoText(todo.text);
+    setEditTodoCat(todo.category);
+    setEditTodoDate(todo.date || '');
+  };
+  const saveEditTodo = () => {
+    if (!editingTodo || !editTodoText.trim()) return;
+    const updated: Todo = { ...editingTodo, text: editTodoText.trim(), category: editTodoCat, date: editTodoDate || undefined };
+    const ns = { ...appState };
+    ns.todos = ns.todos.map(t => t.id===editingTodo.id ? updated : t);
+    saveAppState(ns);
+    fetch(`/api/todos/${editingTodo.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...updated, babyId:appState.babyId }) }).catch(console.error);
+    setEditingTodo(null);
+    showToast('일정이 수정됐어요 ✓');
   };
 
   // ── Growth ───────────────────────────────────────────────────
@@ -2544,6 +2622,47 @@ ${headStyles}
         </div>
       </div>
 
+      {/* Todo Edit Modal */}
+      {editingTodo && (
+        <div className="modal-overlay active" role="dialog" aria-modal="true" onClick={e=>{if(e.target===e.currentTarget)setEditingTodo(null);}}>
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>일정 수정</h3>
+              <button className="modal-close" onClick={()=>setEditingTodo(null)}>✕</button>
+            </div>
+            <div className="log-form-content">
+              <div className="form-group">
+                <label>내용</label>
+                <input type="text" value={editTodoText} onChange={e=>setEditTodoText(e.target.value)}
+                  placeholder="일정 내용" maxLength={60}
+                  onKeyDown={e=>{ if(e.key==='Enter') saveEditTodo(); }} autoFocus />
+              </div>
+              <div className="form-group">
+                <label>카테고리</label>
+                <select value={editTodoCat} onChange={e=>setEditTodoCat(e.target.value as TodoCat)}>
+                  <option value="vaccine">💉 예방접종</option>
+                  <option value="feeding">🍼 수유·이유식</option>
+                  <option value="play">🧸 놀이·발달</option>
+                  <option value="supplies">🛒 생필품</option>
+                  <option value="other">📌 기타</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>날짜 <span style={{fontSize:'11px',color:'var(--text-light)'}}>— 직접 예약일을 정하면 입력해주세요</span></label>
+                <input type="date" value={editTodoDate} onChange={e=>setEditTodoDate(e.target.value)} />
+                {editTodoDate && (
+                  <button type="button" style={{marginTop:'4px',fontSize:'11px',color:'#ef4444',background:'none',border:'none',cursor:'pointer',padding:0}}
+                    onClick={()=>setEditTodoDate('')}>날짜 지우기</button>
+                )}
+              </div>
+              <button className="btn-primary btn-full" onClick={saveEditTodo}>수정 완료</button>
+              <button className="btn-secondary btn-full" style={{marginTop:'8px',color:'#ef4444',borderColor:'#fca5a5'}}
+                onClick={()=>{ deleteTodo(editingTodo.id); setEditingTodo(null); }}>일정 삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Vaccine Record Modal */}
       {vacModal && (
         <div className="modal-overlay active" role="dialog" aria-modal="true" onClick={e=>{if(e.target===e.currentTarget)setVacModal(null);}}>
@@ -3103,7 +3222,7 @@ ${headStyles}
                       else dateLabel = `${diff}일 후`;
                     }
                     return (
-                      <div key={t.id} className="upcoming-item">
+                      <div key={t.id} className="upcoming-item" style={{cursor:'pointer'}} onClick={()=>openEditTodo(t)}>
                         <div className={`upcoming-cat-icon cat-${t.category}`}>{t.category==='vaccine'?'💉':t.category==='feeding'?'🍼':t.category==='play'?'🧸':t.category==='supplies'?'🛒':'📌'}</div>
                         <div className="upcoming-text">
                           <div className="upcoming-title">{t.text}</div>
@@ -3274,6 +3393,7 @@ ${headStyles}
                     </div>
                   </div>
                   <div className="todo-actions">
+                    <button className="todo-edit-btn" onClick={()=>openEditTodo(todo)} title="수정">✏️</button>
                     <button className="todo-delete-btn" onClick={()=>deleteTodo(todo.id)}>✕</button>
                   </div>
                 </div>
@@ -3401,13 +3521,13 @@ ${headStyles}
                       const [,tm,td] = (todo.date||'').split('-').map(Number);
                       const dotType = catToDotType[todo.category];
                       return (
-                        <div key={todo.id} className="cal-event-item">
+                        <div key={todo.id} className="cal-event-item" style={{cursor:'pointer'}} onClick={()=>openEditTodo(todo)}>
                           <div className={`cal-event-date type-${dotType}`}>{tm}월<br/>{td}일</div>
                           <div className="cal-event-info">
                             <div className="cal-event-label">{todo.text}</div>
                             <div className="cal-event-sub">{catLabel[todo.category]}</div>
                           </div>
-                          <div className={`cal-event-badge type-${dotType}`}>{todo.completed ? '✓ 완료' : '예정'}</div>
+                          <div className={`cal-event-badge type-${dotType}`}>{todo.completed ? '✓ 완료' : '수정 ✏️'}</div>
                         </div>
                       );
                     })}
@@ -4456,21 +4576,7 @@ ${headStyles}
             <div className="share-sheet-title">공유하기</div>
             <div className="share-sheet-grid">
               {/* 카카오톡 */}
-              <button className="share-opt" onClick={async()=>{
-                const babyName = appState.baby?.name ?? '아기';
-                const months = ageInfo?.months ?? 0;
-                const shareText = `${babyName} (${months}개월) 육아 리포트\n${window.location.href}`;
-                // PC 카카오톡 URL 스킴 시도
-                const kakaoScheme = `kakaotalk://send?text=${encodeURIComponent(shareText)}`;
-                const a = document.createElement('a');
-                a.href = kakaoScheme; a.click();
-                // fallback: 클립보드 복사
-                setTimeout(async () => {
-                  await navigator.clipboard.writeText(shareText).catch(()=>{});
-                  setShareOverlay(false);
-                  showToast('카카오톡 앱이 열리지 않으면 클립보드에서 붙여넣기 해주세요 💬', 4000);
-                }, 800);
-              }}>
+              <button className="share-opt" onClick={()=>{ setShareOverlay(false); handleKakaoShare(); }}>
                 <span className="share-opt-icon" style={{fontSize:'24px'}}>💬</span>
                 <span>카카오톡</span>
               </button>
