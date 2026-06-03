@@ -924,6 +924,14 @@ function getBotResponse(text: string, babyMonths: number | null, babyName: strin
   return `아직 그 내용은 잘 모르지만 도움이 되고 싶어요! 😊<br><br>아래 주제로 질문해 보시겠어요?<br>💉 예방접종 · 🥣 이유식 · 🍼 분유량 · 😴 수면 · 👶 발달 · 🌡️ 열 대처`;
 }
 
+// 심폐소생술 가이드라인은 명시적 질의 시에만 레퍼런스로 사용
+const CPR_SOURCE = '2020 한국심폐소생술 가이드라인';
+const CPR_KEYWORDS = ['심폐소생술', 'cpr', '소생술', '심정지', '흉부압박', '인공호흡', 'aed', '제세동', '자동심장충격기'];
+function isCprQuery(q: string): boolean {
+  const t = q.toLowerCase();
+  return CPR_KEYWORDS.some(k => t.includes(k));
+}
+
 async function searchRAG(query: string): Promise<{ chunks: RagChunk[]; figures: RagFigure[] }> {
   try {
     const res = await fetch('/api/search', {
@@ -932,7 +940,13 @@ async function searchRAG(query: string): Promise<{ chunks: RagChunk[]; figures: 
       body: JSON.stringify({ query, topChunks: 5, topFigures: 3 }),
     });
     if (!res.ok) throw new Error(`API ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    // 심폐소생술 가이드라인: 관련 키워드 없으면 결과에서 제거
+    if (!isCprQuery(query)) {
+      data.chunks  = (data.chunks  as RagChunk[]).filter(c => c.metadata.source !== CPR_SOURCE);
+      data.figures = (data.figures as RagFigure[]).filter(f => f.metadata.source !== CPR_SOURCE);
+    }
+    return data;
   } catch {
     return { chunks: [], figures: [] };
   }
