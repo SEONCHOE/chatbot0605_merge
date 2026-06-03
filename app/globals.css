@@ -1752,6 +1752,81 @@ body { display: flex; justify-content: center; overflow: hidden; }
   40%            { transform: translateY(-6px); opacity: 1; }
 }
 
+/* ── Vaccine Table ───────────────────────────────────────────── */
+.vac-header-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.vac-legend     { display:flex; align-items:center; font-size:11px; color:var(--text-light); gap:4px; }
+.vac-done-dot   { width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block; }
+.vac-todo-dot   { width:8px;height:8px;border-radius:50%;background:var(--border);display:inline-block; }
+.vac-group-label{ font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:8px;letter-spacing:.04em; }
+
+.vac-table-wrap {
+  overflow-x:auto; border-radius:10px; border:1px solid var(--border);
+  scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+}
+.vac-table-wrap::-webkit-scrollbar { height:4px; }
+.vac-table-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+.vac-table { width:100%; border-collapse:collapse; font-size:12px; }
+.vac-th-name {
+  position:sticky; left:0; z-index:2;
+  background:var(--bg); text-align:left;
+  padding:8px 10px; font-size:11px; font-weight:700;
+  color:var(--text-light); border-bottom:1px solid var(--border);
+  min-width:96px; white-space:nowrap;
+}
+.vac-th-dose {
+  padding:8px 6px; font-size:11px; font-weight:700;
+  color:var(--text-light); border-bottom:1px solid var(--border);
+  text-align:center; min-width:64px;
+}
+.vac-td-name {
+  position:sticky; left:0; z-index:1;
+  background:var(--surface); padding:8px 10px;
+  border-bottom:1px solid var(--border);
+  min-width:96px; vertical-align:middle;
+}
+.vac-name { font-size:12px; font-weight:700; }
+.vac-sub  { font-size:10px; color:var(--text-light); margin-top:1px; }
+.vac-del-custom {
+  font-size:11px; color:#ef4444; background:none; border:none;
+  cursor:pointer; padding:0; line-height:1; margin-top:2px;
+}
+.vac-td {
+  padding:6px 4px; border-bottom:1px solid var(--border);
+  text-align:center; vertical-align:middle; cursor:pointer;
+  transition:background .12s;
+}
+.vac-td:hover { background:var(--orange-pale); }
+.vac-td-na    { background:var(--bg); color:var(--border); cursor:default; }
+.vac-td-na:hover { background:var(--bg); }
+.vac-td-done  { background:#f0fdf4; }
+.vac-td-todo  { background:var(--surface); }
+.vac-check    { font-size:16px; }
+.vac-rec-date { font-size:10px; color:var(--text-mid); margin-top:1px; }
+.vac-rec-hosp { font-size:9px; color:var(--text-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60px; margin:auto; }
+.vac-rec-opt  { font-size:9px; color:#6366f1; }
+.vac-add-btn  { font-size:18px; color:var(--border); line-height:1; }
+.vac-td-todo:hover .vac-add-btn { color:var(--primary); }
+
+.vac-add-custom-btn {
+  margin-top:10px; width:100%; padding:9px;
+  border:1.5px dashed var(--border); border-radius:10px;
+  background:none; color:var(--primary); font-size:13px;
+  font-weight:600; cursor:pointer;
+}
+.vac-add-form {
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  margin-top:10px; padding:10px; background:var(--bg);
+  border-radius:10px; border:1.5px solid var(--primary);
+}
+.vac-add-input {
+  flex:1; min-width:80px; padding:6px 10px;
+  border:1px solid var(--border); border-radius:8px;
+  font-size:12px; background:var(--surface); color:var(--text);
+}
+.vac-add-ok     { padding:6px 14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.vac-add-cancel { padding:6px 10px; background:var(--surface); color:var(--text-light); border:1px solid var(--border); border-radius:8px; font-size:12px; cursor:pointer; white-space:nowrap; }
+
 /* ── Report Stats Card ───────────────────────────────────────── */
 .rpt-stats-card { margin-top: 0; }
 .rpt-stats-grid {
@@ -1873,6 +1948,58 @@ body { display: flex; justify-content: center; overflow: hidden; }
   background: var(--surface); color: var(--text-light);
   border: 1px solid var(--border); border-radius: 20px;
   font-size: 12px; cursor: pointer;
+}
+
+/* ── Development Memo ────────────────────────────────────────── */
+.dev-memo-input-row { display:flex; gap:6px; align-items:center; }
+.dev-memo-date-input {
+  padding:6px 10px; border:1.5px solid var(--border); border-radius:10px;
+  font-size:13px; background:var(--surface); color:var(--text);
+  flex-shrink:0;
+}
+.dev-memo-list {
+  margin-top:12px; display:flex; flex-direction:column; gap:0;
+  border-top:1px solid var(--border);
+}
+.dev-memo-item {
+  padding:10px 0; border-bottom:1px solid var(--border);
+  display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:start;
+  transition:background .12s;
+}
+.dev-memo-item.editing { background:var(--orange-pale); border-radius:8px; padding:10px 8px; }
+.dev-memo-item-date {
+  font-size:11px; font-weight:700; color:var(--primary);
+  white-space:nowrap; padding-top:1px;
+}
+.dev-memo-item-text {
+  font-size:13px; line-height:1.5; color:var(--text);
+  white-space:pre-wrap; word-break:break-all;
+}
+.dev-memo-item-actions {
+  display:flex; gap:4px; flex-shrink:0;
+}
+.dev-memo-item-actions button {
+  padding:3px 8px; font-size:11px; border-radius:6px;
+  border:1px solid var(--border); background:var(--surface);
+  cursor:pointer; color:var(--text-mid);
+}
+.dev-memo-item-actions button:first-child:hover { border-color:var(--primary); color:var(--primary); }
+
+/* ── End Time Toggle ─────────────────────────────────────────── */
+.time-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+.time-label-row label { margin-bottom: 0; }
+.end-time-toggle {
+  font-size: 11px; font-weight: 600; padding: 3px 9px;
+  border-radius: 20px; border: 1.5px solid var(--primary);
+  background: transparent; color: var(--primary); cursor: pointer;
+  white-space: nowrap; transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.end-time-toggle.active {
+  background: var(--primary); color: #fff;
 }
 
 /* ── Time Adjuster Buttons ───────────────────────────────────── */

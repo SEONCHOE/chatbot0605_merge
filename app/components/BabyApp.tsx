@@ -45,6 +45,9 @@ interface AppState {
   development: Record<string, boolean>;
   growth: Growth[];
 }
+interface VaccineRecord { vaccineId: string; dose: number; date: string; hospital: string; option?: string; note?: string; }
+interface CustomVaccine  { id: string; name: string; sub: string; maxDoses: number; }
+interface VaccineInfo    { id: string; name: string; sub: string; maxDoses: number; options?: string[]; }
 interface ChatMsg { id: string; role: 'user' | 'bot'; html: string; isTyping?: boolean; }
 interface MilestoneItem { id: string; text: string; }
 interface MilestoneGroup { minM: number; maxM: number; title: string; icon: string; items: MilestoneItem[]; }
@@ -56,6 +59,27 @@ interface YtCat { id:string; label:string; desc:string; emoji:string; tone:strin
 
 // ── Constants ────────────────────────────────────────────────────
 const TYPE_LABELS: Record<LogType, string> = { sleep:'수면', feed:'수유', pee:'소변', poop:'대변', cry:'울음', walk:'산책', play:'놀이', bath:'목욕', measure:'측정', other:'기타' };
+
+// ── Vaccine schedules ────────────────────────────────────────────
+const VAC_BASIC: VaccineInfo[] = [
+  { id:'BCG',       name:'BCG',       sub:'결핵',              maxDoses:1, options:['피내접종','경피접종'] },
+  { id:'HepB',      name:'B형간염',   sub:'',                  maxDoses:3, options:['유박스비','헥사심','기타'] },
+  { id:'DTaP',      name:'DTaP',      sub:'디프/파상풍/백일해', maxDoses:5 },
+  { id:'IPV',       name:'폴리오',    sub:'소아마비',           maxDoses:4 },
+  { id:'Hib',       name:'뇌수막염',  sub:'Hib',               maxDoses:4 },
+  { id:'PCV',       name:'폐구균',    sub:'',                  maxDoses:4, options:['프리베나','신플로릭스','기타'] },
+  { id:'Varicella', name:'수두',      sub:'',                  maxDoses:1 },
+  { id:'MMR',       name:'MMR',       sub:'홍역/볼거리/풍진',  maxDoses:2 },
+];
+const VAC_OPTIONAL: VaccineInfo[] = [
+  { id:'JEV',  name:'일본뇌염',        sub:'',           maxDoses:5, options:['생백신(2회)','사백신(5회)'] },
+  { id:'HepA', name:'A형간염',         sub:'',           maxDoses:2 },
+  { id:'Rota', name:'로타바이러스',     sub:'',           maxDoses:3, options:['로타릭스(2회)','로타텍(3회)'] },
+  { id:'Flu',  name:'독감',            sub:'인플루엔자',  maxDoses:2 },
+  { id:'MCV',  name:'수막구균',        sub:'',           maxDoses:2 },
+  { id:'HPV',  name:'인유두종바이러스', sub:'HPV',       maxDoses:2 },
+];
+const VAC_MAX_DOSES = 5;
 const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿', play:'🧸', bath:'🛁', measure:'📏', other:'📝' };
 const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접종', feeding:'수유', play:'놀이', supplies:'생필품', other:'기타' };
 
@@ -908,6 +932,7 @@ export default function BabyApp() {
 
   // Add log form
   const [addLogType, setAddLogType] = useState<LogType>('sleep');
+  const [showEndTimeInput, setShowEndTimeInput] = useState(false);
   const [lfStart, setLfStart] = useState('');
   const [lfEnd, setLfEnd] = useState('');
   const [lfTime, setLfTime] = useState('');
@@ -961,14 +986,34 @@ export default function BabyApp() {
 
   // Report
   const [reportMode, setReportMode] = useState<ReportMode>('week');
-
   const [showGrowthForm, setShowGrowthForm] = useState(false);
+
+  // Vaccine records
+  const [vaccineRecords, setVaccineRecords] = useState<VaccineRecord[]>([]);
+  const [customVaccines, setCustomVaccines] = useState<CustomVaccine[]>([]);
+  const [vacModal, setVacModal] = useState<{vaccineId:string; vaccineName:string; dose:number; options?:string[]}|null>(null);
+  const [vacModalDate, setVacModalDate] = useState('');
+  const [vacModalHospital, setVacModalHospital] = useState('');
+  const [vacModalOption, setVacModalOption] = useState('');
+  const [vacModalNote, setVacModalNote] = useState('');
+  const [addingCustomVac, setAddingCustomVac] = useState(false);
+  const [newVacName, setNewVacName] = useState('');
+  const [newVacSub, setNewVacSub] = useState('');
+  const [newVacDoses, setNewVacDoses] = useState('2');
   const [gDate, setGDate] = useState('');
   const [gHeight, setGHeight] = useState('');
   const [gWeight, setGWeight] = useState('');
 
   // Share overlay
   const [shareOverlay, setShareOverlay] = useState(false);
+
+  // Development memos (날짜별 다중 저장)
+  const [devMemos, setDevMemos] = useState<{id:string;date:string;text:string}[]>([]);
+  const [devMemoInput, setDevMemoInput] = useState('');
+  const [devMemoDate, setDevMemoDate] = useState(() => todayStr());
+  const [editingDevMemoId, setEditingDevMemoId] = useState<string|null>(null);
+  const [isDevMemoRecording, setIsDevMemoRecording] = useState(false);
+  const devMemoRecRef = useRef<SpeechRecognitionLike|null>(null);
 
   // Voice overlay
   const [voiceOverlay, setVoiceOverlay] = useState(false);
@@ -1065,6 +1110,18 @@ export default function BabyApp() {
     try {
       const ccRaw = localStorage.getItem('yt_custom_cats');
       if (ccRaw) setYtCustomCats(JSON.parse(ccRaw));
+    } catch {}
+    try {
+      const vrRaw = localStorage.getItem('vaccine_records');
+      if (vrRaw) setVaccineRecords(JSON.parse(vrRaw));
+    } catch {}
+    try {
+      const dm = localStorage.getItem('dev_memos');
+      if (dm) setDevMemos(JSON.parse(dm));
+    } catch {}
+    try {
+      const cvRaw = localStorage.getItem('custom_vaccines');
+      if (cvRaw) setCustomVaccines(JSON.parse(cvRaw));
     } catch {}
 
     // 캐시가 있으면 즉시 렌더링 (체감 속도 향상)
@@ -1235,6 +1292,35 @@ export default function BabyApp() {
     ytFetchList(ageCat, q, cat.sortOrder);
   }, [ytFetchList]);
 
+  // ── Vaccine records ──────────────────────────────────────────
+  const saveVacRecs = (recs: VaccineRecord[]) => {
+    setVaccineRecords(recs);
+    try { localStorage.setItem('vaccine_records', JSON.stringify(recs)); } catch {}
+  };
+  const upsertVacRecord = () => {
+    if (!vacModal || !vacModalDate) return;
+    const existing = vaccineRecords.findIndex(r => r.vaccineId===vacModal.vaccineId && r.dose===vacModal.dose);
+    const rec: VaccineRecord = { vaccineId:vacModal.vaccineId, dose:vacModal.dose, date:vacModalDate, hospital:vacModalHospital, option:vacModalOption||undefined, note:vacModalNote||undefined };
+    saveVacRecs(existing>=0 ? vaccineRecords.map((r,i)=>i===existing?rec:r) : [...vaccineRecords, rec]);
+    setVacModal(null);
+  };
+  const deleteVacRecord = (vaccineId: string, dose: number) => {
+    saveVacRecs(vaccineRecords.filter(r => !(r.vaccineId===vaccineId && r.dose===dose)));
+    setVacModal(null);
+  };
+  const openVacModal = (vac: VaccineInfo|CustomVaccine, dose: number) => {
+    const existing = vaccineRecords.find(r => r.vaccineId===vac.id && r.dose===dose);
+    setVacModalDate(existing?.date || todayStr());
+    setVacModalHospital(existing?.hospital || '');
+    setVacModalOption(existing?.option || '');
+    setVacModalNote(existing?.note || '');
+    setVacModal({ vaccineId:vac.id, vaccineName:vac.name, dose, options:(vac as VaccineInfo).options });
+  };
+  const saveCustomVac = (list: CustomVaccine[]) => {
+    setCustomVaccines(list);
+    try { localStorage.setItem('custom_vaccines', JSON.stringify(list)); } catch {}
+  };
+
   // ── YouTube custom categories ────────────────────────────────
   const saveYtCustomCats = (list: YtCat[]) => {
     setYtCustomCats(list);
@@ -1304,28 +1390,86 @@ export default function BabyApp() {
 <meta charset="utf-8"><title>육아 리포트</title>
 ${headStyles}
 <style>
-  @page { size: A4; margin: 16mm 14mm; }
-  body { background:#fff; margin:0; padding:0 20px 20px;
-    font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif; }
-  #rpt-print-area { height:auto; overflow:visible; display:flex; flex-direction:column; gap:0; }
-  .rpt-page { display:block; }
-  .rpt-page-1 { page-break-after: always; }
-  .rpt-print-cols { display:grid !important; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
-  .rpt-col-left, .rpt-col-right { display:block !important; }
-  .section-card { box-shadow:none; border:1px solid #e8e0d8; margin-bottom:12px;
-    padding:10px 12px; break-inside:avoid; border-radius:12px; }
-  .rpt-hero { background:linear-gradient(135deg,#FFF3EB 0%,#EDFAEC 100%); margin-bottom:12px; }
-  .rpt-actions, .rpt-seg, .growth-form, .btn-secondary,
-  .growth-rec-del, .h-tab-bar, nav { display:none !important; }
-  .donut-wrap { padding:8px 0 4px; }
-  .heatmap-wrap { margin:4px 0; }
-  .heat-cell { height:11px; }
-  .rpt-stats-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
-  .rpt-stat-item { text-align:center; padding:10px 4px; background:#f9fafb; border-radius:10px; }
-  .rpt-stat-icon { font-size:20px; margin-bottom:4px; }
-  .rpt-stat-val { font-size:13px; font-weight:700; color:#1f2937; }
-  .rpt-stat-lbl { font-size:10px; color:#6b7280; margin-top:2px; }
-  .rpt-page2-label { font-size:11px; font-weight:700; color:#9ca3af; padding:14px 0 6px; letter-spacing:.05em; text-transform:uppercase; }
+  @page { size: A4 portrait; margin: 14mm 12mm; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { background:#fff; margin:0; padding:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    font-size:12px; color:#1f2937; }
+  /* 레이아웃 제약 해제 */
+  .page, .h-section, .page-scroll { height:auto !important; overflow:visible !important; position:static !important; max-height:none !important; }
+  #rpt-print-area { display:block !important; height:auto !important; overflow:visible !important; padding:0 !important; }
+  .rpt-page { display:block !important; width:100%; }
+  .rpt-page-1 { page-break-after:always; break-after:page; }
+  .rpt-page-2 { page-break-after:always; break-after:page; }
+  /* 2단 그리드 */
+  .rpt-print-cols { display:grid !important; grid-template-columns:1fr 1fr; gap:12px; align-items:start; width:100%; }
+  .rpt-col-left, .rpt-col-right { display:block !important; min-width:0; }
+  /* 카드 */
+  .section-card { box-shadow:none !important; border:1px solid #e5e7eb; margin-bottom:10px;
+    padding:10px 12px; break-inside:avoid; page-break-inside:avoid; border-radius:10px; }
+  /* 헤더 */
+  .rpt-hero { background:linear-gradient(135deg,#FFF3EB 0%,#EDFAEC 100%) !important; margin-bottom:10px; }
+  /* 숨길 요소 */
+  .rpt-actions, .rpt-seg, .growth-form, .btn-secondary, .growth-rec-del,
+  .h-tab-bar, nav, .end-time-toggle, .time-adj-row, .dev-memo-card { display:none !important; }
+  /* 차트 */
+  .donut-wrap { display:flex; align-items:center; padding:6px 0; gap:12px; }
+  .donut-legend { display:flex; flex-direction:column; gap:4px; font-size:11px; }
+  .donut-legend-item { display:flex; align-items:center; gap:5px; }
+  .heatmap-wrap { margin:4px 0; overflow:visible; }
+  .heat-cell { height:10px !important; min-width:10px; }
+  .act-row { display:flex; align-items:center; gap:6px; margin-bottom:3px; font-size:11px; }
+  .act-day { width:18px; font-size:10px; color:#6b7280; flex-shrink:0; }
+  .act-bar-track { flex:1; height:12px; background:#f3f4f6; border-radius:4px; display:flex; overflow:hidden; }
+  .act-bar-seg { height:100%; }
+  .act-sleep-seg { background:#4FAACC; }
+  .act-feed-seg  { background:#FF8040; }
+  .act-diaper-seg{ background:#E6BC00; }
+  .act-label { font-size:9px; color:#9ca3af; flex-shrink:0; width:130px; }
+  .heatmap-section-title { font-size:10px; font-weight:700; color:#9ca3af; margin:8px 0 4px; }
+  /* 성장 백분위 */
+  .growth-percentile-badge { padding:6px 8px; background:#f9fafb; border-radius:8px; margin-top:6px; }
+  .growth-pct-row { display:flex; align-items:center; gap:8px; }
+  .growth-pct-icon { font-size:18px; }
+  .growth-pct-label { font-size:12px; font-weight:700; }
+  .growth-pct-sub { font-size:10px; color:#9ca3af; }
+  .growth-records { margin-top:6px; }
+  .growth-rec-row { display:flex; gap:8px; font-size:11px; padding:3px 0; border-top:1px solid #f3f4f6; }
+  .growth-rec-date { color:#6b7280; }
+  /* 통계 */
+  .rpt-stats-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:8px; }
+  .rpt-stat-item { text-align:center; padding:8px 4px; background:#f9fafb; border-radius:8px; }
+  .rpt-stat-icon { font-size:18px; margin-bottom:3px; }
+  .rpt-stat-val { font-size:12px; font-weight:700; }
+  .rpt-stat-lbl { font-size:9px; color:#6b7280; margin-top:2px; }
+  /* 페이지2 레이블 */
+  .rpt-page2-label { font-size:10px; font-weight:700; color:#9ca3af; padding:10px 0 4px; letter-spacing:.05em; }
+  /* 건강이슈/복약 */
+  .rpt-issues { display:flex; flex-direction:column; gap:6px; }
+  .rpt-issue-card { padding:7px 9px; background:#f9fafb; border-radius:8px; }
+  .rpt-issue-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+  .rpt-issue-type { font-size:11px; font-weight:700; }
+  .rpt-issue-date { font-size:10px; color:#9ca3af; }
+  .rpt-issue-detail { font-size:11px; color:#4b5563; line-height:1.4; }
+  .rpt-empty-sm { font-size:12px; color:#9ca3af; padding:8px 0; }
+  .section-title, .rpt-section-title { font-size:13px; font-weight:700; margin-bottom:8px; }
+  /* 예방접종 */
+  .vac-add-custom-btn, .vac-add-form, .vac-del-custom, .vac-legend { display:none !important; }
+  .vac-table-wrap { overflow:visible; border:1px solid #e5e7eb; border-radius:8px; }
+  .vac-table { width:100%; border-collapse:collapse; font-size:10px; }
+  .vac-th-name, .vac-td-name { position:static !important; background:#f9fafb !important; padding:5px 7px; border-bottom:1px solid #e5e7eb; min-width:70px; }
+  .vac-th-dose { padding:5px 3px; font-size:9px; text-align:center; border-bottom:1px solid #e5e7eb; min-width:44px; }
+  .vac-td { padding:4px 3px; text-align:center; border-bottom:1px solid #e5e7eb; vertical-align:middle; }
+  .vac-td-done { background:#f0fdf4 !important; }
+  .vac-td-na { color:#d1d5db; }
+  .vac-check { font-size:12px; }
+  .vac-rec-date { font-size:8px; color:#6b7280; }
+  .vac-rec-hosp { font-size:7px; color:#9ca3af; }
+  .vac-group-label { font-size:9px; font-weight:700; color:#9ca3af; margin:8px 0 3px; }
+  .vac-add-btn { display:none; }
+  .vac-header-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .vac-name { font-size:11px; font-weight:700; }
+  .vac-sub  { font-size:9px; color:#9ca3af; }
 </style>
 </head><body>${el.outerHTML}</body></html>`);
     win.document.close();
@@ -1334,15 +1478,10 @@ ${headStyles}
   }, []);
 
   const handleShare = useCallback(async () => {
-    const babyName = appState.baby?.name ?? '아기';
-    const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 0;
-    const text = `${babyName} (${months}개월) 육아 리포트\n${babyName}의 기록 앱에서 확인해보세요!`;
-    if (navigator.share) {
-      try { await navigator.share({ title: `${babyName} 육아 리포트`, text }); } catch { /* cancelled */ }
-    } else {
-      setShareOverlay(true);
-    }
-  }, [appState.baby]);
+    // 인쇄 창 열기 (PDF로 저장 → 공유)
+    handleDownload();
+    showToast("인쇄 창에서 'PDF로 저장'을 선택하면 공유할 수 있어요 📤", 4000);
+  }, [handleDownload]);
 
   // ── Baby photo ────────────────────────────────────────────────
   const handlePhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1392,9 +1531,11 @@ ${headStyles}
     const isEdit = !!editingLogId;
     const dateKey = isEdit ? editingLogDateKey : (currentPage === 'timeline' ? timelineDate : todayStr());
     const log: Log = { id: editingLogId || uid(), type: addLogType, date: dateKey, note: lfNote.trim() };
-    if (addLogType === 'sleep' || addLogType === 'cry' || addLogType === 'walk' || addLogType === 'play' || addLogType === 'bath') {
+    if (addLogType === 'sleep' || addLogType === 'feed' || addLogType === 'cry' || addLogType === 'walk' || addLogType === 'play' || addLogType === 'bath') {
       if (!lfStart) { showToast('시작 시간을 입력해주세요'); return; }
-      log.startTime = lfStart; if (lfEnd) log.endTime = lfEnd;
+      log.startTime = lfStart;
+      if (lfEnd) log.endTime = lfEnd;
+      if (addLogType === 'feed') log.time = lfStart;
     } else if (addLogType !== 'measure') {
       if (!lfTime) { showToast('시간을 입력해주세요'); return; }
       log.time = lfTime; log.startTime = lfTime;
@@ -2206,16 +2347,24 @@ ${headStyles}
           <div className="log-type-tabs" role="tablist">
             {(['sleep','feed','pee','poop','cry','walk','play','bath','measure','other'] as LogType[]).map(type=>(
               <button key={type} className={`type-tab${addLogType===type?' active':''}`} role="tab"
-                onClick={()=>{setAddLogType(type); const now=nowHHMM(),end=minToHM((hmToMin(now)+60)%1440); setLfStart(now);setLfEnd(end);setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
+                onClick={()=>{setAddLogType(type);setShowEndTimeInput(false); const now=nowHHMM(),end=minToHM((hmToMin(now)+60)%1440); setLfStart(now);setLfEnd(end);setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
                 {TYPE_ICONS[type]} {TYPE_LABELS[type]}
               </button>
             ))}
           </div>
           <div className="log-form-content">
-            {(addLogType==='sleep'||addLogType==='cry'||addLogType==='walk'||addLogType==='play'||addLogType==='bath') && (
+            {(addLogType==='sleep'||addLogType==='feed'||addLogType==='cry'||addLogType==='walk'||addLogType==='play'||addLogType==='bath') && (
               <>
+                {/* 시작 시간 */}
                 <div className="form-group">
-                  <label>시작 시간</label>
+                  <div className="time-label-row">
+                    <label>시작 시간</label>
+                    <button type="button"
+                      className={`end-time-toggle${showEndTimeInput?' active':''}`}
+                      onClick={()=>setShowEndTimeInput(v=>!v)}>
+                      {showEndTimeInput ? '완료시간 숨기기' : '+ 완료시간 직접 입력'}
+                    </button>
+                  </div>
                   <input type="time" value={lfStart} onChange={e=>{
                     const dur=((hmToMin(lfEnd)-hmToMin(lfStart))+1440)%1440;
                     setLfStart(e.target.value);
@@ -2234,6 +2383,24 @@ ${headStyles}
                     ))}
                   </div>
                 </div>
+
+                {/* 완료 시간 직접 입력 (토글) */}
+                {showEndTimeInput && (
+                  <div className="form-group">
+                    <label>완료 시간</label>
+                    <input type="time" value={lfEnd} onChange={e=>setLfEnd(e.target.value)} />
+                    <div className="time-adj-row">
+                      {[-30,-10,-5,-1,1,5,10,30].map(d=>(
+                        <button key={d} type="button" className={`time-adj-btn${d<0?' neg':' pos'}`}
+                          onClick={()=>setLfEnd(minToHM(((hmToMin(lfEnd)+d)%1440+1440)%1440))}>
+                          {d>0?`+${d}`:d}분
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 소요 시간 (항상 표시 — duration 버튼으로도 조정 가능) */}
                 <div className="form-group">
                   {(()=>{const dur=((hmToMin(lfEnd)-hmToMin(lfStart))+1440)%1440;const h=Math.floor(dur/60),m=dur%60;const lbl=h>0?(m>0?`${h}시간 ${m}분`:`${h}시간`):`${m}분`;return(<label>소요 시간 <span className="dur-badge">{lbl}</span></label>);})()}
                   <div className="time-adj-row dur-row">
@@ -2244,13 +2411,13 @@ ${headStyles}
                       </button>
                     ))}
                   </div>
-                  <div className="time-adj-endtime">종료 {lfEnd}</div>
+                  {!showEndTimeInput && <div className="time-adj-endtime">종료 {lfEnd}</div>}
                 </div>
               </>
             )}
-            {(addLogType==='feed'||addLogType==='pee'||addLogType==='poop') && (
+            {(addLogType==='pee'||addLogType==='poop') && (
               <div className="form-group">
-                <label>{addLogType==='feed'?'수유 시간':'시간'}</label>
+                <label>시간</label>
                 <input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} />
                 <div className="time-adj-row">
                   {[-30,-10,-1,1,10,30].map(d=>(
@@ -2343,6 +2510,46 @@ ${headStyles}
           </div>
         </div>
       </div>
+
+      {/* Vaccine Record Modal */}
+      {vacModal && (
+        <div className="modal-overlay active" role="dialog" aria-modal="true" onClick={e=>{if(e.target===e.currentTarget)setVacModal(null);}}>
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>{vacModal.vaccineName} {vacModal.dose}차 접종</h3>
+              <button className="modal-close" onClick={()=>setVacModal(null)}>✕</button>
+            </div>
+            <div className="log-form-content">
+              <div className="form-group">
+                <label>접종일</label>
+                <input type="date" value={vacModalDate} onChange={e=>setVacModalDate(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label>병원명</label>
+                <input type="text" placeholder="예: 서울소아과" value={vacModalHospital} onChange={e=>setVacModalHospital(e.target.value)} maxLength={30} />
+              </div>
+              {vacModal.options && vacModal.options.length > 0 && (
+                <div className="form-group">
+                  <label>제품/방법 선택</label>
+                  <select value={vacModalOption} onChange={e=>setVacModalOption(e.target.value)}>
+                    <option value="">선택 안함</option>
+                    {vacModal.options.map(o=><option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="form-group">
+                <label>메모</label>
+                <input type="text" placeholder="부작용, 특이사항 등" value={vacModalNote} onChange={e=>setVacModalNote(e.target.value)} maxLength={50} />
+              </div>
+              <button className="btn-primary btn-full" onClick={upsertVacRecord}>💉 접종 기록 저장</button>
+              {vaccineRecords.some(r=>r.vaccineId===vacModal.vaccineId&&r.dose===vacModal.dose) && (
+                <button className="btn-secondary btn-full" style={{marginTop:8,color:'#ef4444',borderColor:'#fca5a5'}}
+                  onClick={()=>deleteVacRecord(vacModal.vaccineId, vacModal.dose)}>기록 삭제</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Health Log Modal */}
       <div className={`modal-overlay${modal==='healthLog'?' active':''}`} role="dialog" aria-modal="true">
@@ -2758,50 +2965,6 @@ ${headStyles}
               </div>
             )}
 
-            {/* 다가오는 일정 */}
-            <div className="section-card">
-              <div className="section-header">
-                <h3 className="section-title hand">다가오는 일정</h3>
-                <button className="see-all-btn" onClick={()=>navigate('schedule')}>전체 →</button>
-              </div>
-              <div className="home-upcoming-list">
-                {(()=>{
-                  const today = todayStr();
-                  const upcoming = appState.todos
-                    .filter(t => !t.completed)
-                    .sort((a, b) => {
-                      // 날짜 있는 것 우선, 오늘에 가까운 순
-                      const da = a.date || '9999-99-99';
-                      const db = b.date || '9999-99-99';
-                      return da.localeCompare(db);
-                    })
-                    .slice(0, 3);
-                  if (upcoming.length === 0) return (
-                    <div className="empty-state" style={{padding:'12px'}}><div className="empty-icon" style={{fontSize:'28px'}}>📅</div><p style={{fontSize:'12px'}}>스케줄에서 항목을 추가해보세요</p></div>
-                  );
-                  return upcoming.map(t => {
-                    let dateLabel = '';
-                    if (t.date) {
-                      const diff = Math.round((new Date(t.date).getTime() - new Date(today).getTime()) / 86400000);
-                      if (diff === 0) dateLabel = '오늘';
-                      else if (diff === 1) dateLabel = '내일';
-                      else if (diff < 0) dateLabel = `${Math.abs(diff)}일 전`;
-                      else dateLabel = `${diff}일 후`;
-                    }
-                    return (
-                      <div key={t.id} className="upcoming-item">
-                        <div className={`upcoming-cat-icon cat-${t.category}`}>{t.category==='vaccine'?'💉':t.category==='feeding'?'🍼':t.category==='play'?'🧸':t.category==='supplies'?'🛒':'📌'}</div>
-                        <div className="upcoming-text">
-                          <div className="upcoming-title">{t.text}</div>
-                          <div className="upcoming-cat">{CAT_LABELS[t.category]}{dateLabel && <span className={`upcoming-date-badge${t.date&&t.date<today?' past':t.date===today?' today':''}`}>{dateLabel}</span>}</div>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-
             {(quickFeedOpen||quickDiaperOpen||quickOtherOpen) && (
               <div style={{position:'fixed',inset:0,zIndex:150}} onClick={closeQuickMenus} />
             )}
@@ -2874,6 +3037,49 @@ ${headStyles}
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* 다가오는 일정 */}
+            <div className="section-card">
+              <div className="section-header">
+                <h3 className="section-title hand">다가오는 일정</h3>
+                <button className="see-all-btn" onClick={()=>navigate('schedule')}>전체 →</button>
+              </div>
+              <div className="home-upcoming-list">
+                {(()=>{
+                  const today = todayStr();
+                  const upcoming = appState.todos
+                    .filter(t => !t.completed)
+                    .sort((a, b) => {
+                      const da = a.date || '9999-99-99';
+                      const db = b.date || '9999-99-99';
+                      return da.localeCompare(db);
+                    })
+                    .slice(0, 3);
+                  if (upcoming.length === 0) return (
+                    <div className="empty-state" style={{padding:'12px'}}><div className="empty-icon" style={{fontSize:'28px'}}>📅</div><p style={{fontSize:'12px'}}>스케줄에서 항목을 추가해보세요</p></div>
+                  );
+                  return upcoming.map(t => {
+                    let dateLabel = '';
+                    if (t.date) {
+                      const diff = Math.round((new Date(t.date).getTime() - new Date(today).getTime()) / 86400000);
+                      if (diff === 0) dateLabel = '오늘';
+                      else if (diff === 1) dateLabel = '내일';
+                      else if (diff < 0) dateLabel = `${Math.abs(diff)}일 전`;
+                      else dateLabel = `${diff}일 후`;
+                    }
+                    return (
+                      <div key={t.id} className="upcoming-item">
+                        <div className={`upcoming-cat-icon cat-${t.category}`}>{t.category==='vaccine'?'💉':t.category==='feeding'?'🍼':t.category==='play'?'🧸':t.category==='supplies'?'🛒':'📌'}</div>
+                        <div className="upcoming-text">
+                          <div className="upcoming-title">{t.text}</div>
+                          <div className="upcoming-cat">{CAT_LABELS[t.category]}{dateLabel && <span className={`upcoming-date-badge${t.date&&t.date<today?' past':t.date===today?' today':''}`}>{dateLabel}</span>}</div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
 
@@ -3210,6 +3416,82 @@ ${headStyles}
                 <div className="empty-state"><div className="empty-icon">👶</div><p>아기 정보를 설정해주세요</p></div>
               )}
             </div>
+
+            {/* 발달 메모 */}
+            <div className="section-card dev-memo-card">
+              <h3 className="section-title hand" style={{marginBottom:'10px'}}>📝 발달 메모</h3>
+
+              {/* 입력 영역 */}
+              <div className="dev-memo-input-row">
+                <input type="date" className="dev-memo-date-input" value={devMemoDate}
+                  onChange={e=>setDevMemoDate(e.target.value)} />
+              </div>
+              <div style={{position:'relative', marginTop:'6px'}}>
+                <textarea
+                  value={devMemoInput}
+                  onChange={e=>setDevMemoInput(e.target.value)}
+                  placeholder={'첫 미소, 첫 말, 특별한 순간을 기록해보세요\n예) "오늘 처음으로 뒤집기 성공!"'}
+                  rows={3}
+                  style={{paddingRight:'2.8rem', resize:'vertical', width:'100%', boxSizing:'border-box'}}
+                />
+                <button type="button" title={isDevMemoRecording?'음성 인식 중지':'음성으로 입력'}
+                  onClick={()=>{
+                    const SR=(window as Window & {SpeechRecognition?:SpeechRecognitionCtor;webkitSpeechRecognition?:SpeechRecognitionCtor}).SpeechRecognition||(window as Window & {webkitSpeechRecognition?:SpeechRecognitionCtor}).webkitSpeechRecognition;
+                    if(!SR){alert('이 브라우저는 음성 인식을 지원하지 않습니다.');return;}
+                    if(isDevMemoRecording){devMemoRecRef.current?.stop();return;}
+                    const r=new SR();
+                    r.lang='ko-KR';r.interimResults=false;r.maxAlternatives=1;
+                    r.onresult=(e:SpeechRecognitionEvent)=>{const t=e.results[0][0].transcript;setDevMemoInput(prev=>prev?prev+' '+t:t);};
+                    r.onerror=()=>setIsDevMemoRecording(false);
+                    r.onend=()=>setIsDevMemoRecording(false);
+                    devMemoRecRef.current=r;r.start();setIsDevMemoRecording(true);
+                  }}
+                  style={{position:'absolute',right:'0.5rem',bottom:'0.5rem',background:isDevMemoRecording?'#ef4444':'#6366f1',color:'#fff',border:'none',borderRadius:'50%',width:'2rem',height:'2rem',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:'1rem',flexShrink:0}}
+                >{isDevMemoRecording?'⏹':'🎤'}</button>
+              </div>
+              <div style={{display:'flex', gap:'6px', marginTop:'8px'}}>
+                <button className="btn-primary" style={{flex:1, padding:'9px', fontSize:'13px'}}
+                  onClick={()=>{
+                    if(!devMemoInput.trim()){showToast('내용을 입력해주세요');return;}
+                    const updated = editingDevMemoId
+                      ? devMemos.map(m=>m.id===editingDevMemoId?{...m,date:devMemoDate,text:devMemoInput.trim()}:m)
+                      : [{id:uid(),date:devMemoDate,text:devMemoInput.trim()},...devMemos];
+                    setDevMemos(updated);
+                    try{localStorage.setItem('dev_memos',JSON.stringify(updated));}catch{}
+                    setDevMemoInput('');setDevMemoDate(todayStr());setEditingDevMemoId(null);
+                    showToast(editingDevMemoId?'메모가 수정됐어요':'발달 메모가 저장됐어요 ✨');
+                  }}>
+                  {editingDevMemoId ? '수정 완료' : '저장'}
+                </button>
+                {editingDevMemoId && (
+                  <button className="btn-secondary" style={{padding:'9px 14px'}}
+                    onClick={()=>{setEditingDevMemoId(null);setDevMemoInput('');setDevMemoDate(todayStr());}}>
+                    취소
+                  </button>
+                )}
+              </div>
+
+              {/* 저장된 메모 목록 */}
+              {devMemos.length > 0 && (
+                <div className="dev-memo-list">
+                  {[...devMemos].sort((a,b)=>b.date.localeCompare(a.date)).map(m=>(
+                    <div key={m.id} className={`dev-memo-item${editingDevMemoId===m.id?' editing':''}`}>
+                      <div className="dev-memo-item-date">{m.date.slice(2).replace(/-/g,'.')}</div>
+                      <div className="dev-memo-item-text">{m.text}</div>
+                      <div className="dev-memo-item-actions">
+                        <button onClick={()=>{setEditingDevMemoId(m.id);setDevMemoInput(m.text);setDevMemoDate(m.date);}}>수정</button>
+                        <button onClick={()=>{
+                          const updated=devMemos.filter(x=>x.id!==m.id);
+                          setDevMemos(updated);
+                          try{localStorage.setItem('dev_memos',JSON.stringify(updated));}catch{}
+                          if(editingDevMemoId===m.id){setEditingDevMemoId(null);setDevMemoInput('');setDevMemoDate(todayStr());}
+                        }} style={{color:'#ef4444'}}>삭제</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Health Logs Tab */}
@@ -3463,6 +3745,130 @@ ${headStyles}
                 </div>
               </div>
             </div>{/* rpt-page-2 */}
+
+            {/* ── 예방접종 이력 ── */}
+            <div className="rpt-page rpt-page-vac">
+              <div className="section-card">
+                <div className="vac-header-row">
+                  <h3 className="section-title hand rpt-section-title" style={{margin:0}}>예방접종 이력</h3>
+                  <div className="vac-legend">
+                    <span className="vac-done-dot"/>완료
+                    <span className="vac-todo-dot" style={{marginLeft:8}}/>미완료
+                  </div>
+                </div>
+
+                {/* 기본접종 */}
+                <div className="vac-group-label">기본접종 (국가 필수)</div>
+                <div className="vac-table-wrap">
+                  <table className="vac-table">
+                    <thead>
+                      <tr>
+                        <th className="vac-th-name">예방접종</th>
+                        {Array.from({length:VAC_MAX_DOSES},(_,i)=>(
+                          <th key={i} className="vac-th-dose">{i+1}차</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {VAC_BASIC.map(vac=>(
+                        <tr key={vac.id}>
+                          <td className="vac-td-name">
+                            <div className="vac-name">{vac.name}</div>
+                            {vac.sub && <div className="vac-sub">{vac.sub}</div>}
+                          </td>
+                          {Array.from({length:VAC_MAX_DOSES},(_,i)=>{
+                            const dose = i+1;
+                            if (dose > vac.maxDoses) return <td key={i} className="vac-td vac-td-na">—</td>;
+                            const rec = vaccineRecords.find(r=>r.vaccineId===vac.id&&r.dose===dose);
+                            return (
+                              <td key={i} className={`vac-td${rec?' vac-td-done':' vac-td-todo'}`}
+                                onClick={()=>openVacModal(vac, dose)}>
+                                {rec ? (
+                                  <>
+                                    <div className="vac-check">✅</div>
+                                    <div className="vac-rec-date">{rec.date.slice(2).replace(/-/g,'.')}</div>
+                                    {rec.hospital && <div className="vac-rec-hosp">{rec.hospital}</div>}
+                                    {rec.option && <div className="vac-rec-opt">{rec.option}</div>}
+                                  </>
+                                ) : (
+                                  <div className="vac-add-btn">+</div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 선별접종 */}
+                <div className="vac-group-label" style={{marginTop:16}}>선별접종 (선택)</div>
+                <div className="vac-table-wrap">
+                  <table className="vac-table">
+                    <thead>
+                      <tr>
+                        <th className="vac-th-name">예방접종</th>
+                        {Array.from({length:VAC_MAX_DOSES},(_,i)=>(
+                          <th key={i} className="vac-th-dose">{i+1}차</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...VAC_OPTIONAL, ...customVaccines].map(vac=>(
+                        <tr key={vac.id}>
+                          <td className="vac-td-name">
+                            <div className="vac-name">{vac.name}</div>
+                            {vac.sub && <div className="vac-sub">{vac.sub}</div>}
+                            {customVaccines.some(c=>c.id===vac.id) && (
+                              <button className="vac-del-custom" onClick={e=>{e.stopPropagation();saveCustomVac(customVaccines.filter(c=>c.id!==vac.id));}}>×</button>
+                            )}
+                          </td>
+                          {Array.from({length:VAC_MAX_DOSES},(_,i)=>{
+                            const dose = i+1;
+                            if (dose > vac.maxDoses) return <td key={i} className="vac-td vac-td-na">—</td>;
+                            const rec = vaccineRecords.find(r=>r.vaccineId===vac.id&&r.dose===dose);
+                            return (
+                              <td key={i} className={`vac-td${rec?' vac-td-done':' vac-td-todo'}`}
+                                onClick={()=>openVacModal(vac as VaccineInfo, dose)}>
+                                {rec ? (
+                                  <>
+                                    <div className="vac-check">✅</div>
+                                    <div className="vac-rec-date">{rec.date.slice(2).replace(/-/g,'.')}</div>
+                                    {rec.hospital && <div className="vac-rec-hosp">{rec.hospital}</div>}
+                                    {rec.option && <div className="vac-rec-opt">{rec.option}</div>}
+                                  </>
+                                ) : (
+                                  <div className="vac-add-btn">+</div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 기타 추가 */}
+                {addingCustomVac ? (
+                  <div className="vac-add-form">
+                    <input className="vac-add-input" placeholder="예방접종 이름" value={newVacName} onChange={e=>setNewVacName(e.target.value)} maxLength={20} />
+                    <input className="vac-add-input" placeholder="설명 (선택)" value={newVacSub} onChange={e=>setNewVacSub(e.target.value)} maxLength={20} style={{width:100}} />
+                    <input className="vac-add-input" placeholder="횟수" value={newVacDoses} onChange={e=>setNewVacDoses(e.target.value)} type="number" min="1" max="5" style={{width:60}} />
+                    <button className="vac-add-ok" onClick={()=>{
+                      if (!newVacName.trim()) return;
+                      const newV: CustomVaccine = { id:`cv_${Date.now()}`, name:newVacName.trim(), sub:newVacSub.trim(), maxDoses:Math.min(5,Math.max(1,parseInt(newVacDoses)||2)) };
+                      saveCustomVac([...customVaccines, newV]);
+                      setNewVacName(''); setNewVacSub(''); setNewVacDoses('2'); setAddingCustomVac(false);
+                    }}>추가</button>
+                    <button className="vac-add-cancel" onClick={()=>setAddingCustomVac(false)}>취소</button>
+                  </div>
+                ) : (
+                  <button className="vac-add-custom-btn" onClick={()=>setAddingCustomVac(true)}>+ 기타 예방접종 추가</button>
+                )}
+              </div>
+            </div>{/* rpt-page-vac */}
           </div>
         </section>
 
