@@ -80,6 +80,80 @@ const VAC_OPTIONAL: VaccineInfo[] = [
   { id:'HPV',  name:'인유두종바이러스', sub:'HPV',       maxDoses:2 },
 ];
 const VAC_MAX_DOSES = 5;
+
+// ── 개월수별 자동 스케줄 시드 데이터 ────────────────────────────
+const AUTO_SCHED: { m: number; text: string; category: 'vaccine'|'feeding'|'play'|'other' }[] = [
+  // 예방접종
+  { m:0,  text:'BCG 접종 (출생 후 4주 이내)',            category:'vaccine' },
+  { m:0,  text:'B형간염 1차 접종 (출생)',                category:'vaccine' },
+  { m:1,  text:'B형간염 2차 접종 (1개월)',               category:'vaccine' },
+  { m:2,  text:'DTaP·Hib·PCV·폴리오 1차 접종 (2개월)',  category:'vaccine' },
+  { m:2,  text:'로타바이러스 1차 접종 (2개월)',           category:'vaccine' },
+  { m:4,  text:'DTaP·Hib·PCV·폴리오 2차 접종 (4개월)',  category:'vaccine' },
+  { m:4,  text:'로타바이러스 2차 접종 (4개월)',           category:'vaccine' },
+  { m:6,  text:'DTaP·Hib·PCV·B형간염 3차 접종 (6개월)', category:'vaccine' },
+  { m:6,  text:'로타바이러스 3차 접종 (6개월)',           category:'vaccine' },
+  { m:12, text:'MMR·수두 접종 (12개월)',                 category:'vaccine' },
+  { m:12, text:'A형간염 1차 접종 (12개월)',               category:'vaccine' },
+  { m:15, text:'DTaP 4차 접종 (15개월)',                 category:'vaccine' },
+  { m:18, text:'A형간염 2차 접종 (18개월)',               category:'vaccine' },
+  // 영유아 검진
+  { m:2,  text:'영유아 검진 1차 (2개월)',                 category:'other' },
+  { m:4,  text:'영유아 검진 2차 (4개월)',                 category:'other' },
+  { m:9,  text:'영유아 검진 3차 (9개월)',                 category:'other' },
+  { m:18, text:'영유아 검진 4차 (18개월)',                category:'other' },
+  { m:30, text:'영유아 검진 5차 (30개월)',                category:'other' },
+  { m:42, text:'영유아 검진 6차 (42개월)',                category:'other' },
+  // 이유식·수유
+  { m:6,  text:'이유식 시작 (6개월)',                     category:'feeding' },
+  { m:7,  text:'빨대컵 연습 시작 (7개월)',                category:'feeding' },
+  { m:9,  text:'중기 이유식 전환 (9개월)',                category:'feeding' },
+  { m:11, text:'후기 이유식 전환 (11개월)',               category:'feeding' },
+  { m:12, text:'분유 → 생우유 전환 시작 (12개월)',        category:'feeding' },
+  // 발달 마일스톤 (baby_develop_db 기반)
+  { m:1,  text:'터미타임 & 목 가누기 연습 시작',          category:'play' },
+  { m:2,  text:'사회적 미소 & 쿠잉 발달 확인',            category:'play' },
+  { m:3,  text:'오감 놀이 & 배 놀이 매트 활용',           category:'play' },
+  { m:4,  text:'뒤집기 연습 시작 (배→등)',               category:'play' },
+  { m:5,  text:'양방향 뒤집기 & 이앓이 대비',             category:'play' },
+  { m:6,  text:'이유식 알레르기 체크 & 옹알이 반응',      category:'feeding' },
+  { m:7,  text:'핑거푸드 도입 & 집게 잡기 연습',          category:'feeding' },
+  { m:8,  text:'8개월 수면 회귀 대비 수면 루틴 점검',     category:'other' },
+  { m:9,  text:'기기 & 혼자 앉기 발달 확인',              category:'play' },
+  { m:10, text:'잡고 서기 & 걸음마 준비',                 category:'play' },
+  { m:11, text:'손가락 가리키기 & 집게 잡기 확인',        category:'play' },
+  { m:12, text:'12개월 언어·운동 발달 점검',              category:'other' },
+  { m:12, text:'M-CHAT 자폐 선별 검사 (12개월)',          category:'other' },
+  { m:15, text:'50개 단어 어휘 발달 점검',                category:'other' },
+  { m:18, text:'두 단어 조합 언어 발달 확인',             category:'other' },
+  { m:24, text:'24개월 언어 발달 정밀 점검',              category:'other' },
+  { m:24, text:'배변 훈련 시작 고려',                     category:'other' },
+  { m:30, text:'시력·청력 검사 (36개월 전)',              category:'other' },
+];
+
+function calcBabyAgeMonths(birthDate: string): number {
+  const b = new Date(birthDate), n = new Date();
+  let m = (n.getFullYear()-b.getFullYear())*12 + (n.getMonth()-b.getMonth());
+  if (n.getDate() < b.getDate()) m--;
+  return Math.max(0, m);
+}
+
+function buildSeedItems(birthDate: string, babyId: number|null, existingTexts: Set<string>): Todo[] {
+  const age = calcBabyAgeMonths(birthDate);
+  const addM = (d: string, m: number) => {
+    const dt = new Date(d); dt.setMonth(dt.getMonth() + m);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  };
+  return AUTO_SCHED
+    .filter(s => s.m >= age && s.m <= age + 3) // >= 포함: 현재 개월 항목도 시드
+    .filter(s => !existingTexts.has(s.text))
+    .map(s => ({
+      id: uid(), text: s.text, category: s.category as TodoCat,
+      completed: false as const, createdAt: Date.now(),
+      date: addM(birthDate, s.m),
+    }));
+  void babyId; // used externally
+}
 const TYPE_ICONS:  Record<LogType, string> = { sleep:'😴', feed:'🍼', pee:'💧', poop:'💩', cry:'😢', walk:'🌿', play:'🧸', bath:'🛁', measure:'📏', other:'📝' };
 const CAT_LABELS:  Record<TodoCat, string> = { vaccine:'예방접종', feeding:'수유', play:'놀이', supplies:'생필품', other:'기타' };
 
@@ -1135,11 +1209,29 @@ export default function BabyApp() {
     }
     setMounted(true); // 캐시 유무와 무관하게 즉시 화면 표시
 
-    // DB에서 최신 데이터 백그라운드 갱신
+    // DB에서 최신 데이터 백그라운드 갱신 + 개월수 기반 스케줄 시딩
     if (storedBabyId) {
       fetch(`/api/state?babyId=${storedBabyId}`)
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) { setAppState(Object.assign(defaultState(), data)); try { localStorage.setItem('app_state_cache', JSON.stringify(data)); } catch {} } })
+        .then(async data => {
+          if (!data) return;
+          const baby: Baby|null = data.baby ?? null;
+          const existingTodos: Todo[] = data.todos ?? [];
+          // 개월수 기반 스케줄 자동 시딩
+          if (baby?.birthDate) {
+            const existingTexts = new Set(existingTodos.map((t: Todo) => t.text));
+            const newItems = buildSeedItems(baby.birthDate, Number(storedBabyId), existingTexts);
+            if (newItems.length > 0) {
+              for (const todo of newItems) {
+                await fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...todo, babyId: Number(storedBabyId) }) }).catch(console.error);
+              }
+              data.todos = [...existingTodos, ...newItems].sort((a: Todo, b: Todo) => (a.date||'').localeCompare(b.date||''));
+            }
+          }
+          const ns = Object.assign(defaultState(), data);
+          setAppState(ns);
+          try { localStorage.setItem('app_state_cache', JSON.stringify(ns)); } catch {}
+        })
         .catch(() => {});
     }
   }, []);
@@ -1478,10 +1570,18 @@ ${headStyles}
   }, []);
 
   const handleShare = useCallback(async () => {
-    // 인쇄 창 열기 (PDF로 저장 → 공유)
-    handleDownload();
-    showToast("인쇄 창에서 'PDF로 저장'을 선택하면 공유할 수 있어요 📤", 4000);
-  }, [handleDownload]);
+    const babyName = appState.baby?.name ?? '아기';
+    const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 0;
+    const title = `${babyName} (${months}개월) 육아 리포트`;
+    const text = `${babyName}의 성장·건강 기록을 확인해보세요! 🍼`;
+    const url = window.location.href;
+    // 모바일: 네이티브 공유 시트 (카카오톡 포함)
+    if (navigator.share) {
+      try { await navigator.share({ title, text, url }); return; } catch { /* cancelled */ }
+    }
+    // 데스크톱: 커스텀 공유 오버레이
+    setShareOverlay(true);
+  }, [appState.baby]);
 
   // ── Baby photo ────────────────────────────────────────────────
   const handlePhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1729,77 +1829,10 @@ ${headStyles}
       const url = babyId ? `/api/state?babyId=${babyId}` : '/api/state';
       const data = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
       const ns = Object.assign(defaultState(), data || { babyId, baby: newBaby });
-      const AUTO_SCHED: { m: number; text: string; category: 'vaccine' | 'feeding' | 'play' | 'other' }[] = [
-        // 예방접종
-        { m:0,  text:'BCG 접종 (출생 후 4주 이내)',            category:'vaccine' },
-        { m:0,  text:'B형간염 1차 접종 (출생)',                category:'vaccine' },
-        { m:1,  text:'B형간염 2차 접종 (1개월)',               category:'vaccine' },
-        { m:2,  text:'DTaP·Hib·PCV·폴리오 1차 접종 (2개월)',  category:'vaccine' },
-        { m:2,  text:'로타바이러스 1차 접종 (2개월)',           category:'vaccine' },
-        { m:4,  text:'DTaP·Hib·PCV·폴리오 2차 접종 (4개월)',  category:'vaccine' },
-        { m:4,  text:'로타바이러스 2차 접종 (4개월)',           category:'vaccine' },
-        { m:6,  text:'DTaP·Hib·PCV·B형간염 3차 접종 (6개월)', category:'vaccine' },
-        { m:6,  text:'로타바이러스 3차 접종 (6개월)',           category:'vaccine' },
-        { m:12, text:'MMR·수두 접종 (12개월)',                 category:'vaccine' },
-        { m:12, text:'A형간염 1차 접종 (12개월)',               category:'vaccine' },
-        { m:15, text:'DTaP 4차 접종 (15개월)',                 category:'vaccine' },
-        { m:18, text:'A형간염 2차 접종 (18개월)',               category:'vaccine' },
-        // 영유아 검진
-        { m:2,  text:'영유아 검진 1차 (2개월)',                 category:'other' },
-        { m:4,  text:'영유아 검진 2차 (4개월)',                 category:'other' },
-        { m:9,  text:'영유아 검진 3차 (9개월)',                 category:'other' },
-        { m:18, text:'영유아 검진 4차 (18개월)',                category:'other' },
-        { m:30, text:'영유아 검진 5차 (30개월)',                category:'other' },
-        { m:42, text:'영유아 검진 6차 (42개월)',                category:'other' },
-        // 이유식·수유
-        { m:6,  text:'이유식 시작 (6개월)',                     category:'feeding' },
-        { m:7,  text:'빨대컵 연습 시작 (7개월)',                category:'feeding' },
-        { m:9,  text:'중기 이유식 전환 (9개월)',                category:'feeding' },
-        { m:11, text:'후기 이유식 전환 (11개월)',               category:'feeding' },
-        { m:12, text:'분유 → 생우유 전환 시작 (12개월)',        category:'feeding' },
-        // 발달 마일스톤 (baby_develop_db 기반)
-        { m:1,  text:'터미타임 & 목 가누기 연습 시작',          category:'play'    },
-        { m:2,  text:'사회적 미소 & 쿠잉 발달 확인',            category:'play'    },
-        { m:3,  text:'오감 놀이 & 배 놀이 매트 활용',           category:'play'    },
-        { m:4,  text:'뒤집기 연습 시작 (배→등)',               category:'play'    },
-        { m:5,  text:'양방향 뒤집기 & 이앓이 대비',             category:'play'    },
-        { m:6,  text:'이유식 알레르기 체크 & 옹알이 반응',      category:'feeding' },
-        { m:7,  text:'핑거푸드 도입 & 집게 잡기 연습',          category:'feeding' },
-        { m:8,  text:'8개월 수면 회귀 대비 수면 루틴 점검',     category:'other'   },
-        { m:9,  text:'기기 & 혼자 앉기 발달 확인',              category:'play'    },
-        { m:10, text:'잡고 서기 & 걸음마 준비',                 category:'play'    },
-        { m:11, text:'손가락 가리키기 & 집게 잡기 확인',        category:'play'    },
-        { m:12, text:'12개월 언어·운동 발달 점검',              category:'other'   },
-        { m:12, text:'M-CHAT 자폐 선별 검사 (12개월)',          category:'other'   },
-        { m:15, text:'50개 단어 어휘 발달 점검',                category:'other'   },
-        { m:18, text:'두 단어 조합 언어 발달 확인',             category:'other'   },
-        { m:24, text:'24개월 언어 발달 정밀 점검',              category:'other'   },
-        { m:24, text:'배변 훈련 시작 고려',                     category:'other'   },
-        { m:30, text:'시력·청력 검사 (36개월 전)',              category:'other'   },
-      ];
 
-      // 아기 현재 월령 계산
-      const birthDt = new Date(newBaby.birthDate);
-      const nowDt = new Date();
-      const babyAgeMonths = (nowDt.getFullYear() - birthDt.getFullYear()) * 12
-        + (nowDt.getMonth() - birthDt.getMonth());
-
-      const addMonths = (d: string, m: number) => {
-        const dt = new Date(d); dt.setMonth(dt.getMonth() + m);
-        return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-      };
-
-      const existingTexts = new Set(ns.todos.map((t: {text:string}) => t.text));
-
-      // 현재 개월 이후 항목만 시드 (앞으로 18개월 이내)
-      const newItems = AUTO_SCHED
-        .filter(s => s.m > babyAgeMonths && s.m <= babyAgeMonths + 3)
-        .filter(s => !existingTexts.has(s.text))
-        .map(s => ({
-          id: uid(), text: s.text, category: s.category as TodoCat,
-          completed: false as const, createdAt: Date.now(),
-          date: addMonths(newBaby.birthDate, s.m),
-        }));
+      // 개월수 기반 스케줄 시딩 (공통 함수 사용)
+      const existingTexts = new Set<string>(ns.todos.map((t: {text:string}) => t.text));
+      const newItems = buildSeedItems(newBaby.birthDate, babyId, existingTexts);
 
       if (newItems.length > 0) {
         ns.todos = [...ns.todos, ...newItems].sort((a, b) => (a.date||'').localeCompare(b.date||''));
@@ -3255,7 +3288,13 @@ ${headStyles}
               </div>
               <div className="shop-flow-desc">키워드를 눌러 YouTube, 당근마켓, 맘가이드에서 검색해보세요</div>
               <div className="kw-chips">
-                {(ageInfo ? getShopKeywordsForAge(ageInfo.months) : BABY_KEYWORDS_BY_STAGE['4-6']).map((kw: string)=>(
+                {(()=>{
+                  if (!ageInfo) return BABY_KEYWORDS_BY_STAGE['4-6'];
+                  // 현재 + 다음 1개월 키워드 합산 (중복 제거)
+                  const cur  = getShopKeywordsForAge(ageInfo.months);
+                  const next = getShopKeywordsForAge(ageInfo.months + 1);
+                  return [...new Set([...cur, ...next.filter(k => !cur.includes(k))])];
+                })().map((kw: string)=>(
                   <button key={kw} className="kw-chip" onClick={()=>{ setKwPickerKeyword(kw); setKwPickerOpen(true); }}>{kw}</button>
                 ))}
               </div>
@@ -4416,20 +4455,58 @@ ${headStyles}
           <div className="share-sheet" onClick={e=>e.stopPropagation()}>
             <div className="share-sheet-title">공유하기</div>
             <div className="share-sheet-grid">
+              {/* 카카오톡 */}
               <button className="share-opt" onClick={async()=>{
-                const text=`${appState.baby?.name??'아기'} (${ageInfo?.months??0}개월) 육아 리포트`;
+                const babyName = appState.baby?.name ?? '아기';
+                const months = ageInfo?.months ?? 0;
+                const shareText = `${babyName} (${months}개월) 육아 리포트\n${window.location.href}`;
+                // PC 카카오톡 URL 스킴 시도
+                const kakaoScheme = `kakaotalk://send?text=${encodeURIComponent(shareText)}`;
+                const a = document.createElement('a');
+                a.href = kakaoScheme; a.click();
+                // fallback: 클립보드 복사
+                setTimeout(async () => {
+                  await navigator.clipboard.writeText(shareText).catch(()=>{});
+                  setShareOverlay(false);
+                  showToast('카카오톡 앱이 열리지 않으면 클립보드에서 붙여넣기 해주세요 💬', 4000);
+                }, 800);
+              }}>
+                <span className="share-opt-icon" style={{fontSize:'24px'}}>💬</span>
+                <span>카카오톡</span>
+              </button>
+              {/* URL 복사 */}
+              <button className="share-opt" onClick={async()=>{
+                const babyName = appState.baby?.name ?? '아기';
+                const months = ageInfo?.months ?? 0;
+                const text = `${babyName} (${months}개월) 육아 리포트\n${window.location.href}`;
                 await navigator.clipboard.writeText(text).catch(()=>{});
-                setShareOverlay(false); showToast('📋 클립보드에 복사됐어요!');
+                setShareOverlay(false); showToast('📋 링크가 복사됐어요! 카톡에 붙여넣기 해보세요.');
               }}>
                 <span className="share-opt-icon">📋</span>
                 <span>링크 복사</span>
               </button>
-              <button className="share-opt" onClick={()=>{ window.print(); setShareOverlay(false); }}>
-                <span className="share-opt-icon">🖨️</span>
-                <span>인쇄</span>
+              {/* 이메일 */}
+              <button className="share-opt" onClick={()=>{
+                const babyName = appState.baby?.name ?? '아기';
+                const months = ageInfo?.months ?? 0;
+                const subject = encodeURIComponent(`${babyName} (${months}개월) 육아 리포트`);
+                const body = encodeURIComponent(`${babyName}의 성장 기록입니다.\n\n${window.location.href}`);
+                window.open(`mailto:?subject=${subject}&body=${body}`);
+                setShareOverlay(false);
+              }}>
+                <span className="share-opt-icon">📧</span>
+                <span>이메일</span>
+              </button>
+              {/* PDF 저장 */}
+              <button className="share-opt" onClick={()=>{ handleDownload(); setShareOverlay(false); showToast("인쇄 창에서 'PDF로 저장'을 선택하세요 📄", 3500); }}>
+                <span className="share-opt-icon">📄</span>
+                <span>PDF 저장</span>
               </button>
             </div>
-            <button className="share-cancel" onClick={()=>setShareOverlay(false)}>취소</button>
+            <div style={{fontSize:'11px',color:'var(--text-light)',textAlign:'center',marginTop:'6px',marginBottom:'4px'}}>
+              📱 모바일에서 공유 버튼을 누르면 카카오톡으로 바로 전송할 수 있어요
+            </div>
+            <button className="share-cancel" onClick={()=>setShareOverlay(false)}>닫기</button>
           </div>
         </div>
       )}
