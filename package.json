@@ -6,7 +6,10 @@
     "dev": "next dev --webpack --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "restart": "npx kill-port 3000 && npm run dev",
+    "dev:open": "concurrently \"next dev --webpack --hostname 0.0.0.0\" \"wait-on http://localhost:3000 && explorer.exe http://localhost:3000\"",
+    "restart:open": "npx kill-port 3000 && npm run dev:open"
   },
   "dependencies": {
     "mysql2": "^3.22.3",
@@ -19,9 +22,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.0.10"
   }
 }

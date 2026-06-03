@@ -69,7 +69,7 @@ const VOICE_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          type: { type: 'string', enum: ['feed','sleep','pee','poop','cry','walk','play','bath'], description: 'feed=수유(젖/분유/이유식 포함), sleep=수면, pee=소변(쉬/오줌), poop=대변(똥), cry=울음, walk=산책, play=놀이, bath=목욕' },
+          type: { type: 'string', enum: ['feed','sleep','pee','poop','cry','walk','play','bath'], description: 'feed=수유(젖/분유/이유식 포함), sleep=수면, pee=소변(쉬/오줌/기저귀 갈았어/갈았어 — 대변 언급 없으면 기본적으로 pee), poop=대변(똥/응가/대변), cry=울음, walk=산책, play=놀이, bath=목욕' },
           times:    { type: 'array', items: { type: 'string' }, description: '기록할 시간 HH:MM 배열. 여러 시간이 언급되면 모두 포함. "2시"→"02:00", "오후 3시"→"15:00"' },
           time:     { type: 'string', description: '단일 시간 HH:MM. times가 없을 때만 사용' },
           endTime:  { type: 'string', description: '종료 시간 HH:MM. sleep/cry/walk/play/bath에 해당' },
@@ -558,22 +558,174 @@ function getMilestonesForMonth(birthDateStr: string, year: number, month: number
   return events.sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
-// ── Shop keywords ────────────────────────────────────────────────
-const SHOP_KEYWORDS: Record<string, string[]> = {
-  newborn: ['황달 케어', '신생아 목욕', '배앓이 달래기', '수유 자세', '태열', '영아산통', '모유수유', '신생아 모빌'],
-  '1-3':   ['흑백 모빌', '딸랑이', '배앓이', '목 가누기', '사회적 미소', '소프트 토이', '스와들링', '배 놀이'],
-  '4-6':   ['이앓이', '치발기', '촉감 놀이', '이유식 준비', '뒤집기 연습', '배 놀이 매트', '오감 장난감', '목욕 장난감'],
-  '7-9':   ['이유식', '집게 잡기', '기기 연습', '낯가림', '소리 장난감', '손잡이 컵', '범퍼 침대', '오뚝이'],
-  '10-12': ['걸음마 보조', '첫 단어', '컵 연습', '소프트 퍼즐', '잡고 서기', '끌차', '잇몸 간식'],
-  toddler: ['역할 놀이', '끌차', '큰 블록', '유아 크레용', '어린이집 가방', '유아 의자', '놀이 매트'],
+// ── Baby keywords by age (dev + health + activity) ──────────────
+const BABY_KEYWORDS_BY_STAGE: Record<string, string[]> = {
+  newborn: ['황달 케어', '신생아 목욕', '영아산통', '모유수유 자세', 'BCG 접종', 'B형간염 1차', '흑백 모빌', '스와들링', '태열', '원시반사'],
+  '1-3':   ['사회적 미소', '목 가누기', '쿠잉', '터미타임', 'DTaP 1차 접종', '흑백 카드', '딸랑이', '배앓이 달래기', '영아산통', '스와들'],
+  '4-6':   ['뒤집기 연습', '이앓이', '치발기', '이유식 준비', 'DTaP 3차 접종', '오감 놀이', '배 놀이 매트', '수면 훈련 시작', '옹알이 반응', '촉감 놀이'],
+  '7-9':   ['기기 연습', '혼자 앉기', '낯가림', '핑거푸드', '집게 잡기', '중기 이유식', '8개월 수면 회귀', '손잡이 컵', '소리 장난감', '오뚝이'],
+  '10-12': ['걸음마 준비', '첫 단어', '잡고 서기', '후기 이유식', 'MMR 접종 준비', '끌차', '소프트 퍼즐', '빨대컵 연습', '손가락 가리키기', '까꿍 게임'],
+  '13-18': ['어휘 폭발', 'M-CHAT 체크', 'DTaP 4차 접종', '생우유 전환', '단유 고려', '걷기 안정화', '끌차·밀차', '모양 맞추기', '그림책 읽기', '어린이집 준비'],
+  '19-24': ['두 단어 조합', '역할놀이', 'A형간염 2차 접종', '배변 훈련 준비', '시력 확인', '24개월 언어 점검', '큰 블록', '유아 크레용', '또래 놀이', '식사 예절'],
+  '25-36': ['배변 훈련', '문장 말하기', '시력·청력 검사', '영유아 검진', '유아 퍼즐', '역할놀이 세트', '야외 놀이', '규칙 이해', '치과 검진', '어린이집 준비'],
 };
+
 function getShopKeywordsForAge(months: number): string[] {
-  if (months < 1)  return SHOP_KEYWORDS.newborn;
-  if (months <= 3) return SHOP_KEYWORDS['1-3'];
-  if (months <= 6) return SHOP_KEYWORDS['4-6'];
-  if (months <= 9) return SHOP_KEYWORDS['7-9'];
-  if (months <= 12) return SHOP_KEYWORDS['10-12'];
-  return SHOP_KEYWORDS.toddler;
+  if (months < 1)   return BABY_KEYWORDS_BY_STAGE.newborn;
+  if (months <= 3)  return BABY_KEYWORDS_BY_STAGE['1-3'];
+  if (months <= 6)  return BABY_KEYWORDS_BY_STAGE['4-6'];
+  if (months <= 9)  return BABY_KEYWORDS_BY_STAGE['7-9'];
+  if (months <= 12) return BABY_KEYWORDS_BY_STAGE['10-12'];
+  if (months <= 18) return BABY_KEYWORDS_BY_STAGE['13-18'];
+  if (months <= 24) return BABY_KEYWORDS_BY_STAGE['19-24'];
+  return BABY_KEYWORDS_BY_STAGE['25-36'];
+}
+
+// ── YouTube age-specific queries (expanded pool) ─────────────────
+function shuffleAfterFirst(arr: string[]): string[] {
+  if (arr.length <= 2) return arr;
+  const [first, ...rest] = arr;
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rest[i], rest[j]] = [rest[j], rest[i]];
+  }
+  return [first, ...rest];
+}
+
+function getYtCatQueries(catId: string, months: number): string[] {
+  const p = months < 1 ? '신생아' : `${months}개월 아기`;
+  const tables: Record<string, string[]> = {
+    age: [
+      `${p} 발달 특징`,
+      `${p} 성장 마일스톤`,
+      months < 4  ? `${p} 배앓이 달래기` :
+      months < 7  ? `${p} 뒤집기 연습` :
+      months < 10 ? `${p} 기기 앉기` :
+      months < 13 ? `${p} 걸음마` : `${p} 언어 발달`,
+      `${p} 발달 놀이`,
+      months < 6 ? '신생아 돌봄 꿀팁' : months < 13 ? '영아 발달 체크' : '유아 발달 체크',
+      '아기 성장 마일스톤',
+      '소아과 전문의 육아 조언',
+    ],
+    feed: months < 5 ? [
+      `${p} 수유량`,
+      '모유수유 자세 방법',
+      '모유수유 젖량 늘리기',
+      '유방울혈 해소법',
+      '유방관리 마사지',
+      '유축기 사용법',
+      '모유 냉동 보관법',
+      '월령별 분유량',
+      '분유 타는 법',
+      '영아 산통 달래기',
+      '수유 쿠션 사용법',
+      '수유 텀 늘리기',
+      '혼합수유 방법',
+    ] : months < 9 ? [
+      `${p} 이유식`,
+      '초기 이유식 만들기',
+      '이유식 시작 시기',
+      '이유식 거부 대처법',
+      '쌀미음 만들기',
+      '채소 이유식 레시피',
+      '이유식 알레르기 체크',
+      '이유식 보관법',
+      '모유수유 이유식 병행',
+      '분유량 줄이기',
+      '단유 준비',
+      '중기 이유식 레시피',
+      '이유식 스케줄',
+    ] : months < 14 ? [
+      `${p} 이유식`,
+      '후기 이유식 레시피',
+      '핑거푸드 만들기',
+      '완료기 이유식',
+      '이유식 편식 대처',
+      '분유 생우유 전환',
+      '단유 방법',
+      '젖 끊기 팁',
+      '이유식 식단 구성',
+      '아기 간식 만들기',
+      '유방관리 단유 후',
+    ] : [
+      `${p} 식단`,
+      '유아 편식 극복',
+      '균형 잡힌 아기 식단',
+      '아기 간식 종류',
+      '유아식 레시피',
+      '식사 예절 가르치기',
+      '아기 반찬 만들기',
+      '유제품 도입',
+    ],
+    play: [
+      `${p} 놀이`,
+      `${p} 발달 장난감`,
+      months < 3  ? '신생아 터미타임' :
+      months < 5  ? '아기 오감 자극 놀이' :
+      months < 7  ? '뒤집기 도와주기 놀이' :
+      months < 10 ? '기기 유도 장난감' :
+      months < 13 ? '걸음마 유도 놀이' :
+      months < 18 ? '유아 언어 발달 놀이' : '유아 역할놀이',
+      months < 4  ? '흑백 자극 모빌' :
+      months < 7  ? '치발기 놀이' :
+      months < 10 ? '소리 장난감' :
+      months < 13 ? '블록 쌓기 놀이' : '그림책 읽기',
+      '개월별 장난감 추천',
+      '아기 마사지 방법',
+      '엄마표 DIY 장난감',
+      months < 8  ? '아기 거울 놀이' : months < 14 ? '촉감 놀이' : '모래 물 감각 놀이',
+      '몬테소리 놀이법',
+      '실내 아기 놀이',
+    ],
+    sleep: [
+      `${p} 수면 패턴`,
+      months < 4  ? '신생아 수면 루틴' :
+      months < 7  ? '4개월 수면 회귀 대처' :
+      months < 10 ? '8개월 수면 회귀 대처' :
+      months < 13 ? '낮잠 스케줄 정리' : '수면 교육 완성',
+      '통잠 만들기',
+      '아기 잠투정 달래기',
+      '수면 의식 루틴',
+      '백색소음 수면',
+      '퍼버법 수면교육',
+      '페이딩법 수면교육',
+      '낮잠 횟수 줄이기',
+      '야간 수유 끊기',
+      '수면 환경 만들기',
+      '아기 이른 기상 대처',
+    ],
+    health: [
+      `${p} 예방접종`,
+      months < 7  ? '영아 예방접종 부작용' :
+      months < 13 ? '영유아 예방접종 일정' : '취학전 예방접종 체크',
+      '아기 발열 대처법',
+      '영유아 검진 준비',
+      '아기 응급처치',
+      '아기 구토 대처',
+      '아기 설사 원인',
+      '소아 열성경련',
+      'RSV 바이러스 대처',
+      '수족구 증상 대처',
+      '아기 피부 발진',
+      '소아과 가야할 기준',
+      '아기 코막힘 대처',
+      '영유아 구강 관리',
+    ],
+    etc: [
+      '2026 부모급여 신청',
+      '첫만남이용권 사용법',
+      '육아휴직 급여 계산',
+      '아기보험 추천',
+      '보육료 지원 신청',
+      '산후도우미 지원',
+      '아이 돌봄서비스',
+      '출산 지원금 총정리',
+      '맞벌이 육아 꿀팁',
+      '산후우울증 극복',
+    ],
+  };
+  const cat = YT_CATS.find(c => c.id === catId);
+  return tables[catId] ?? cat?.queries ?? [];
 }
 
 // ── Bot helpers ──────────────────────────────────────────────────
@@ -716,6 +868,25 @@ function renderSources(chunks: RagChunk[], figures: RagFigure[]): string {
 }
 
 // ── Main Component ────────────────────────────────────────────────
+const LOADING_EMOJIS = ['😴', '😊', '😢', '🍼', '😄', '😴'];
+
+function BabyLoadingScreen() {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % LOADING_EMOJIS.length), 700);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="baby-loading-screen">
+      <div className="baby-loading-emoji-wrap">
+        <div className="baby-loading-emoji">{LOADING_EMOJIS[idx]}</div>
+      </div>
+      <div className="baby-loading-text">아기의 기록을 불러오는 중...</div>
+      <div className="baby-loading-dots"><span/><span/><span/></div>
+    </div>
+  );
+}
+
 export default function BabyApp() {
   const [mounted, setMounted] = useState(false);
   const [appState, setAppState] = useState<AppState>(defaultState);
@@ -770,6 +941,7 @@ export default function BabyApp() {
 
   // Setup form
   const [setupGender, setSetupGender] = useState<'boy' | 'girl'>('girl');
+  const [setupSaving, setSetupSaving] = useState(false);
   const setupNameRef = useRef<HTMLInputElement>(null);
   const setupBirthRef = useRef<HTMLInputElement>(null);
 
@@ -824,6 +996,15 @@ export default function BabyApp() {
   const [ytListQuery, setYtListQuery] = useState('');
   const [ytListSort, setYtListSort] = useState('relevance');
   const ytSentinelRef = useRef<HTMLDivElement|null>(null);
+  const [ytCustomKeywords, setYtCustomKeywords] = useState<Record<string,string[]>>({});
+  const [ytAddingKeyword, setYtAddingKeyword] = useState(false);
+  const [ytNewKeyword, setYtNewKeyword] = useState('');
+  const ytNewKwRef = useRef<HTMLInputElement|null>(null);
+  const [ytCustomCats, setYtCustomCats] = useState<YtCat[]>([]);
+  const [ytAddingCat, setYtAddingCat] = useState(false);
+  const [ytNewCatName, setYtNewCatName] = useState('');
+  const [ytNewCatEmoji, setYtNewCatEmoji] = useState('');
+  const ytNewCatRef = useRef<HTMLInputElement|null>(null);
 
   // Weather
   const [weather, setWeather] = useState<{temp:number;desc:string;icon:string;humidity:number|null;city:string;aqi:number|null;pm25:number|null;pm10:number|null}|null>(null);
@@ -877,6 +1058,14 @@ export default function BabyApp() {
     const ytKey  = localStorage.getItem('user_youtube_key') || '';
     setUserOpenAIKey(oaiKey); setUserYoutubeKey(ytKey);
     userOpenAIKeyRef.current = oaiKey; userYoutubeKeyRef.current = ytKey;
+    try {
+      const ckRaw = localStorage.getItem('yt_custom_keywords');
+      if (ckRaw) setYtCustomKeywords(JSON.parse(ckRaw));
+    } catch {}
+    try {
+      const ccRaw = localStorage.getItem('yt_custom_cats');
+      if (ccRaw) setYtCustomCats(JSON.parse(ccRaw));
+    } catch {}
 
     // 캐시가 있으면 즉시 렌더링 (체감 속도 향상)
     const storedBabyId = localStorage.getItem('baby_id');
@@ -954,7 +1143,8 @@ export default function BabyApp() {
   useEffect(() => {
     if (currentPage !== 'info' || ytView !== 'home') return;
     if (Object.keys(ytRepVideos).length > 0) return;
-    const stage = appState.baby ? ytAgeStage(getAgeInfo(appState.baby.birthDate).months) : '4-6m';
+    const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 5;
+    const stage = ytAgeStage(months);
     setYtRepLoading(true);
     let done = 0;
     YT_CATS.forEach(cat => {
@@ -966,7 +1156,8 @@ export default function BabyApp() {
         if (done === YT_CATS.length) setYtRepLoading(false);
         return;
       }
-      fetch(`/api/youtube?q=${encodeURIComponent(cat.queries[0])}&maxResults=1&order=${cat.sortOrder}`, { headers: userYoutubeKeyRef.current ? { 'x-youtube-key': userYoutubeKeyRef.current } : {} })
+      const q = getYtCatQueries(cat.id, months)[0];
+      fetch(`/api/youtube?q=${encodeURIComponent(q)}&maxResults=1&order=${cat.sortOrder}`, { headers: userYoutubeKeyRef.current ? { 'x-youtube-key': userYoutubeKeyRef.current } : {} })
         .then(r => r.json())
         .then(data => {
           const v = (data.videos as YtVideo[])?.[0];
@@ -1022,15 +1213,69 @@ export default function BabyApp() {
     return () => io.disconnect();
   }, [ytListNextPage, ytListMoreLoading, ytListQuery, ytListSort, ytSelectedCat, ytFetchList]);
 
-  const ytOpenCategory = useCallback((cat: YtCat) => {
-    const q = cat.queries[0];
-    setYtSelectedCat(cat);
+  const ytOpenCategory = useCallback((cat: YtCat, babyMonths?: number) => {
+    let base: string[];
+    if (cat.id.startsWith('custom_')) {
+      // 커스텀 카테고리: 아기 개월수를 포함한 쿼리 생성
+      const p = babyMonths != null ? (babyMonths < 1 ? '신생아' : `${babyMonths}개월 아기`) : '아기';
+      base = [`${p} ${cat.label}`, `아기 ${cat.label}`, `육아 ${cat.label}`, `${cat.label} 방법`];
+    } else {
+      base = babyMonths != null ? getYtCatQueries(cat.id, babyMonths) : cat.queries;
+    }
+    const queries = shuffleAfterFirst(base);
+    const ageCat = { ...cat, queries };
+    const q = queries[0];
+    setYtSelectedCat(ageCat);
     setYtListQuery(q);
     setYtListSort(cat.sortOrder);
     setYtListNextPage(null);
+    setYtAddingKeyword(false);
+    setYtNewKeyword('');
     setYtView('list');
-    ytFetchList(cat, q, cat.sortOrder);
+    ytFetchList(ageCat, q, cat.sortOrder);
   }, [ytFetchList]);
+
+  // ── YouTube custom categories ────────────────────────────────
+  const saveYtCustomCats = (list: YtCat[]) => {
+    setYtCustomCats(list);
+    try { localStorage.setItem('yt_custom_cats', JSON.stringify(list)); } catch {}
+  };
+  const addYtCustomCat = (name: string, emoji: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const ic = emoji.trim() || '⭐';
+    const newCat: YtCat = {
+      id: `custom_${Date.now()}`,
+      label: trimmed,
+      desc: '내가 추가한 카테고리',
+      emoji: ic,
+      tone: '#F3F4F6',
+      text: '#374151',
+      queries: [trimmed, `아기 ${trimmed}`, `육아 ${trimmed}`, `${trimmed} 방법`],
+      sortOrder: 'relevance',
+    };
+    saveYtCustomCats([...ytCustomCats, newCat]);
+  };
+  const removeYtCustomCat = (id: string) => {
+    saveYtCustomCats(ytCustomCats.filter(c => c.id !== id));
+  };
+
+  // ── YouTube custom keywords ──────────────────────────────────
+  const saveYtCustomKw = (updated: Record<string,string[]>) => {
+    setYtCustomKeywords(updated);
+    try { localStorage.setItem('yt_custom_keywords', JSON.stringify(updated)); } catch {}
+  };
+  const addYtCustomKw = (catId: string, kw: string) => {
+    const trimmed = kw.trim();
+    if (!trimmed) return;
+    const cur = ytCustomKeywords[catId] || [];
+    if (cur.includes(trimmed)) return;
+    saveYtCustomKw({ ...ytCustomKeywords, [catId]: [...cur, trimmed] });
+  };
+  const removeYtCustomKw = (catId: string, kw: string) => {
+    const updated = { ...ytCustomKeywords, [catId]: (ytCustomKeywords[catId] || []).filter(k => k !== kw) };
+    saveYtCustomKw(updated);
+  };
 
   // ── Helpers ──────────────────────────────────────────────────
   const saveAppState = useCallback((s: AppState) => {
@@ -1059,19 +1304,28 @@ export default function BabyApp() {
 <meta charset="utf-8"><title>육아 리포트</title>
 ${headStyles}
 <style>
-  body { background:#fff; margin:0; padding:16px 20px;
+  @page { size: A4; margin: 16mm 14mm; }
+  body { background:#fff; margin:0; padding:0 20px 20px;
     font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif; }
   #rpt-print-area { height:auto; overflow:visible; display:flex; flex-direction:column; gap:0; }
+  .rpt-page { display:block; }
+  .rpt-page-1 { page-break-after: always; }
   .rpt-print-cols { display:grid !important; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
   .rpt-col-left, .rpt-col-right { display:block !important; }
   .section-card { box-shadow:none; border:1px solid #e8e0d8; margin-bottom:12px;
     padding:10px 12px; break-inside:avoid; border-radius:12px; }
-  .rpt-hero { background:linear-gradient(135deg,#FFF3EB 0%,#EDFAEC 100%); }
+  .rpt-hero { background:linear-gradient(135deg,#FFF3EB 0%,#EDFAEC 100%); margin-bottom:12px; }
   .rpt-actions, .rpt-seg, .growth-form, .btn-secondary,
-  .growth-rec-del, .h-tab-bar { display:none !important; }
+  .growth-rec-del, .h-tab-bar, nav { display:none !important; }
   .donut-wrap { padding:8px 0 4px; }
   .heatmap-wrap { margin:4px 0; }
   .heat-cell { height:11px; }
+  .rpt-stats-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
+  .rpt-stat-item { text-align:center; padding:10px 4px; background:#f9fafb; border-radius:10px; }
+  .rpt-stat-icon { font-size:20px; margin-bottom:4px; }
+  .rpt-stat-val { font-size:13px; font-weight:700; color:#1f2937; }
+  .rpt-stat-lbl { font-size:10px; color:#6b7280; margin-top:2px; }
+  .rpt-page2-label { font-size:11px; font-weight:700; color:#9ca3af; padding:14px 0 6px; letter-spacing:.05em; text-transform:uppercase; }
 </style>
 </head><body>${el.outerHTML}</body></html>`);
     win.document.close();
@@ -1325,75 +1579,99 @@ ${headStyles}
     if (!name) { showToast('아기 이름을 입력해주세요'); return; }
     if (!birth) { showToast('생년월일을 입력해주세요'); return; }
     if (birth > todayStr()) { showToast('생년월일이 오늘보다 미래일 수 없어요'); return; }
-    const newBaby = { name, birthDate: birth, gender: setupGender };
-    const babyRes = await fetch('/api/baby', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(newBaby) }).then(r => r.json()).catch(() => null);
-    const babyId: number | null = babyRes?.id ?? null;
-    // 해당 아기의 전체 상태를 서버에서 불러와 복원
-    const url = babyId ? `/api/state?babyId=${babyId}` : '/api/state';
-    const data = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
-    const ns = Object.assign(defaultState(), data || { babyId, baby: newBaby });
-    const AUTO_SCHED: { m: number; text: string; category: 'vaccine' | 'feeding' | 'other' }[] = [
-      // 예방접종
-      { m:0,  text:'BCG 접종 (출생 후 4주 이내)',            category:'vaccine' },
-      { m:0,  text:'B형간염 1차 접종 (출생)',                category:'vaccine' },
-      { m:1,  text:'B형간염 2차 접종 (1개월)',               category:'vaccine' },
-      { m:2,  text:'DTaP·Hib·PCV·폴리오 1차 접종 (2개월)',  category:'vaccine' },
-      { m:2,  text:'로타바이러스 1차 접종 (2개월)',           category:'vaccine' },
-      { m:4,  text:'DTaP·Hib·PCV·폴리오 2차 접종 (4개월)',  category:'vaccine' },
-      { m:4,  text:'로타바이러스 2차 접종 (4개월)',           category:'vaccine' },
-      { m:6,  text:'DTaP·Hib·PCV·B형간염 3차 접종 (6개월)', category:'vaccine' },
-      { m:6,  text:'로타바이러스 3차 접종 (6개월)',           category:'vaccine' },
-      { m:12, text:'MMR·수두 접종 (12개월)',                 category:'vaccine' },
-      { m:12, text:'A형간염 1차 접종 (12개월)',               category:'vaccine' },
-      { m:15, text:'DTaP 4차 접종 (15개월)',                 category:'vaccine' },
-      { m:18, text:'A형간염 2차 접종 (18개월)',               category:'vaccine' },
-      // 영유아 검진
-      { m:2,  text:'영유아 검진 1차 (2개월)',                 category:'other' },
-      { m:4,  text:'영유아 검진 2차 (4개월)',                 category:'other' },
-      { m:9,  text:'영유아 검진 3차 (9개월)',                 category:'other' },
-      { m:18, text:'영유아 검진 4차 (18개월)',                category:'other' },
-      { m:30, text:'영유아 검진 5차 (30개월)',                category:'other' },
-      { m:42, text:'영유아 검진 6차 (42개월)',                category:'other' },
-      // 이유식·수유
-      { m:6,  text:'이유식 시작 (6개월)',                     category:'feeding' },
-      { m:7,  text:'빨대컵 연습 시작 (7개월)',                category:'feeding' },
-      { m:9,  text:'중기 이유식 전환 (9개월)',                category:'feeding' },
-      { m:11, text:'후기 이유식 전환 (11개월)',               category:'feeding' },
-      { m:12, text:'분유 → 생우유 전환 시작 (12개월)',        category:'feeding' },
-    ];
+    setSetupSaving(true);
+    try {
+      const newBaby = { name, birthDate: birth, gender: setupGender };
+      const babyRes = await fetch('/api/baby', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(newBaby) }).then(r => r.json()).catch(() => null);
+      const babyId: number | null = babyRes?.id ?? null;
+      // 해당 아기의 전체 상태를 서버에서 불러와 복원
+      const url = babyId ? `/api/state?babyId=${babyId}` : '/api/state';
+      const data = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+      const ns = Object.assign(defaultState(), data || { babyId, baby: newBaby });
+      const AUTO_SCHED: { m: number; text: string; category: 'vaccine' | 'feeding' | 'play' | 'other' }[] = [
+        // 예방접종
+        { m:0,  text:'BCG 접종 (출생 후 4주 이내)',            category:'vaccine' },
+        { m:0,  text:'B형간염 1차 접종 (출생)',                category:'vaccine' },
+        { m:1,  text:'B형간염 2차 접종 (1개월)',               category:'vaccine' },
+        { m:2,  text:'DTaP·Hib·PCV·폴리오 1차 접종 (2개월)',  category:'vaccine' },
+        { m:2,  text:'로타바이러스 1차 접종 (2개월)',           category:'vaccine' },
+        { m:4,  text:'DTaP·Hib·PCV·폴리오 2차 접종 (4개월)',  category:'vaccine' },
+        { m:4,  text:'로타바이러스 2차 접종 (4개월)',           category:'vaccine' },
+        { m:6,  text:'DTaP·Hib·PCV·B형간염 3차 접종 (6개월)', category:'vaccine' },
+        { m:6,  text:'로타바이러스 3차 접종 (6개월)',           category:'vaccine' },
+        { m:12, text:'MMR·수두 접종 (12개월)',                 category:'vaccine' },
+        { m:12, text:'A형간염 1차 접종 (12개월)',               category:'vaccine' },
+        { m:15, text:'DTaP 4차 접종 (15개월)',                 category:'vaccine' },
+        { m:18, text:'A형간염 2차 접종 (18개월)',               category:'vaccine' },
+        // 영유아 검진
+        { m:2,  text:'영유아 검진 1차 (2개월)',                 category:'other' },
+        { m:4,  text:'영유아 검진 2차 (4개월)',                 category:'other' },
+        { m:9,  text:'영유아 검진 3차 (9개월)',                 category:'other' },
+        { m:18, text:'영유아 검진 4차 (18개월)',                category:'other' },
+        { m:30, text:'영유아 검진 5차 (30개월)',                category:'other' },
+        { m:42, text:'영유아 검진 6차 (42개월)',                category:'other' },
+        // 이유식·수유
+        { m:6,  text:'이유식 시작 (6개월)',                     category:'feeding' },
+        { m:7,  text:'빨대컵 연습 시작 (7개월)',                category:'feeding' },
+        { m:9,  text:'중기 이유식 전환 (9개월)',                category:'feeding' },
+        { m:11, text:'후기 이유식 전환 (11개월)',               category:'feeding' },
+        { m:12, text:'분유 → 생우유 전환 시작 (12개월)',        category:'feeding' },
+        // 발달 마일스톤 (baby_develop_db 기반)
+        { m:1,  text:'터미타임 & 목 가누기 연습 시작',          category:'play'    },
+        { m:2,  text:'사회적 미소 & 쿠잉 발달 확인',            category:'play'    },
+        { m:3,  text:'오감 놀이 & 배 놀이 매트 활용',           category:'play'    },
+        { m:4,  text:'뒤집기 연습 시작 (배→등)',               category:'play'    },
+        { m:5,  text:'양방향 뒤집기 & 이앓이 대비',             category:'play'    },
+        { m:6,  text:'이유식 알레르기 체크 & 옹알이 반응',      category:'feeding' },
+        { m:7,  text:'핑거푸드 도입 & 집게 잡기 연습',          category:'feeding' },
+        { m:8,  text:'8개월 수면 회귀 대비 수면 루틴 점검',     category:'other'   },
+        { m:9,  text:'기기 & 혼자 앉기 발달 확인',              category:'play'    },
+        { m:10, text:'잡고 서기 & 걸음마 준비',                 category:'play'    },
+        { m:11, text:'손가락 가리키기 & 집게 잡기 확인',        category:'play'    },
+        { m:12, text:'12개월 언어·운동 발달 점검',              category:'other'   },
+        { m:12, text:'M-CHAT 자폐 선별 검사 (12개월)',          category:'other'   },
+        { m:15, text:'50개 단어 어휘 발달 점검',                category:'other'   },
+        { m:18, text:'두 단어 조합 언어 발달 확인',             category:'other'   },
+        { m:24, text:'24개월 언어 발달 정밀 점검',              category:'other'   },
+        { m:24, text:'배변 훈련 시작 고려',                     category:'other'   },
+        { m:30, text:'시력·청력 검사 (36개월 전)',              category:'other'   },
+      ];
 
-    // 아기 현재 월령 계산
-    const birthDt = new Date(newBaby.birthDate);
-    const nowDt = new Date();
-    const babyAgeMonths = (nowDt.getFullYear() - birthDt.getFullYear()) * 12
-      + (nowDt.getMonth() - birthDt.getMonth());
+      // 아기 현재 월령 계산
+      const birthDt = new Date(newBaby.birthDate);
+      const nowDt = new Date();
+      const babyAgeMonths = (nowDt.getFullYear() - birthDt.getFullYear()) * 12
+        + (nowDt.getMonth() - birthDt.getMonth());
 
-    const addMonths = (d: string, m: number) => {
-      const dt = new Date(d); dt.setMonth(dt.getMonth() + m);
-      return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-    };
+      const addMonths = (d: string, m: number) => {
+        const dt = new Date(d); dt.setMonth(dt.getMonth() + m);
+        return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+      };
 
-    const existingTexts = new Set(ns.todos.map((t: {text:string}) => t.text));
+      const existingTexts = new Set(ns.todos.map((t: {text:string}) => t.text));
 
-    // 현재 개월 이후 항목만 시드 (앞으로 18개월 이내)
-    const newItems = AUTO_SCHED
-      .filter(s => s.m > babyAgeMonths && s.m <= babyAgeMonths + 18)
-      .filter(s => !existingTexts.has(s.text))
-      .map(s => ({
-        id: uid(), text: s.text, category: s.category,
-        completed: false as const, createdAt: Date.now(),
-        date: addMonths(newBaby.birthDate, s.m),
-      }));
+      // 현재 개월 이후 항목만 시드 (앞으로 18개월 이내)
+      const newItems = AUTO_SCHED
+        .filter(s => s.m > babyAgeMonths && s.m <= babyAgeMonths + 3)
+        .filter(s => !existingTexts.has(s.text))
+        .map(s => ({
+          id: uid(), text: s.text, category: s.category as TodoCat,
+          completed: false as const, createdAt: Date.now(),
+          date: addMonths(newBaby.birthDate, s.m),
+        }));
 
-    if (newItems.length > 0) {
-      ns.todos = [...ns.todos, ...newItems].sort((a, b) => (a.date||'').localeCompare(b.date||''));
-      for (const todo of newItems) {
-        await fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...todo, babyId }) }).catch(console.error);
+      if (newItems.length > 0) {
+        ns.todos = [...ns.todos, ...newItems].sort((a, b) => (a.date||'').localeCompare(b.date||''));
+        for (const todo of newItems) {
+          await fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...todo, babyId }) }).catch(console.error);
+        }
       }
+      if (babyId) localStorage.setItem('baby_id', String(babyId));
+      saveAppState(ns); setModal(null);
+      showToast(`👶 ${name}${koreanParticle(name,'이의','의')} 기록을 시작해요!`);
+    } finally {
+      setSetupSaving(false);
     }
-    if (babyId) localStorage.setItem('baby_id', String(babyId));
-    saveAppState(ns); setModal(null);
-    showToast(`👶 ${name}${koreanParticle(name,'이의','의')} 기록을 시작해요!`);
   };
 
   // ── Chat ─────────────────────────────────────────────────────
@@ -1411,7 +1689,8 @@ ${headStyles}
       const context = chunks.length
         ? chunks.map(c => { const p = c.metadata.page ? ` (p.${c.metadata.page})` : ''; return `[출처: ${c.metadata.source}${p}]\n${c.text}`; }).join('\n\n---\n\n')
         : '';
-      const systemPrompt = `너는 영유아 육아 전문 챗봇이야.\n아기 이름: ${name}, 월령: ${months != null ? months + '개월' : '미입력'}.\n아래 참고 문서를 바탕으로 질문에 정확하고 실용적인 답변을 해줘.\n- 항상 한국어로 답변\n- 중요 키워드는 <strong>볼드</strong> 처리\n- 목록은 <ul><li> 형식\n- 의학적 결정은 반드시 소아청소년과 전문의 상담 권고 포함\n- 없는 정보를 지어내지 마\n\n[참고 문서]\n${context || '관련 문서 없음. 일반 육아 지식으로 답변.'}`;
+      const devKeywords = months != null ? getShopKeywordsForAge(months).slice(0, 5).join(', ') : '';
+      const systemPrompt = `너는 영유아 육아 전문 챗봇이야.\n아기 이름: ${name}, 월령: ${months != null ? months + '개월' : '미입력'}.\n${devKeywords ? `이 시기 주요 관심 키워드: ${devKeywords}\n` : ''}아래 참고 문서를 바탕으로 질문에 정확하고 실용적인 답변을 해줘.\n- 항상 한국어로 답변\n- 중요 키워드는 <strong>볼드</strong> 처리\n- 목록은 <ul><li> 형식\n- 의학적 결정은 반드시 소아청소년과 전문의 상담 권고 포함\n- 없는 정보를 지어내지 마\n\n[참고 문서]\n${context || '관련 문서 없음. 일반 육아 지식으로 답변.'}`;
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
@@ -1519,8 +1798,10 @@ ${headStyles}
 - 분유/분유 먹다/분유 줬어/분유 타다 → feed, feedType=분유
 - 유축/유축모유 → feed, feedType=유축모유
 - 이유식 → feed, feedType=이유식
-- 쉬/오줌/소변/기저귀(소변 맥락) → pee
-- 똥/대변/응가/기저귀(대변 맥락) → poop
+- 쉬/오줌/소변 → pee
+- 기저귀 갈았어/갈았어/갈아줬어/기저귀 채웠어 → pee (똥/응가/대변 언급 없으면 무조건 pee가 기본)
+- 똥/대변/응가/기저귀(똥 맥락) → poop
+- "기저귀 갈았어"만 단독으로 말하면 → pee
 - 울다/보채다/칭얼 → cry
 - 산책/나갔다왔어 → walk
 - 놀다/놀았다/터미타임/터미/놀이 → play
@@ -1548,8 +1829,12 @@ ${headStyles}
 
 [기저귀]
 "${babyName} 방금 똥쌌어" → record_activity(type=poop, time=${nowTime})
-"아기 30분 전에 소변 기저귀 갈았어" → record_activity(type=pee, time=${ago30})
+"아기 30분 전에 기저귀 갈았어" → record_activity(type=pee, time=${ago30})
+"갈았어" → record_activity(type=pee, time=${nowTime})
+"기저귀 갈아줬어" → record_activity(type=pee, time=${nowTime})
+"쉬 했어" → record_activity(type=pee, time=${nowTime})
 "아기 응가했어" → record_activity(type=poop, time=${nowTime})
+"똥 기저귀 갈았어" → record_activity(type=poop, time=${nowTime})
 
 [수면]
 "${babyName} 지금 자고 있어" → track_sleep(action=start, time=${nowTime})
@@ -1837,7 +2122,8 @@ ${headStyles}
   const hourLabels = Array.from({length:24},(_,h)=>({h, label: h===0?'자정':h<12?`${h}시`:h===12?'정오':`${h}시`}));
   const nowMin = new Date().getHours()*60+new Date().getMinutes();
 
-  if (!mounted) return null;
+  if (!mounted) return <BabyLoadingScreen />;
+
 
   // ── Render ───────────────────────────────────────────────────
   return (
@@ -1848,6 +2134,15 @@ ${headStyles}
       {/* Setup Modal */}
       <div className={`modal-overlay${modal==='setup'?' active':''}`} role="dialog" aria-modal="true">
         <div className="modal-card setup-modal-card">
+          {setupSaving ? (
+            <div className="setup-saving-body">
+              <div className="baby-loading-emoji-wrap">
+                <span style={{fontSize:'44px', lineHeight:1}}>👶</span>
+              </div>
+              <div className="baby-loading-text">아기 기록을 저장하는 중...</div>
+              <div className="baby-loading-dots"><span/><span/><span/></div>
+            </div>
+          ) : (<>
           {appState.baby && (
             <div className="modal-header">
               <span />
@@ -1897,6 +2192,7 @@ ${headStyles}
               <button type="submit" className="btn-primary btn-full">시작하기 ✨</button>
             )}
           </form>
+          </>)}
         </div>
       </div>
 
@@ -1917,13 +2213,54 @@ ${headStyles}
           </div>
           <div className="log-form-content">
             {(addLogType==='sleep'||addLogType==='cry'||addLogType==='walk'||addLogType==='play'||addLogType==='bath') && (
-              <div className="time-row">
-                <div className="form-group"><label>시작 시간</label><input type="time" value={lfStart} onChange={e=>setLfStart(e.target.value)} /></div>
-                <div className="form-group"><label>종료 시간</label><input type="time" value={lfEnd} onChange={e=>setLfEnd(e.target.value)} /></div>
-              </div>
+              <>
+                <div className="form-group">
+                  <label>시작 시간</label>
+                  <input type="time" value={lfStart} onChange={e=>{
+                    const dur=((hmToMin(lfEnd)-hmToMin(lfStart))+1440)%1440;
+                    setLfStart(e.target.value);
+                    setLfEnd(minToHM((hmToMin(e.target.value)+dur)%1440));
+                  }} />
+                  <div className="time-adj-row">
+                    {[-30,-10,-1,1,10,30].map(d=>(
+                      <button key={d} type="button" className={`time-adj-btn${d<0?' neg':' pos'}`}
+                        onClick={()=>{
+                          const ns=minToHM(((hmToMin(lfStart)+d)%1440+1440)%1440);
+                          const dur=((hmToMin(lfEnd)-hmToMin(lfStart))+1440)%1440;
+                          setLfStart(ns); setLfEnd(minToHM((hmToMin(ns)+dur)%1440));
+                        }}>
+                        {d>0?`+${d}`:d}분
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-group">
+                  {(()=>{const dur=((hmToMin(lfEnd)-hmToMin(lfStart))+1440)%1440;const h=Math.floor(dur/60),m=dur%60;const lbl=h>0?(m>0?`${h}시간 ${m}분`:`${h}시간`):`${m}분`;return(<label>소요 시간 <span className="dur-badge">{lbl}</span></label>);})()}
+                  <div className="time-adj-row dur-row">
+                    {[-30,-10,-5,-1,1,5,10,30].map(d=>(
+                      <button key={d} type="button" className={`time-adj-btn${d<0?' neg':' pos'}`}
+                        onClick={()=>setLfEnd(minToHM(((hmToMin(lfEnd)+d)%1440+1440)%1440))}>
+                        {d>0?`+${d}`:d}분
+                      </button>
+                    ))}
+                  </div>
+                  <div className="time-adj-endtime">종료 {lfEnd}</div>
+                </div>
+              </>
             )}
             {(addLogType==='feed'||addLogType==='pee'||addLogType==='poop') && (
-              <div className="form-group"><label>{addLogType==='feed'?'수유 시간':'시간'}</label><input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} /></div>
+              <div className="form-group">
+                <label>{addLogType==='feed'?'수유 시간':'시간'}</label>
+                <input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} />
+                <div className="time-adj-row">
+                  {[-30,-10,-1,1,10,30].map(d=>(
+                    <button key={d} type="button" className={`time-adj-btn${d<0?' neg':' pos'}`}
+                      onClick={()=>setLfTime(minToHM(((hmToMin(lfTime)+d)%1440+1440)%1440))}>
+                      {d>0?`+${d}`:d}분
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {addLogType==='feed' && (
               <>
@@ -1956,7 +2293,18 @@ ${headStyles}
             )}
             {addLogType==='measure' && (
               <>
-                <div className="form-group"><label>시간</label><input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} /></div>
+                <div className="form-group">
+                  <label>시간</label>
+                  <input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} />
+                  <div className="time-adj-row">
+                    {[-30,-10,-1,1,10,30].map(d=>(
+                      <button key={d} type="button" className={`time-adj-btn${d<0?' neg':' pos'}`}
+                        onClick={()=>setLfTime(minToHM(((hmToMin(lfTime)+d)%1440+1440)%1440))}>
+                        {d>0?`+${d}`:d}분
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="time-row">
                   <div className="form-group"><label>키 (cm)</label><input type="number" value={lfHeight} onChange={e=>setLfHeight(e.target.value)} placeholder="예: 60.5" min="30" max="130" step="0.1" /></div>
                   <div className="form-group"><label>몸무게 (kg)</label><input type="number" value={lfWeight} onChange={e=>setLfWeight(e.target.value)} placeholder="예: 5.2" min="1" max="30" step="0.01" /></div>
@@ -1964,7 +2312,18 @@ ${headStyles}
               </>
             )}
             {addLogType==='other' && (
-              <div className="form-group"><label>시간</label><input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} /></div>
+              <div className="form-group">
+                <label>시간</label>
+                <input type="time" value={lfTime} onChange={e=>setLfTime(e.target.value)} />
+                <div className="time-adj-row">
+                  {[-30,-10,-1,1,10,30].map(d=>(
+                    <button key={d} type="button" className={`time-adj-btn${d<0?' neg':' pos'}`}
+                      onClick={()=>setLfTime(minToHM(((hmToMin(lfTime)+d)%1440+1440)%1440))}>
+                      {d>0?`+${d}`:d}분
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             <div className="form-group">
               <label>{addLogType==='other' ? '내용 (필수)' : '메모'}</label>
@@ -2406,14 +2765,40 @@ ${headStyles}
                 <button className="see-all-btn" onClick={()=>navigate('schedule')}>전체 →</button>
               </div>
               <div className="home-upcoming-list">
-                {appState.todos.filter(t=>!t.completed).slice(0,3).length===0 ? (
-                  <div className="empty-state" style={{padding:'12px'}}><div className="empty-icon" style={{fontSize:'28px'}}>📅</div><p style={{fontSize:'12px'}}>스케줄에서 항목을 추가해보세요</p></div>
-                ) : appState.todos.filter(t=>!t.completed).slice(0,3).map(t=>(
-                  <div key={t.id} className="upcoming-item">
-                    <div className={`upcoming-cat-icon cat-${t.category}`}>{t.category==='vaccine'?'💉':t.category==='feeding'?'🍼':t.category==='play'?'🧸':t.category==='supplies'?'🛒':'📌'}</div>
-                    <div className="upcoming-text"><div className="upcoming-title">{t.text}</div><div className="upcoming-cat">{CAT_LABELS[t.category]}</div></div>
-                  </div>
-                ))}
+                {(()=>{
+                  const today = todayStr();
+                  const upcoming = appState.todos
+                    .filter(t => !t.completed)
+                    .sort((a, b) => {
+                      // 날짜 있는 것 우선, 오늘에 가까운 순
+                      const da = a.date || '9999-99-99';
+                      const db = b.date || '9999-99-99';
+                      return da.localeCompare(db);
+                    })
+                    .slice(0, 3);
+                  if (upcoming.length === 0) return (
+                    <div className="empty-state" style={{padding:'12px'}}><div className="empty-icon" style={{fontSize:'28px'}}>📅</div><p style={{fontSize:'12px'}}>스케줄에서 항목을 추가해보세요</p></div>
+                  );
+                  return upcoming.map(t => {
+                    let dateLabel = '';
+                    if (t.date) {
+                      const diff = Math.round((new Date(t.date).getTime() - new Date(today).getTime()) / 86400000);
+                      if (diff === 0) dateLabel = '오늘';
+                      else if (diff === 1) dateLabel = '내일';
+                      else if (diff < 0) dateLabel = `${Math.abs(diff)}일 전`;
+                      else dateLabel = `${diff}일 후`;
+                    }
+                    return (
+                      <div key={t.id} className="upcoming-item">
+                        <div className={`upcoming-cat-icon cat-${t.category}`}>{t.category==='vaccine'?'💉':t.category==='feeding'?'🍼':t.category==='play'?'🧸':t.category==='supplies'?'🛒':'📌'}</div>
+                        <div className="upcoming-text">
+                          <div className="upcoming-title">{t.text}</div>
+                          <div className="upcoming-cat">{CAT_LABELS[t.category]}{dateLabel && <span className={`upcoming-date-badge${t.date&&t.date<today?' past':t.date===today?' today':''}`}>{dateLabel}</span>}</div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
 
@@ -2664,7 +3049,7 @@ ${headStyles}
               </div>
               <div className="shop-flow-desc">키워드를 눌러 YouTube, 당근마켓, 맘가이드에서 검색해보세요</div>
               <div className="kw-chips">
-                {(ageInfo ? getShopKeywordsForAge(ageInfo.months) : SHOP_KEYWORDS['4-6']).map(kw=>(
+                {(ageInfo ? getShopKeywordsForAge(ageInfo.months) : BABY_KEYWORDS_BY_STAGE['4-6']).map((kw: string)=>(
                   <button key={kw} className="kw-chip" onClick={()=>{ setKwPickerKeyword(kw); setKwPickerOpen(true); }}>{kw}</button>
                 ))}
               </div>
@@ -2911,146 +3296,173 @@ ${headStyles}
               </div>
             </div>
 
-            <div className="rpt-print-cols">
-              <div className="rpt-col-left">
-                {/* Activity chart */}
-                <div className="section-card">
-                  <div className="section-header">
-                    <h3 className="section-title hand rpt-section-title">생활 패턴</h3>
+            {/* ── PAGE 1: 생활패턴 + 평균통계 + 성장곡선 ── */}
+            <div className="rpt-page rpt-page-1">
+              <div className="rpt-print-cols">
+                <div className="rpt-col-left">
+                  {/* Activity chart */}
+                  <div className="section-card">
+                    <div className="section-header">
+                      <h3 className="section-title hand rpt-section-title">생활 패턴</h3>
+                    </div>
+                    <div className="activity-legend">
+                      <div className="act-legend-item"><div className="act-legend-dot act-sleep-dot"/><span>수면</span></div>
+                      <div className="act-legend-item"><div className="act-legend-dot act-feed-dot"/><span>수유</span></div>
+                      <div className="act-legend-item"><div className="act-legend-dot act-diaper-dot"/><span>기저귀</span></div>
+                    </div>
+                    <div className="activity-chart" dangerouslySetInnerHTML={{__html: buildActivityChartHTML(appState.logs, reportMode)}} />
                   </div>
-                  <div className="activity-legend">
-                    <div className="act-legend-item"><div className="act-legend-dot act-sleep-dot"/><span>수면</span></div>
-                    <div className="act-legend-item"><div className="act-legend-dot act-feed-dot"/><span>수유</span></div>
-                    <div className="act-legend-item"><div className="act-legend-dot act-diaper-dot"/><span>기저귀</span></div>
+
+                  {/* 평균 수유량 / 수면시간 요약 */}
+                  {(()=>{
+                    const days = reportMode==='week'?7:30;
+                    let totalSleepMin=0,totalFeedAmt=0,totalFeedCnt=0,totalDiaperCnt=0,validDays=0;
+                    for(let i=days-1;i>=0;i--){
+                      const d=new Date(); d.setDate(d.getDate()-i);
+                      const ls=appState.logs[localDateStr(d)]||[];
+                      if(!ls.length)continue; validDays++;
+                      totalSleepMin+=ls.filter(l=>l.type==='sleep'&&l.endTime).reduce((a,l)=>{let dur=hmToMin(l.endTime!)-hmToMin(l.startTime||'00:00');if(dur<0)dur+=1440;return a+dur;},0);
+                      totalFeedCnt+=ls.filter(l=>l.type==='feed').length;
+                      totalFeedAmt+=ls.filter(l=>l.type==='feed').reduce((a,l)=>a+(l.amount||0),0);
+                      totalDiaperCnt+=ls.filter(l=>l.type==='pee'||l.type==='poop').length;
+                    }
+                    const n=Math.max(validDays,1);
+                    const avgSleepH=Math.floor(totalSleepMin/n/60),avgSleepM=Math.round((totalSleepMin/n)%60);
+                    const avgFeedCnt=(totalFeedCnt/n).toFixed(1);
+                    const avgFeedAmt=totalFeedAmt>0?Math.round(totalFeedAmt/n):null;
+                    const avgDiaper=(totalDiaperCnt/n).toFixed(1);
+                    return (
+                      <div className="section-card rpt-stats-card">
+                        <h3 className="section-title hand rpt-section-title">평균 생활 통계 <span style={{fontSize:'11px',fontWeight:400,color:'var(--text-light)'}}>({reportMode==='week'?'7일':'30일'})</span></h3>
+                        <div className="rpt-stats-grid">
+                          <div className="rpt-stat-item">
+                            <div className="rpt-stat-icon">😴</div>
+                            <div className="rpt-stat-val">{avgSleepH}h {avgSleepM>0?`${avgSleepM}m`:''}</div>
+                            <div className="rpt-stat-lbl">하루 평균 수면</div>
+                          </div>
+                          <div className="rpt-stat-item">
+                            <div className="rpt-stat-icon">🍼</div>
+                            <div className="rpt-stat-val">{avgFeedCnt}회{avgFeedAmt?` · ${avgFeedAmt}ml`:''}</div>
+                            <div className="rpt-stat-lbl">하루 평균 수유</div>
+                          </div>
+                          <div className="rpt-stat-item">
+                            <div className="rpt-stat-icon">💧</div>
+                            <div className="rpt-stat-val">{avgDiaper}회</div>
+                            <div className="rpt-stat-lbl">하루 평균 기저귀</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="rpt-col-right">
+                  {/* Height growth chart */}
+                  <div className="section-card">
+                    <div className="section-header">
+                      <h3 className="section-title hand rpt-section-title">키 성장 곡선</h3>
+                      <button className="btn-secondary" onClick={()=>{ setGDate(todayStr()); setGHeight(''); setGWeight(''); setShowGrowthForm(v=>!v); }}>
+                        {showGrowthForm ? '닫기' : '+ 기록'}
+                      </button>
+                    </div>
+                    {showGrowthForm && (
+                      <div className="growth-form">
+                        <div className="growth-input-row">
+                          <input type="date" className="growth-in" value={gDate} onChange={e=>setGDate(e.target.value)} style={{flex:'1.2'}} />
+                          <input type="number" className="growth-in" placeholder="키 (cm)" value={gHeight} onChange={e=>setGHeight(e.target.value)} step="0.1" min="30" max="120" />
+                          <input type="number" className="growth-in" placeholder="몸무게 (kg)" value={gWeight} onChange={e=>setGWeight(e.target.value)} step="0.01" min="1" max="20" />
+                          <button className="btn-primary" style={{padding:'8px 12px',fontSize:'12px'}} onClick={saveGrowth}>저장</button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="growth-chart-wrap">
+                      <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'height', appState.baby?.gender || 'girl', appState.baby?.birthDate)}} />
+                    </div>
+                    {(()=>{
+                      const sorted=[...appState.growth].filter(r=>r.height!=null).sort((a,b)=>b.date.localeCompare(a.date));
+                      const latest=sorted[0]; if(!latest||!ageInfo)return null;
+                      const result=calcPercentile(latest.height!,ageInfo.months,'height',appState.baby?.gender||'girl');
+                      return(<div className="growth-percentile-badge"><div className="growth-pct-row"><div className="growth-pct-icon">{result.emoji}</div><div><div className="growth-pct-label">{latest.height}cm — {result.label}</div><div className="growth-pct-sub">WHO 성장 기준 (P3/P50/P97)</div></div></div></div>);
+                    })()}
                   </div>
-                  <div className="activity-chart" dangerouslySetInnerHTML={{__html: buildActivityChartHTML(appState.logs, reportMode)}} />
+
+                  {/* Weight growth chart */}
+                  <div className="section-card">
+                    <h3 className="section-title hand rpt-section-title">몸무게 성장 곡선</h3>
+                    <div className="growth-chart-wrap">
+                      <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'weight', appState.baby?.gender || 'girl', appState.baby?.birthDate)}} />
+                    </div>
+                    {(()=>{
+                      const sorted=[...appState.growth].filter(r=>r.weight!=null).sort((a,b)=>b.date.localeCompare(a.date));
+                      const latest=sorted[0]; if(!latest||!ageInfo)return null;
+                      const result=calcPercentile(latest.weight!,ageInfo.months,'weight',appState.baby?.gender||'girl');
+                      return(<div className="growth-percentile-badge"><div className="growth-pct-row"><div className="growth-pct-icon">{result.emoji}</div><div><div className="growth-pct-label">{latest.weight}kg — {result.label}</div><div className="growth-pct-sub">WHO 성장 기준 (P3/P50/P97)</div></div></div></div>);
+                    })()}
+                    {appState.growth.length > 0 && (
+                      <div className="growth-records">
+                        {[...appState.growth].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(r=>(
+                          <div key={r.id} className="growth-rec-row">
+                            <span className="growth-rec-date">{r.date}</span>
+                            <span className="growth-rec-vals">{r.height!=null?`${r.height}cm`:''}{r.height!=null&&r.weight!=null?' · ':''}{r.weight!=null?`${r.weight}kg`:''}</span>
+                            <button className="growth-rec-del" onClick={()=>deleteGrowth(r.id)}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+            </div>{/* rpt-page-1 */}
 
-              <div className="rpt-col-right">
-                {/* Height growth chart */}
-                <div className="section-card">
-                  <div className="section-header">
-                    <h3 className="section-title hand rpt-section-title">키 성장 곡선</h3>
-                    <button className="btn-secondary" onClick={()=>{ setGDate(todayStr()); setGHeight(''); setGWeight(''); setShowGrowthForm(v=>!v); }}>
-                      {showGrowthForm ? '닫기' : '+ 기록'}
-                    </button>
-                  </div>
-                  {showGrowthForm && (
-                    <div className="growth-form">
-                      <div className="growth-input-row">
-                        <input type="date" className="growth-in" value={gDate} onChange={e=>setGDate(e.target.value)} style={{flex:'1.2'}} />
-                        <input type="number" className="growth-in" placeholder="키 (cm)" value={gHeight} onChange={e=>setGHeight(e.target.value)} step="0.1" min="30" max="120" />
-                        <input type="number" className="growth-in" placeholder="몸무게 (kg)" value={gWeight} onChange={e=>setGWeight(e.target.value)} step="0.01" min="1" max="20" />
-                        <button className="btn-primary" style={{padding:'8px 12px',fontSize:'12px'}} onClick={saveGrowth}>저장</button>
+            {/* ── PAGE 2: 건강이슈 + 복약정보 ── */}
+            <div className="rpt-page rpt-page-2">
+              <div className="rpt-page2-label">건강 기록</div>
+              <div className="rpt-print-cols">
+                <div className="rpt-col-left">
+                  {/* Health issues */}
+                  <div className="section-card">
+                    <h3 className="section-title hand rpt-section-title">최근 건강 이슈</h3>
+                    {(!appState.health.logs||appState.health.logs.length===0)?(
+                      <div className="rpt-empty-sm">해당 내용이 없습니다</div>
+                    ):(
+                      <div className="rpt-issues">
+                        {[...appState.health.logs].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,8).map(l=>(
+                          <div key={l.id} className="rpt-issue-card">
+                            <div className="rpt-issue-top">
+                              <span className="rpt-issue-type">{{temp:'체온',rash:'피부',symptom:'증상',other:'기타'}[l.type]}</span>
+                              <span className="rpt-issue-date">{l.date} {l.time}</span>
+                            </div>
+                            <div className="rpt-issue-detail">{l.detail}</div>
+                            {l.photo&&(<img src={l.photo} alt="건강 기록 사진" style={{marginTop:'8px',width:'100%',maxHeight:'120px',objectFit:'cover',borderRadius:'8px',display:'block'}}/>)}
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  )}
-                  <div className="growth-chart-wrap">
-                    <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'height', appState.baby?.gender || 'girl', appState.baby?.birthDate)}} />
+                    )}
                   </div>
-                  {(() => {
-                    const sorted = [...appState.growth].filter(r => r.height != null).sort((a,b)=>b.date.localeCompare(a.date));
-                    const latest = sorted[0];
-                    if (!latest || !ageInfo) return null;
-                    const result = calcPercentile(latest.height!, ageInfo.months, 'height', appState.baby?.gender || 'girl');
-                    return (
-                      <div className="growth-percentile-badge">
-                        <div className="growth-pct-row">
-                          <div className="growth-pct-icon">{result.emoji}</div>
-                          <div>
-                            <div className="growth-pct-label">{latest.height}cm — {result.label}</div>
-                            <div className="growth-pct-sub">WHO 성장 기준 (P3/P50/P97)</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
                 </div>
-
-                {/* Weight growth chart */}
-                <div className="section-card">
-                  <h3 className="section-title hand rpt-section-title">몸무게 성장 곡선</h3>
-                  <div className="growth-chart-wrap">
-                    <div dangerouslySetInnerHTML={{__html: buildGrowthSVG(appState.growth, 'weight', appState.baby?.gender || 'girl', appState.baby?.birthDate)}} />
+                <div className="rpt-col-right">
+                  {/* Medications */}
+                  <div className="section-card">
+                    <h3 className="section-title hand rpt-section-title">복약 정보</h3>
+                    {(!appState.health.medications||appState.health.medications.length===0)?(
+                      <div className="rpt-empty-sm">해당 내용이 없습니다</div>
+                    ):(
+                      <div className="rpt-issues">
+                        {[...appState.health.medications].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(m=>(
+                          <div key={m.id} className="rpt-issue-card">
+                            <div className="rpt-issue-top">
+                              <span className="rpt-issue-type">💊 {m.name}</span>
+                              <span className="rpt-issue-date">{m.date}</span>
+                            </div>
+                            <div className="rpt-issue-detail">{[m.dose,m.freq,m.note].filter(Boolean).join(' · ')}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {(() => {
-                    const sorted = [...appState.growth].filter(r => r.weight != null).sort((a,b)=>b.date.localeCompare(a.date));
-                    const latest = sorted[0];
-                    if (!latest || !ageInfo) return null;
-                    const result = calcPercentile(latest.weight!, ageInfo.months, 'weight', appState.baby?.gender || 'girl');
-                    return (
-                      <div className="growth-percentile-badge">
-                        <div className="growth-pct-row">
-                          <div className="growth-pct-icon">{result.emoji}</div>
-                          <div>
-                            <div className="growth-pct-label">{latest.weight}kg — {result.label}</div>
-                            <div className="growth-pct-sub">WHO 성장 기준 (P3/P50/P97)</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {appState.growth.length > 0 && (
-                    <div className="growth-records">
-                      {[...appState.growth].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(r=>(
-                        <div key={r.id} className="growth-rec-row">
-                          <span className="growth-rec-date">{r.date}</span>
-                          <span className="growth-rec-vals">{r.height!=null?`${r.height}cm`:''}{r.height!=null&&r.weight!=null?' · ':''}{r.weight!=null?`${r.weight}kg`:''}</span>
-                          <button className="growth-rec-del" onClick={()=>deleteGrowth(r.id)}>✕</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
-
-                {/* Health issues */}
-                <div className="section-card">
-                  <h3 className="section-title hand rpt-section-title">최근 건강 이슈</h3>
-                  {(!appState.health.logs || appState.health.logs.length === 0) ? (
-                    <div className="rpt-empty-sm">해당 내용이 없습니다</div>
-                  ) : (
-                    <div className="rpt-issues">
-                      {[...appState.health.logs].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,5).map(l=>(
-                        <div key={l.id} className="rpt-issue-card">
-                          <div className="rpt-issue-top">
-                            <span className="rpt-issue-type">{{temp:'체온',rash:'피부',symptom:'증상',other:'기타'}[l.type]}</span>
-                            <span className="rpt-issue-date">{l.date} {l.time}</span>
-                          </div>
-                          <div className="rpt-issue-detail">{l.detail}</div>
-                          {l.photo && (
-                            <img src={l.photo} alt="건강 기록 사진"
-                              style={{marginTop:'8px',width:'100%',maxHeight:'140px',objectFit:'cover',borderRadius:'8px',display:'block'}} />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Medications */}
-                <div className="section-card">
-                  <h3 className="section-title hand rpt-section-title">복약 정보</h3>
-                  {(!appState.health.medications || appState.health.medications.length === 0) ? (
-                    <div className="rpt-empty-sm">해당 내용이 없습니다</div>
-                  ) : (
-                    <div className="rpt-issues">
-                      {[...appState.health.medications].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(m=>(
-                        <div key={m.id} className="rpt-issue-card">
-                          <div className="rpt-issue-top">
-                            <span className="rpt-issue-type">💊 {m.name}</span>
-                            <span className="rpt-issue-date">{m.date}</span>
-                          </div>
-                          <div className="rpt-issue-detail">
-                            {[m.dose, m.freq, m.note].filter(Boolean).join(' · ')}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>{/* rpt-col-right */}
-            </div>{/* rpt-print-cols */}
+              </div>
+            </div>{/* rpt-page-2 */}
           </div>
         </section>
 
@@ -3211,7 +3623,7 @@ ${headStyles}
                       const stage = ageInfo ? ytAgeStage(ageInfo.months) : '4-6m';
                       const isPrimary = YT_STAGE_MAP[stage]?.primary.includes(cat.id);
                       return (
-                        <button key={cat.id} className="yt-cat-card" onClick={() => ytOpenCategory(cat)}>
+                        <button key={cat.id} className="yt-cat-card" onClick={() => ytOpenCategory(cat, ageInfo?.months)}>
                           {isPrimary && <div className="yt-cat-badge">추천</div>}
                           <div className="yt-cat-icon" style={{background: cat.tone}}>{cat.emoji}</div>
                           <div className="yt-cat-label" style={{color: cat.text}}>{cat.label}</div>
@@ -3219,7 +3631,50 @@ ${headStyles}
                         </button>
                       );
                     })}
+                    {/* 커스텀 카테고리 */}
+                    {ytCustomCats.map(cat => (
+                      <div key={cat.id} className="yt-cat-card yt-cat-custom">
+                        <button className="yt-cat-custom-del" onClick={() => removeYtCustomCat(cat.id)}>×</button>
+                        <button className="yt-cat-custom-inner" onClick={() => ytOpenCategory(cat, ageInfo?.months)}>
+                          <div className="yt-cat-icon" style={{background: cat.tone}}>{cat.emoji}</div>
+                          <div className="yt-cat-label" style={{color: cat.text}}>{cat.label}</div>
+                          <div className="yt-cat-desc">{cat.desc}</div>
+                        </button>
+                      </div>
+                    ))}
+                    {/* + 추가 버튼 */}
+                    <button className="yt-cat-card yt-cat-add-btn" onClick={() => { setYtAddingCat(true); setTimeout(() => ytNewCatRef.current?.focus(), 50); }}>
+                      <div className="yt-cat-add-plus">+</div>
+                      <div className="yt-cat-label" style={{color:'var(--primary)'}}>카테고리 추가</div>
+                      <div className="yt-cat-desc">원하는 주제를 추가해요</div>
+                    </button>
                   </div>
+                  {/* 카테고리 추가 인라인 폼 */}
+                  {ytAddingCat && (
+                    <div className="yt-cat-add-form">
+                      <input
+                        className="yt-cat-add-emoji"
+                        value={ytNewCatEmoji}
+                        onChange={e => setYtNewCatEmoji(e.target.value)}
+                        placeholder="🌟"
+                        maxLength={2}
+                      />
+                      <input
+                        ref={ytNewCatRef}
+                        className="yt-cat-add-name"
+                        value={ytNewCatName}
+                        onChange={e => setYtNewCatName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { addYtCustomCat(ytNewCatName, ytNewCatEmoji); setYtNewCatName(''); setYtNewCatEmoji(''); setYtAddingCat(false); }
+                          if (e.key === 'Escape') { setYtAddingCat(false); setYtNewCatName(''); setYtNewCatEmoji(''); }
+                        }}
+                        placeholder="카테고리 이름 (예: 수영 교실)"
+                        maxLength={20}
+                      />
+                      <button className="yt-cat-add-ok" onClick={() => { addYtCustomCat(ytNewCatName, ytNewCatEmoji); setYtNewCatName(''); setYtNewCatEmoji(''); setYtAddingCat(false); }}>추가</button>
+                      <button className="yt-cat-add-cancel" onClick={() => { setYtAddingCat(false); setYtNewCatName(''); setYtNewCatEmoji(''); }}>취소</button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Representative videos per category */}
@@ -3241,7 +3696,7 @@ ${headStyles}
                       if (!v) return null;
                       return (
                         <div key={cat.id} className="yt-rep-item">
-                          <button className="yt-rep-cat-row" onClick={() => ytOpenCategory(cat)}>
+                          <button className="yt-rep-cat-row" onClick={() => ytOpenCategory(cat, ageInfo?.months)}>
                             <div className="yt-rep-cat-left">
                               <div className="yt-rep-cat-icon" style={{background: cat.tone}}>{cat.emoji}</div>
                               <span className="yt-rep-cat-label" style={{color: cat.text}}>{cat.label}</span>
@@ -3296,6 +3751,50 @@ ${headStyles}
                         }}
                       >{q}</button>
                     ))}
+                    {/* 커스텀 키워드 */}
+                    {(ytCustomKeywords[ytSelectedCat.id] || []).map(q => (
+                      <span key={q} className={`yt-keyword-chip yt-kw-custom${ytListQuery === q ? ' active' : ''}`}>
+                        <button className="yt-kw-custom-btn" onClick={() => {
+                          setYtListQuery(q);
+                          setYtListNextPage(null);
+                          ytFetchList(ytSelectedCat!, q, ytListSort);
+                        }}>{q}</button>
+                        <button className="yt-kw-del" onClick={() => {
+                          removeYtCustomKw(ytSelectedCat!.id, q);
+                          if (ytListQuery === q) {
+                            const fallback = ytSelectedCat!.queries[0];
+                            setYtListQuery(fallback);
+                            setYtListNextPage(null);
+                            ytFetchList(ytSelectedCat!, fallback, ytListSort);
+                          }
+                        }}>×</button>
+                      </span>
+                    ))}
+                    {/* 키워드 추가 버튼 */}
+                    {ytAddingKeyword ? (
+                      <span className="yt-kw-add-wrap">
+                        <input
+                          ref={ytNewKwRef}
+                          className="yt-kw-input"
+                          value={ytNewKeyword}
+                          onChange={e => setYtNewKeyword(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { addYtCustomKw(ytSelectedCat!.id, ytNewKeyword); setYtNewKeyword(''); setYtAddingKeyword(false); }
+                            if (e.key === 'Escape') { setYtAddingKeyword(false); setYtNewKeyword(''); }
+                          }}
+                          placeholder="키워드 입력"
+                          maxLength={30}
+                          autoFocus
+                        />
+                        <button className="yt-kw-add-confirm" onClick={() => {
+                          addYtCustomKw(ytSelectedCat!.id, ytNewKeyword);
+                          setYtNewKeyword(''); setYtAddingKeyword(false);
+                        }}>추가</button>
+                        <button className="yt-kw-add-cancel" onClick={() => { setYtAddingKeyword(false); setYtNewKeyword(''); }}>✕</button>
+                      </span>
+                    ) : (
+                      <button className="yt-keyword-chip yt-kw-plus" onClick={() => { setYtAddingKeyword(true); setTimeout(() => ytNewKwRef.current?.focus(), 50); }}>+ 추가</button>
+                    )}
                   </div>
                   <div className="yt-sort-row">
                     <select
