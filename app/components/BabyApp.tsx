@@ -242,6 +242,22 @@ const VOICE_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'track_cry',
+      description: '"울고있어/보채기 시작해/울기 시작해" → action=start, "그쳤어/울음 멈췄어/달랬어/진정됐어" → action=end. 울음 시작/종료를 추적합니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['start', 'end'], description: 'start=울음 시작, end=울음 종료' },
+          reason: { type: 'string', enum: ['배고픔','기저귀','졸림','배앓이','안아달라',''], description: '울음 원인 추정. 명확하지 않으면 생략' },
+          time:   { type: 'string', description: '시각 HH:MM. 없으면 생략' },
+        },
+        required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'chat_response',
       description: '아기 육아 정보 질문, 조언 요청, 일반 대화에 답변합니다.',
       parameters: {
@@ -1027,6 +1043,8 @@ export default function BabyApp() {
   const [lfNote, setLfNote] = useState('');
   const [lfHeight, setLfHeight] = useState('');
   const [lfWeight, setLfWeight] = useState('');
+  const [lfBreastSide, setLfBreastSide] = useState<'좌'|'우'|''>('');
+  const [tlTextInput, setTlTextInput] = useState('');
 
   // Health modal form
   const [healthModalMode, setHealthModalMode] = useState<HealthModalMode>('health');
@@ -1043,6 +1061,8 @@ export default function BabyApp() {
   const [hfMedNote, setHfMedNote] = useState('');
   const [hfMedDate, setHfMedDate] = useState('');
   const [isMedOcrLoading, setIsMedOcrLoading] = useState(false);
+  const [editingHealthLogId, setEditingHealthLogId] = useState<string|null>(null);
+  const [editingMedId, setEditingMedId] = useState<string|null>(null);
 
   // Baby photo
   const [babyPhoto, setBabyPhoto] = useState<string|null>(null);
@@ -1058,6 +1078,7 @@ export default function BabyApp() {
   const [timelineDate, setTimelineDate] = useState(() => todayStr());
   const [voiceSleepStart, setVoiceSleepStart] = useState<{logId:string; time:string} | null>(null);
   const [voiceFeedStart, setVoiceFeedStart] = useState<{logId:string; time:string; amount:number; feedType:string} | null>(null);
+  const [voiceCryStart, setVoiceCryStart] = useState<{logId:string; time:string} | null>(null);
   const [quickFeedOpen,   setQuickFeedOpen]   = useState(false);
   const [quickDiaperOpen, setQuickDiaperOpen] = useState(false);
   const [quickOtherOpen,  setQuickOtherOpen]  = useState(false);
@@ -1698,7 +1719,7 @@ ${headStyles}
     setEditingLogId(null);
     setAddLogType(type); setLfStart(now); setLfEnd(end); setLfTime(now);
     setLfAmount(''); setLfFeedType(initFeedType || '분유'); setLfColor('노란색'); setLfReason(''); setLfNote('');
-    setLfHeight(''); setLfWeight('');
+    setLfHeight(''); setLfWeight(''); setLfBreastSide('');
     setModal('addLog');
   };
 
@@ -1717,7 +1738,11 @@ ${headStyles}
     } else {
       log.time = lfTime || nowHHMM(); log.startTime = log.time;
     }
-    if (addLogType === 'feed') { log.amount = parseInt(lfAmount||'0')||null; log.feedType = lfFeedType; }
+    if (addLogType === 'feed') {
+      log.amount = parseInt(lfAmount||'0')||null;
+      log.feedType = lfFeedType;
+      if (lfFeedType === '모유' && lfBreastSide) log.note = lfBreastSide;
+    }
     if (addLogType === 'poop') log.color = lfColor;
     if (addLogType === 'cry')  log.reason = lfReason;
     if (addLogType === 'other' && !lfNote.trim()) { showToast('내용을 입력해주세요'); return; }
@@ -1781,31 +1806,77 @@ ${headStyles}
     setLfNote(selectedLog.note || '');
     setLfHeight((selectedLog.note?.match(/키 ([\d.]+)cm/)||[])[1]||'');
     setLfWeight((selectedLog.note?.match(/몸무게 ([\d.]+)kg/)||[])[1]||'');
+    setLfBreastSide('');
+    if (selectedLog.feedType === '모유' && (selectedLog.note === '좌' || selectedLog.note === '우')) {
+      setLfBreastSide(selectedLog.note as '좌'|'우');
+      setLfNote('');
+    }
     setModal('addLog');
   };
 
   // ── Health ───────────────────────────────────────────────────
   const openHealthModal = (mode: HealthModalMode) => {
     setHealthModalMode(mode);
-    setHfDetail(''); setHfDate(todayStr()); setHfTime2(nowHHMM()); setHfPhoto('');
+    setHfType('temp'); setHfDetail(''); setHfDate(todayStr()); setHfTime2(nowHHMM()); setHfPhoto('');
     setHfMedname(''); setHfDose(''); setHfFreq(''); setHfMedNote(''); setHfMedDate(todayStr());
+    setEditingHealthLogId(null); setEditingMedId(null);
+    setModal('healthLog');
+  };
+  const openEditHealthLog = (log: HealthLog) => {
+    setHealthModalMode('health');
+    setHfType(log.type); setHfDetail(log.detail); setHfDate(log.date); setHfTime2(log.time); setHfPhoto(log.photo || '');
+    setEditingHealthLogId(log.id); setEditingMedId(null);
+    setModal('healthLog');
+  };
+  const openEditMedication = (med: Medication) => {
+    setHealthModalMode('medication');
+    setHfMedname(med.name); setHfDose(med.dose); setHfFreq(med.freq); setHfMedNote(med.note); setHfMedDate(med.date);
+    setEditingMedId(med.id); setEditingHealthLogId(null);
     setModal('healthLog');
   };
   const saveHealthLog = () => {
     if (!hfDetail.trim()) { showToast('내용을 입력해주세요'); return; }
-    const newLog: HealthLog = { id:uid(), type:hfType, detail:hfDetail.trim(), date:hfDate, time:hfTime2, ...(hfPhoto ? { photo: hfPhoto } : {}) };
     const ns = { ...appState, health: { ...appState.health } };
-    ns.health.logs = [...(ns.health.logs||[]), newLog];
-    saveAppState(ns); setModal(null); showToast('🌡️ 건강 기록이 저장됐어요!');
-    fetch('/api/health/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newLog, babyId: appState.babyId }) }).catch(console.error);
+    if (editingHealthLogId) {
+      const updated: HealthLog = { id:editingHealthLogId, type:hfType, detail:hfDetail.trim(), date:hfDate, time:hfTime2, ...(hfPhoto ? { photo:hfPhoto } : {}) };
+      ns.health.logs = (ns.health.logs||[]).map(l => l.id===editingHealthLogId ? updated : l);
+      saveAppState(ns); setModal(null); setEditingHealthLogId(null);
+      showToast('✏️ 건강 기록이 수정됐어요!');
+      fetch(`/api/health/logs/${editingHealthLogId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(updated) }).catch(console.error);
+    } else {
+      const newLog: HealthLog = { id:uid(), type:hfType, detail:hfDetail.trim(), date:hfDate, time:hfTime2, ...(hfPhoto ? { photo:hfPhoto } : {}) };
+      ns.health.logs = [...(ns.health.logs||[]), newLog];
+      saveAppState(ns); setModal(null); showToast('🌡️ 건강 기록이 저장됐어요!');
+      fetch('/api/health/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newLog, babyId:appState.babyId }) }).catch(console.error);
+    }
+  };
+  const deleteHealthLog = (id: string) => {
+    const ns = { ...appState, health: { ...appState.health } };
+    ns.health.logs = (ns.health.logs||[]).filter(l => l.id!==id);
+    saveAppState(ns); showToast('건강 기록이 삭제됐어요');
+    fetch(`/api/health/logs/${id}`, { method:'DELETE' }).catch(console.error);
   };
   const saveMedication = () => {
     if (!hfMedname.trim()) { showToast('약 이름을 입력해주세요'); return; }
-    const newMed = { id:uid(), name:hfMedname.trim(), dose:hfDose, freq:hfFreq, note:hfMedNote, date:hfMedDate };
     const ns = { ...appState, health: { ...appState.health } };
-    ns.health.medications = [...(ns.health.medications||[]), newMed];
-    saveAppState(ns); setModal(null); showToast('💊 복약 정보가 저장됐어요!');
-    fetch('/api/health/medications', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newMed, babyId: appState.babyId }) }).catch(console.error);
+    if (editingMedId) {
+      const updated: Medication = { id:editingMedId, name:hfMedname.trim(), dose:hfDose, freq:hfFreq, note:hfMedNote, date:hfMedDate };
+      ns.health.medications = (ns.health.medications||[]).map(m => m.id===editingMedId ? updated : m);
+      saveAppState(ns); setModal(null); setEditingMedId(null);
+      showToast('✏️ 복약 정보가 수정됐어요!');
+      fetch(`/api/health/medications/${editingMedId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(updated) }).catch(console.error);
+    } else {
+      const newMed: Medication = { id:uid(), name:hfMedname.trim(), dose:hfDose, freq:hfFreq, note:hfMedNote, date:hfMedDate };
+      ns.health.medications = [...(ns.health.medications||[]), newMed];
+      saveAppState(ns); setModal(null); showToast('💊 복약 정보가 저장됐어요!');
+      fetch('/api/health/medications', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newMed, babyId:appState.babyId }) }).catch(console.error);
+    }
+  };
+  const deleteMedication = (id: string) => {
+    const ns = { ...appState, health: { ...appState.health } };
+    ns.health.medications = (ns.health.medications||[]).filter(m => m.id!==id);
+    saveAppState(ns); showToast('복약 정보가 삭제됐어요');
+    fetch(`/api/health/medications/${id}`, { method:'DELETE' }).catch(console.error);
   };
 
   // ── Todo ─────────────────────────────────────────────────────
@@ -2051,16 +2122,21 @@ ${headStyles}
 
 ## 분류 우선순위
 1. 키/몸무게/체온 수치 언급 → record_measurement
-2. "자고 있어/잠들었어/재웠어/낮잠 자" → track_sleep(action=start)
+2. "자고 있어/잠들었어/재웠어/낮잠 자" → track_sleep(action=start) [진행중]
+   "잤어/잠들었다 깼어" + 시작시간 + 기간/종료시간 명시 → record_activity(type=sleep, time=시작, endTime=종료) [과거완료]
 3. "깼어/일어났어/기상했어" → track_sleep(action=end)
 4. "지금 분유/모유 주고 있어/시작해/물리고 있어" → track_feed(action=start)
 5. "다 먹었어/Xml 남겼어/조금 남겼어" → track_feed(action=end)
-6. 미래 의도 ("살 거야", "예약해야", "맞혀야 해", "사야 해") → save_schedule
-7. "${babyName}"/"아기"/"아가" 주어 + 현재/과거 활동 서술 → record_activity
-8. 질문("~일까?","~야?","~해?","어떻게","얼마나","뭐야") 또는 정보 요청 → chat_response
+6. "울고있어/보채기 시작해/울기 시작해" → track_cry(action=start)
+   "그쳤어/울음 멈췄어/달랬어/진정됐어" → track_cry(action=end)
+7. 미래 의도 ("살 거야", "예약해야", "맞혀야 해", "사야 해") → save_schedule
+8. "${babyName}"/"아기"/"아가" 주어 + 현재/과거 활동 서술 → record_activity
+9. 질문("~일까?","~야?","~해?","어떻게","얼마나","뭐야") 또는 정보 요청 → chat_response
 
 ## record_activity 활동 매핑
 - 젖/모유/젖 물다/젖 먹다 → feed, feedType=모유
+  - "왼쪽/좌측 모유/왼쪽 젖" → feed, feedType=모유, note="좌"
+  - "오른쪽/우측 모유/오른쪽 젖" → feed, feedType=모유, note="우"
 - 분유/분유 먹다/분유 줬어/분유 타다 → feed, feedType=분유
 - 유축/유축모유 → feed, feedType=유축모유
 - 이유식 → feed, feedType=이유식
@@ -2072,6 +2148,10 @@ ${headStyles}
 - 산책/나갔다왔어 → walk
 - 놀다/놀았다/터미타임/터미/놀이 → play
 - 목욕/씻겼어 → bath
+- 잤어/낮잠 잤어 + 시작시간 + 기간/종료시간 → sleep (과거 완료, record_activity 사용)
+  - "2시부터 3시간 잤어" → time="02:00", endTime="05:00"
+  - "오전 10시부터 1시간 30분 잤어" → time="10:00", endTime="11:30"
+  - "밤 11시부터 6시간 잤어" → time="23:00", endTime="05:00"
 
 ## 시간 변환 (HH:MM 24시간제, 현재=${nowTime})
 - "방금/지금" → ${nowTime}
@@ -2079,6 +2159,7 @@ ${headStyles}
 - "2시" → "02:00", "오후 2시" → "14:00", "오전 10시" → "10:00"
 - 여러 시간 → times 배열 (예: "2시 4시 6시" → ["02:00","04:00","06:00"])
 - "X분 산책/놀이 다녀왔어/했어" → endTime=${nowTime}, time=현재-X분
+- "X시부터 Y시간" → time=X시, endTime=X시+Y시간 (자정 넘으면 다음날로 계산)
 
 ## Few-shot 예시
 
@@ -2086,6 +2167,9 @@ ${headStyles}
 "${babyName} 방금 모유 10분 먹었어" → record_activity(type=feed, feedType=모유, time=${nowTime}, note="10분")
 "${babyName} 2시 4시 6시에 분유 50ml 먹었어" → record_activity(type=feed, feedType=분유, times=["02:00","04:00","06:00"], amount=50)
 "아기 오후 2시에 분유 150 줬어" → record_activity(type=feed, feedType=분유, time="14:00", amount=150)
+"아기 2시, 4시, 6시에 모유 먹었어" → record_activity(type=feed, feedType=모유, times=["02:00","04:00","06:00"])
+"아기 왼쪽 젖 물렸어" → record_activity(type=feed, feedType=모유, note="좌", time=${nowTime})
+"오른쪽 모유 먹었어" → record_activity(type=feed, feedType=모유, note="우", time=${nowTime})
 
 [수유 — 진행 중 추적 (track_feed)]
 "아기 지금 분유 150 주고 있어" → track_feed(action=start, feedType=분유, amount=150, time=${nowTime})
@@ -2093,19 +2177,40 @@ ${headStyles}
 "분유 30 밀리 남겼어" → track_feed(action=end, amount=30)
 "아기 다 먹었어" → track_feed(action=end, amount=0)
 
-[기저귀]
-"${babyName} 방금 똥쌌어" → record_activity(type=poop, time=${nowTime})
+[기저귀 — 소변]
+"아기 소변봤어" → record_activity(type=pee, time=${nowTime})
+"쉬했어" → record_activity(type=pee, time=${nowTime})
+"쉬 쌌어" → record_activity(type=pee, time=${nowTime})
+"오줌 쌌어" → record_activity(type=pee, time=${nowTime})
+"기저귀 갈았어" → record_activity(type=pee, time=${nowTime})
 "아기 30분 전에 기저귀 갈았어" → record_activity(type=pee, time=${ago30})
 "갈았어" → record_activity(type=pee, time=${nowTime})
 "기저귀 갈아줬어" → record_activity(type=pee, time=${nowTime})
-"쉬 했어" → record_activity(type=pee, time=${nowTime})
+
+[기저귀 — 대변]
+"${babyName} 방금 똥쌌어" → record_activity(type=poop, time=${nowTime})
 "아기 응가했어" → record_activity(type=poop, time=${nowTime})
 "똥 기저귀 갈았어" → record_activity(type=poop, time=${nowTime})
 
-[수면]
+[울음 — 진행 중 추적 (track_cry)]
+"아기 울고있어" → track_cry(action=start, time=${nowTime})
+"아기 그쳤어" → track_cry(action=end, time=${nowTime})
+"보채기 시작했어" → track_cry(action=start, time=${nowTime})
+"울음 멈췄어" → track_cry(action=end, time=${nowTime})
+"달랬어" → track_cry(action=end, time=${nowTime})
+"아기 지금 울어" → track_cry(action=start, time=${nowTime})
+"진정됐어" → track_cry(action=end, time=${nowTime})
+
+[수면 — 진행 중 (track_sleep)]
 "${babyName} 지금 자고 있어" → track_sleep(action=start, time=${nowTime})
 "${babyName} 방금 깼어" → track_sleep(action=end, time=${nowTime})
 "아기 20분 전에 잠들었어" → track_sleep(action=start, time=${ago20})
+
+[수면 — 과거 완료 + 기간 명시 (record_activity)]
+"아기 2시부터 3시간 잤어" → record_activity(type=sleep, time="02:00", endTime="05:00")
+"오전 10시부터 1시간 30분 잤어" → record_activity(type=sleep, time="10:00", endTime="11:30")
+"밤 11시부터 4시간 잤어" → record_activity(type=sleep, time="23:00", endTime="03:00")
+"아기 낮에 2시부터 4시까지 잤어" → record_activity(type=sleep, time="14:00", endTime="16:00")
 
 [산책/놀이]
 "아기 방금 30분 산책 다녀왔어" → record_activity(type=walk, endTime=${nowTime}, time=${ago30})
@@ -2137,7 +2242,9 @@ ${headStyles}
 - "기저귀 사야 해/살 거야" → save_schedule(category=other), poop/pee 아님
 - "똥 기저귀 다 떨어졌어" → save_schedule(category=other), poop 아님
 - "분유 얼마나 먹여?" → chat_response (질문), feed 기록 아님
-- "잠을 너무 못 자요" → chat_response (상담), track_sleep 아님`,
+- "잠을 너무 못 자요" → chat_response (상담), track_sleep 아님
+- "그쳤어" 단독 → 맥락상 울음이 있었으면 track_cry(end), 아니면 chat_response
+- "쉬했어/소변봤어/오줌 쌌어" → pee (poop 아님, 대변 언급 없으면 무조건 pee)`,
             },
             { role: 'user', content: transcript },
           ],
@@ -2273,6 +2380,38 @@ ${headStyles}
             showToast(`🍼 ${ft} 수유 기록 완료${consumed ? ` (${consumed}ml)` : ''}`);
             navigate('timeline');
             fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId:appState.babyId }) }).catch(console.error);
+          }
+        }
+      } else if (fn === 'track_cry') {
+        const { action, reason, time } = args as { action:'start'|'end'; reason?:string; time?:string };
+        const t = time || nowHHMM();
+        const dateKey = todayStr();
+        if (action === 'start') {
+          const logId = uid();
+          const log: Log = { id:logId, type:'cry', date:dateKey, note:reason||'', startTime:t };
+          const ns = { ...appState };
+          if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
+          ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
+          saveAppState(ns);
+          setVoiceCryStart({ logId, time: t });
+          showToast(`😢 ${t} 울음 시작 기록. "아기 그쳤어"로 종료하세요`);
+          navigate('timeline');
+          fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error);
+        } else {
+          if (voiceCryStart) {
+            const ns = { ...appState };
+            if (ns.logs[dateKey]) {
+              ns.logs[dateKey] = ns.logs[dateKey].map(l =>
+                l.id === voiceCryStart.logId ? { ...l, endTime: t } : l
+              );
+            }
+            saveAppState(ns);
+            setVoiceCryStart(null);
+            showToast(`😢 울음 종료: ${voiceCryStart.time} ~ ${t}`);
+            navigate('timeline');
+            fetch(`/api/logs/${voiceCryStart.logId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ endTime: t }) }).catch(console.error);
+          } else {
+            showToast('울음 시작 기록이 없어요. "아기 울고있어"를 먼저 말해주세요');
           }
         }
       } else {
@@ -2559,10 +2698,24 @@ ${headStyles}
                 <div className="form-group"><label>수유량 (ml)</label><input type="number" value={lfAmount} onChange={e=>setLfAmount(e.target.value)} placeholder="예: 120" min="0" max="500" /></div>
                 <div className="form-group">
                   <label>수유 방법</label>
-                  <select value={lfFeedType} onChange={e=>setLfFeedType(e.target.value)}>
+                  <select value={lfFeedType} onChange={e=>{setLfFeedType(e.target.value);setLfBreastSide('');}}>
                     <option value="분유">🍼 분유</option><option value="모유">🤱 모유</option><option value="유축모유">🍶 유축모유</option><option value="혼합">💛 혼합</option><option value="우유">🥛 우유</option><option value="이유식">🥣 이유식</option>
                   </select>
                 </div>
+                {lfFeedType==='모유' && (
+                  <div className="form-group">
+                    <label>수유 방향 <span style={{fontWeight:400,color:'#aaa',fontSize:'12px'}}>(선택)</span></label>
+                    <div className="breast-side-row">
+                      {([['좌','👈 좌측'],['우','우측 👉'],['','선택 안 함']] as [string,string][]).map(([v,l])=>(
+                        <button key={v} type="button"
+                          className={`breast-side-btn${lfBreastSide===v?' active':''}`}
+                          onClick={()=>setLfBreastSide(v as '좌'|'우'|'')}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
             {addLogType==='poop' && (
@@ -2721,7 +2874,7 @@ ${headStyles}
       <div className={`modal-overlay${modal==='healthLog'?' active':''}`} role="dialog" aria-modal="true">
         <div className="modal-card">
           <div className="modal-header">
-            <h3>{healthModalMode==='health'?'건강 기록 추가':'복약 정보 추가'}</h3>
+            <h3>{healthModalMode==='health'?(editingHealthLogId?'건강 기록 수정':'건강 기록 추가'):(editingMedId?'복약 정보 수정':'복약 정보 추가')}</h3>
             <button className="modal-close" onClick={()=>setModal(null)} aria-label="닫기">✕</button>
           </div>
           <div className="log-form-content">
@@ -2780,7 +2933,7 @@ ${headStyles}
                   <div className="form-group"><label>날짜</label><input type="date" value={hfDate} onChange={e=>setHfDate(e.target.value)} /></div>
                   <div className="form-group"><label>시간</label><input type="time" value={hfTime2} onChange={e=>setHfTime2(e.target.value)} /></div>
                 </div>
-                <button className="btn-primary btn-full" onClick={saveHealthLog}>저장</button>
+                <button className="btn-primary btn-full" onClick={saveHealthLog}>{editingHealthLogId?'수정':'저장'}</button>
               </>
             )}
             {healthModalMode==='medication' && (
@@ -2842,7 +2995,7 @@ ${headStyles}
                 </div>
                 <div className="form-group"><label>메모</label><textarea value={hfMedNote} onChange={e=>setHfMedNote(e.target.value)} placeholder="처방병원, 복약 목적 등" /></div>
                 <div className="form-group"><label>처방일</label><input type="date" value={hfMedDate} onChange={e=>setHfMedDate(e.target.value)} /></div>
-                <button className="btn-primary btn-full" onClick={saveMedication}>저장</button>
+                <button className="btn-primary btn-full" onClick={saveMedication}>{editingMedId?'수정':'저장'}</button>
               </>
             )}
           </div>
@@ -2895,6 +3048,12 @@ ${headStyles}
                     <span className="log-detail-key">수유 방법</span>
                     <span className="log-detail-val">{selectedLog.feedType||'—'}</span>
                   </div>
+                  {selectedLog.feedType==='모유' && (selectedLog.note==='좌'||selectedLog.note==='우') && (
+                    <div className="log-detail-row">
+                      <span className="log-detail-key">수유 방향</span>
+                      <span className="log-detail-val">{selectedLog.note}측</span>
+                    </div>
+                  )}
                 </>)}
                 {selectedLog.type==='poop' && (
                   <div className="log-detail-row">
@@ -2908,7 +3067,7 @@ ${headStyles}
                     <span className="log-detail-val">{selectedLog.reason||'알 수 없음'}</span>
                   </div>
                 )}
-                {selectedLog.note && (
+                {selectedLog.note && !(selectedLog.feedType==='모유'&&(selectedLog.note==='좌'||selectedLog.note==='우')) && (
                   <div className="log-detail-row">
                     <span className="log-detail-key">메모</span>
                     <span className="log-detail-val log-detail-note">{selectedLog.note}</span>
@@ -3312,6 +3471,17 @@ ${headStyles}
               </button>
             ))}
           </div>
+          <div className="tl-text-input-bar">
+            <input
+              className="tl-nlp-input"
+              type="text"
+              placeholder="예: 2시부터 3시간 잤어  /  2시 4시 6시에 모유 먹었어"
+              value={tlTextInput}
+              onChange={e=>setTlTextInput(e.target.value)}
+              onKeyDown={e=>{ if(e.key==='Enter'&&tlTextInput.trim()){ processVoiceInput(tlTextInput.trim()); setTlTextInput(''); } }}
+            />
+            <button className="tl-nlp-btn" onClick={()=>{ if(tlTextInput.trim()){ processVoiceInput(tlTextInput.trim()); setTlTextInput(''); } }}>기록</button>
+          </div>
           <div className="timeline-scroll-wrapper" ref={timelineScrollRef}>
             <div className="timeline-canvas">
               <div className="tl-axis">
@@ -3333,7 +3503,8 @@ ${headStyles}
                   const leftPct  = (col / totalCols) * 100;
                   const left  = col === 0            ? '4px'  : `calc(${leftPct}% + 2px)`;
                   const right = col === totalCols-1  ? '4px'  : `calc(${(1 - (col+1)/totalCols)*100}% + 2px)`;
-                  const feedLabel = log.type==='feed'?(log.feedType||'수유'):TYPE_LABELS[log.type];
+                  const breastSide = (log.type==='feed'&&log.feedType==='모유'&&(log.note==='좌'||log.note==='우'))?log.note:'';
+                  const feedLabel = log.type==='feed'?(log.feedType||'수유')+(breastSide?` ${breastSide}`:''):TYPE_LABELS[log.type];
                   let label = TYPE_ICONS[log.type]+' '+feedLabel;
                   if(totalCols > 1) label = TYPE_ICONS[log.type]; // 좁을 땐 아이콘만
                   if(totalCols === 1) {
@@ -3418,15 +3589,16 @@ ${headStyles}
             <div className="section-card">
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}}>
                 <h3 className="section-title hand" style={{margin:0}}>맞춤 키워드 확인</h3>
-                {ageInfo && <span className="shop-age-badge">{ageInfo.months}개월 맞춤</span>}
+                {ageInfo && <span className="shop-age-badge">{ageInfo.months + 1}개월차 맞춤</span>}
               </div>
               <div className="shop-flow-desc">키워드를 눌러 YouTube, 당근마켓, 맘가이드에서 검색해보세요</div>
               <div className="kw-chips">
                 {(()=>{
                   if (!ageInfo) return BABY_KEYWORDS_BY_STAGE['4-6'];
-                  // 현재 + 다음 1개월 키워드 합산 (중복 제거)
-                  const cur  = getShopKeywordsForAge(ageInfo.months);
-                  const next = getShopKeywordsForAge(ageInfo.months + 1);
+                  // 한국식 "개월차" 기준(+1)으로 스테이지 매핑
+                  const stage = ageInfo.months + 1;
+                  const cur  = getShopKeywordsForAge(stage);
+                  const next = getShopKeywordsForAge(stage + 1);
                   return [...new Set([...cur, ...next.filter(k => !cur.includes(k))])];
                 })().map((kw: string)=>(
                   <button key={kw} className="kw-chip" onClick={()=>{ setKwPickerKeyword(kw); setKwPickerOpen(true); }}>{kw}</button>
@@ -3685,6 +3857,10 @@ ${headStyles}
                       <div className="hl-time">{l.date} {l.time}</div>
                       {l.photo && <img src={l.photo} alt="건강 기록 사진" style={{marginTop:'6px',maxWidth:'100%',maxHeight:'120px',borderRadius:'8px',objectFit:'cover',display:'block'}} />}
                     </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:'4px',flexShrink:0}}>
+                      <button onClick={()=>openEditHealthLog(l)} style={{background:'none',border:'1px solid #e5e7eb',borderRadius:'6px',cursor:'pointer',fontSize:'12px',color:'#6b7280',padding:'3px 7px'}}>수정</button>
+                      <button onClick={()=>deleteHealthLog(l.id)} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'6px',cursor:'pointer',fontSize:'12px',color:'#ef4444',padding:'3px 7px'}}>삭제</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -3713,9 +3889,15 @@ ${headStyles}
                 {(!appState.health.medications||appState.health.medications.length===0) ? (
                   <div className="empty-state"><div className="empty-icon">💊</div><p>복약 정보가 없어요<br/>처방된 약 정보를 기록해보세요</p></div>
                 ) : [...appState.health.medications].sort((a,b)=>b.date.localeCompare(a.date)).map(m=>(
-                  <div key={m.id} className="med-item">
-                    <div className="med-name">💊 {m.name}</div>
-                    <div className="med-detail">{m.dose?m.dose+' · ':''}{m.freq||''}{m.note?' · '+m.note:''}<span style={{marginLeft:'4px',color:'var(--text-light)',fontSize:'11px'}}>{m.date}</span></div>
+                  <div key={m.id} className="med-item" style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div className="med-name">💊 {m.name}</div>
+                      <div className="med-detail">{m.dose?m.dose+' · ':''}{m.freq||''}{m.note?' · '+m.note:''}<span style={{marginLeft:'4px',color:'var(--text-light)',fontSize:'11px'}}>{m.date}</span></div>
+                    </div>
+                    <div style={{display:'flex',gap:'4px',flexShrink:0}}>
+                      <button onClick={()=>openEditMedication(m)} style={{background:'none',border:'1px solid #e5e7eb',borderRadius:'6px',cursor:'pointer',fontSize:'12px',color:'#6b7280',padding:'3px 7px'}}>수정</button>
+                      <button onClick={()=>deleteMedication(m.id)} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'6px',cursor:'pointer',fontSize:'12px',color:'#ef4444',padding:'3px 7px'}}>삭제</button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아기돌봄 앱 프로젝트 기획서</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;700&display=swap');
+
+  :root {
+    --orange: #FF8C42;
+    --orange-light: #FFE0CC;
+    --orange-mid: #FFBD96;
+    --green: #8BC44A;
+    --green-light: #E2F0CC;
+    --green-mid: #C2E08A;
+    --cream: #FFFDF8;
+    --gray-50: #FAFAF8;
+    --gray-100: #F0EFE8;
+    --gray-200: #D8D6CC;
+    --gray-400: #9E9B8E;
+    --gray-600: #5E5B50;
+    --gray-800: #2E2C26;
+    --blue: #4A8FC4;
+    --blue-light: #DCF0FF;
+    --purple: #8B6FCA;
+    --purple-light: #EDE8F8;
+    --red: #E05A5A;
+    --red-light: #FDEAEA;
+    --teal: #3DADA0;
+    --teal-light: #D8F4F1;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 20px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--cream);
+    color: var(--gray-800);
+    line-height: 1.75;
+    font-size: 15px;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    background: linear-gradient(135deg, #FFF5ED 0%, #F0FAEE 50%, #FFF5ED 100%);
+    padding: 80px 60px 60px;
+    border-bottom: 1px solid var(--gray-100);
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 320px; height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--orange-light) 0%, transparent 70%);
+    opacity: 0.5;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; left: -40px;
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--green-light) 0%, transparent 70%);
+    opacity: 0.5;
+  }
+  .cover-inner { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; }
+  .cover-badge {
+    display: inline-block;
+    background: var(--orange);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 100px;
+    margin-bottom: 20px;
+  }
+  .cover h1 {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--gray-800);
+    margin-bottom: 12px;
+  }
+  .cover h1 span { color: var(--orange); }
+  .cover-subtitle {
+    font-size: 18px;
+    color: var(--gray-600);
+    font-weight: 300;
+    margin-bottom: 40px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .cover-meta-item { font-size: 13px; color: var(--gray-400); }
+  .cover-meta-item strong { display: block; color: var(--gray-600); font-weight: 500; font-size: 14px; }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 40px; }
+
+  /* ── NAV ── */
+  .toc {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-100);
+    padding: 24px 40px;
+  }
+  .toc-inner { max-width: 900px; margin: 0 auto; }
+  .toc-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--gray-400); text-transform: uppercase; margin-bottom: 12px; }
+  .toc-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+  }
+  .toc-list a {
+    display: inline-block;
+    font-size: 13px;
+    color: var(--gray-600);
+    text-decoration: none;
+    padding: 4px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--gray-200);
+    background: white;
+    transition: all 0.2s;
+  }
+  .toc-list a:hover { border-color: var(--orange); color: var(--orange); }
+
+  /* ── SECTIONS ── */
+  section { padding: 60px 0; border-bottom: 1px solid var(--gray-100); }
+  section:last-child { border-bottom: none; }
+
+  .section-header { margin-bottom: 36px; }
+  .section-number {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--orange);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .section-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--gray-800);
+    line-height: 1.3;
+  }
+  .section-desc {
+    font-size: 15px;
+    color: var(--gray-600);
+    margin-top: 8px;
+  }
+
+  h3 { font-size: 17px; font-weight: 600; color: var(--gray-800); margin: 28px 0 12px; }
+  h4 { font-size: 14px; font-weight: 600; color: var(--gray-600); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  p { margin-bottom: 12px; color: var(--gray-600); }
+
+  /* ── CARDS ── */
+  .card {
+    background: white;
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    box-shadow: var(--shadow-sm);
+  }
+  .card + .card { margin-top: 16px; }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .card-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  /* ── FEATURE CARDS ── */
+  .feature-card {
+    background: white;
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-md);
+    padding: 20px 22px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    border-radius: 4px 0 0 4px;
+  }
+  .feature-card.orange::before { background: var(--orange); }
+  .feature-card.green::before { background: var(--green); }
+  .feature-card.blue::before { background: var(--blue); }
+  .feature-card.purple::before { background: var(--purple); }
+  .feature-card.teal::before { background: var(--teal); }
+  .feature-card.red::before { background: var(--red); }
+
+  .feature-icon {
+    width: 40px; height: 40px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    margin-bottom: 12px;
+  }
+  .feature-icon.orange { background: var(--orange-light); }
+  .feature-icon.green { background: var(--green-light); }
+  .feature-icon.blue { background: var(--blue-light); }
+  .feature-icon.purple { background: var(--purple-light); }
+  .feature-icon.teal { background: var(--teal-light); }
+  .feature-icon.red { background: var(--red-light); }
+
+  .feature-card h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; color: var(--gray-800); }
+  .feature-card p { font-size: 13px; color: var(--gray-400); margin: 0; }
+  .feature-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+    margin-top: 10px;
+  }
+  .feature-tag.must { background: var(--orange-light); color: var(--orange); }
+  .feature-tag.native { background: var(--green-light); color: var(--green); }
+  .feature-tag.ext { background: var(--blue-light); color: var(--blue); }
+
+  /* ── TECH STACK ── */
+  .tech-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .tech-table th {
+    background: var(--gray-50);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--gray-100);
+  }
+  .tech-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: top;
+  }
+  .tech-table tr:last-child td { border-bottom: none; }
+  .tech-table tr:hover td { background: var(--gray-50); }
+
+  .tech-name {
+    font-weight: 600;
+    color: var(--gray-800);
+    font-size: 13px;
+  }
+  .tech-value {
+    color: var(--orange);
+    font-weight: 600;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+  }
+  .tech-why { font-size: 13px; color: var(--gray-600); }
+  .tech-difficulty {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 100px;
+  }
+  .tech-difficulty.easy { background: var(--green-light); color: #4A8A1A; }
+  .tech-difficulty.mid { background: var(--orange-light); color: var(--orange); }
+  .tech-difficulty.hard { background: var(--red-light); color: var(--red); }
+
+  /* ── INFO BOX ── */
+  .info-box {
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    margin: 16px 0;
+    border: 1px solid transparent;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .info-box .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .info-box p { margin: 0; font-size: 14px; }
+  .info-box.tip { background: var(--blue-light); border-color: #B8DEFF; }
+  .info-box.warn { background: #FFF8E6; border-color: #FFE8A3; }
+  .info-box.success { background: var(--green-light); border-color: #C0E08A; }
+  .info-box.danger { background: var(--red-light); border-color: #F5BBBB; }
+
+  /* ── PHASE TIMELINE ── */
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px; top: 12px; bottom: 12px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--orange), var(--green));
+  }
+  .timeline-item { position: relative; margin-bottom: 32px; }
+  .timeline-dot {
+    position: absolute;
+    left: -28px; top: 8px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px var(--orange);
+    background: var(--orange);
+  }
+  .timeline-dot.green { background: var(--green); box-shadow: 0 0 0 2px var(--green); }
+  .timeline-dot.teal { background: var(--teal); box-shadow: 0 0 0 2px var(--teal); }
+  .timeline-dot.blue { background: var(--blue); box-shadow: 0 0 0 2px var(--blue); }
+
+  .timeline-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .timeline-phase {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .timeline-phase.p1 { background: var(--orange-light); color: var(--orange); }
+  .timeline-phase.p2 { background: var(--green-light); color: #4A8A1A; }
+  .timeline-phase.p3 { background: var(--teal-light); color: var(--teal); }
+  .timeline-phase.p4 { background: var(--blue-light); color: var(--blue); }
+  .timeline-title { font-size: 16px; font-weight: 600; color: var(--gray-800); }
+  .timeline-duration { font-size: 12px; color: var(--gray-400); margin-left: auto; }
+  .timeline-tasks {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+  }
+  .task-chip {
+    font-size: 12px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-100);
+    color: var(--gray-600);
+    padding: 4px 12px;
+    border-radius: 100px;
+  }
+
+  /* ── SCREEN MOCKUP ── */
+  .screen-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 24px 0;
+  }
+  .screen-item {
+    background: var(--gray-800);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    aspect-ratio: 9/16;
+    position: relative;
+    box-shadow: var(--shadow-md);
+  }
+  .screen-bar {
+    height: 6px;
+    background: linear-gradient(90deg, var(--orange), var(--green));
+  }
+  .screen-top {
+    padding: 10px 10px 6px;
+    background: white;
+  }
+  .screen-title { font-size: 10px; font-weight: 700; color: var(--gray-800); }
+  .screen-sub { font-size: 8px; color: var(--gray-400); }
+  .screen-body { padding: 8px 10px; }
+  .screen-card {
+    background: var(--gray-50);
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin-bottom: 5px;
+  }
+  .screen-card-title { font-size: 8px; font-weight: 600; color: var(--gray-600); }
+  .screen-card-val { font-size: 11px; font-weight: 700; color: var(--gray-800); }
+  .screen-label { font-size: 9px; color: var(--gray-400); margin-top: 2px; text-align: center; }
+
+  /* ── DESIGN SYSTEM ── */
+  .color-grid {
+    display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0;
+  }
+  .color-swatch {
+    width: 64px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    text-align: center;
+  }
+  .color-swatch .swatch { height: 48px; }
+  .color-swatch .swatch-name { font-size: 11px; color: var(--gray-400); margin-top: 4px; }
+  .color-swatch .swatch-hex { font-size: 10px; color: var(--gray-400); font-family: monospace; }
+
+  /* ── USER FLOW ── */
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-700, var(--gray-800));
+    white-space: nowrap;
+  }
+  .flow-box.accent { background: var(--orange-light); border-color: var(--orange-mid); color: var(--orange); }
+  .flow-arrow {
+    font-size: 16px;
+    color: var(--gray-200);
+    margin: 0 6px;
+  }
+
+  /* ── BUDGET ── */
+  .budget-bar {
+    background: var(--gray-100);
+    border-radius: 100px;
+    height: 10px;
+    margin: 4px 0 8px;
+    overflow: hidden;
+  }
+  .budget-fill { height: 100%; border-radius: 100px; }
+  .budget-row { margin-bottom: 14px; }
+  .budget-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 2px; }
+  .budget-label span:first-child { color: var(--gray-600); }
+  .budget-label span:last-child { font-weight: 600; color: var(--gray-800); }
+
+  /* ── API KEY BOX ── */
+  .api-box {
+    background: var(--gray-800);
+    border-radius: var(--radius-md);
+    padding: 20px 24px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #D8D6CC;
+    margin: 12px 0;
+    line-height: 1.8;
+  }
+  .api-box .comment { color: #6E6C60; }
+  .api-box .key { color: #F4A623; }
+  .api-box .val { color: #8BCA4A; }
+  .api-box .str { color: #FF8C42; }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background: white; }
+    .cover { padding: 60px 40px 40px; }
+    section { padding: 40px 0; }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 720px) {
+    .cover { padding: 48px 24px 40px; }
+    .cover h1 { font-size: 28px; }
+    .container { padding: 0 20px; }
+    .toc { padding: 16px 20px; }
+    .card-grid, .card-grid-3, .screen-grid { grid-template-columns: 1fr; }
+    .cover-meta { gap: 20px; }
+  }
+
+  .divider {
+    width: 48px; height: 3px;
+    background: linear-gradient(90deg, var(--orange), var(--green));
+    border-radius: 2px;
+    margin: 12px 0 28px;
+  }
+
+  table.simple { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0; }
+  table.simple th { background: var(--orange-light); color: var(--gray-800); font-weight: 600; padding: 10px 14px; text-align: left; }
+  table.simple td { padding: 10px 14px; border-bottom: 1px solid var(--gray-100); color: var(--gray-600); }
+  table.simple tr:last-child td { border-bottom: none; }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+    margin: 2px;
+  }
+  .tag.orange { background: var(--orange-light); color: var(--orange); }
+  .tag.green { background: var(--green-light); color: #3A7A10; }
+  .tag.blue { background: var(--blue-light); color: var(--blue); }
+  .tag.purple { background: var(--purple-light); color: var(--purple); }
+  .tag.gray { background: var(--gray-100); color: var(--gray-600); }
+
+  footer {
+    background: var(--gray-800);
+    color: var(--gray-400);
+    text-align: center;
+    padding: 32px 40px;
+    font-size: 13px;
+  }
+  footer strong { color: var(--orange); }
+</style>
+</head>
+<body>
+
+<!-- ==============================
+     COVER
+============================== -->
+<div class="cover">
+  <div class="cover-inner">
+    <div class="cover-badge">Project Planning Document v1.0</div>
+    <h1>🍊 <span>아기돌봄</span> 웹앱<br>프로젝트 기획서</h1>
+    <p class="cover-subtitle">일상 육아를 스마트하게 — 기록 · 알람 · 발달 · 챗봇 올인원 모바일 웹앱</p>
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <strong>프로젝트 유형</strong>
+        모바일 우선 반응형 웹앱
+      </div>
+      <div class="cover-meta-item">
+        <strong>타겟 사용자</strong>
+        영·유아 부모 (0~24개월)
+      </div>
+      <div class="cover-meta-item">
+        <strong>예상 개발 기간</strong>
+        16~20주 (4~5개월)
+      </div>
+      <div class="cover-meta-item">
+        <strong>플랫폼</strong>
+        모바일 웹 (PWA)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-inner">
+    <div class="toc-title">목차</div>
+    <ul class="toc-list">
+      <li><a href="#overview">01 프로젝트 개요</a></li>
+      <li><a href="#tech">02 기술 스택 추천</a></li>
+      <li><a href="#features">03 주요 기능 정의</a></li>
+      <li><a href="#architecture">04 앱 구조 & 화면 설계</a></li>
+      <li><a href="#design">05 디자인 시스템</a></li>
+      <li><a href="#integrations">06 외부 연동 상세</a></li>
+      <li><a href="#data">07 데이터 구조</a></li>
+      <li><a href="#roadmap">08 개발 로드맵</a></li>
+      <li><a href="#risk">09 리스크 & 고려사항</a></li>
+    </ul>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ==============================
+     01. PROJECT OVERVIEW
+============================== -->
+<section id="overview">
+  <div class="section-header">
+    <div class="section-number">01 · Project Overview</div>
+    <h2 class="section-title">프로젝트 개요</h2>
+    <div class="divider"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">🎯 프로젝트 한 줄 요약</h3>
+    <p style="font-size:16px; font-weight:500; color:var(--gray-800)">영·유아(0~24개월) 부모를 위한 <strong>육아 올인원 모바일 웹앱</strong>으로, 일상 기록 · 발달 체크 · AI 챗봇 · 알람이 하나의 앱에 담긴 서비스</p>
+  </div>
+
+  <h3>핵심 사용자 문제</h3>
+  <div class="card-grid">
+    <div class="feature-card orange">
+      <div class="feature-icon orange">😓</div>
+      <h3>기록의 번거로움</h3>
+      <p>수면, 수유, 배변 등을 매번 종이나 여러 앱에 따로 기록해야 함</p>
+    </div>
+    <div class="feature-card green">
+      <div class="feature-icon green">📅</div>
+      <h3>시기 놓침</h3>
+      <p>예방접종, 이유식 시작 시기, 분유량 증가 등 적절한 타이밍을 모름</p>
+    </div>
+    <div class="feature-card blue">
+      <div class="feature-icon blue">🔍</div>
+      <h3>정보 탐색 피로</h3>
+      <p>발달 체크, 레시피, 육아 정보를 매번 인터넷에서 검색해야 함</p>
+    </div>
+    <div class="feature-card purple">
+      <div class="feature-icon purple">🏥</div>
+      <h3>진료 연계 불편</h3>
+      <p>비대면 진료 시 아이 데이터를 직접 정리해서 제출해야 하는 번거로움</p>
+    </div>
+  </div>
+
+  <h3>제공 솔루션 요약</h3>
+  <table class="simple">
+    <thead><tr><th>문제</th><th>솔루션</th></tr></thead>
+    <tbody>
+      <tr><td>흩어진 기록</td><td>시간표 형태의 통합 일지 + 음성 입력</td></tr>
+      <tr><td>시기 놓침</td><td>월령별 자동 알람 + 투두 리스트</td></tr>
+      <tr><td>정보 탐색</td><td>Claude AI 챗봇 — 예방접종·이유식·발달 정보 즉시 답변</td></tr>
+      <tr><td>건강 기록 관리</td><td>체온·피부·복약 기록 + 비대면 진료 연계</td></tr>
+      <tr><td>쇼핑/커뮤니티</td><td>당근마켓 연동, 유튜브 육아 콘텐츠 연동</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ==============================
+     02. TECH STACK
+============================== -->
+<section id="tech">
+  <div class="section-header">
+    <div class="section-number">02 · Tech Stack Recommendation</div>
+    <h2 class="section-title">기술 스택 추천</h2>
+    <div class="divider"></div>
+    <p class="section-desc">기술을 몰라도 괜찮아요. 각 선택의 이유와 난이도를 함께 설명드립니다.</p>
+  </div>
+
+  <div class="info-box tip">
+    <div class="icon">💡</div>
+    <p><strong>핵심 원칙:</strong> 요청하신 HTML · CSS · Vanilla JS 기반을 유지하되, AI 챗봇 · 알림 · 음성 인식 등 스마트 기능은 브라우저 표준 API와 외부 서비스(Claude AI, YouTube 등)를 조합해 구현합니다. 외부 라이브러리 없이 가능한 선에서 최대한 구현하며, 꼭 필요한 경우에만 CDN으로 가져옵니다.</p>
+  </div>
+
+  <h3>🧱 프론트엔드 (화면 구성)</h3>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="tech-table">
+      <thead>
+        <tr>
+          <th style="width:160px">역할</th>
+          <th style="width:200px">추천 기술</th>
+          <th>이유</th>
+          <th style="width:80px">난이도</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="tech-name">구조 마크업</div></td>
+          <td><div class="tech-value">HTML5</div></td>
+          <td class="tech-why">시맨틱 태그(article, section 등)로 접근성 있는 구조. PWA 설정 포함</td>
+          <td><span class="tech-difficulty easy">쉬움</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">스타일링</div></td>
+          <td><div class="tech-value">CSS3 + 변수</div></td>
+          <td class="tech-why">CSS 변수로 색상 관리, Flexbox/Grid로 반응형 레이아웃. 애니메이션도 CSS만으로 처리</td>
+          <td><span class="tech-difficulty easy">쉬움</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">로직/인터랙션</div></td>
+          <td><div class="tech-value">Vanilla JS (ES6+)</div></td>
+          <td class="tech-why">모듈 패턴으로 각 탭 분리. 라이브러리 없이도 충분히 가능한 규모</td>
+          <td><span class="tech-difficulty mid">중간</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">PWA 설정</div></td>
+          <td><div class="tech-value">manifest.json + Service Worker</div></td>
+          <td class="tech-why">홈 화면에 설치 가능, 오프라인 지원, 푸시 알림 기반. 앱처럼 사용 가능</td>
+          <td><span class="tech-difficulty mid">중간</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>💾 데이터 저장</h3>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="tech-table">
+      <thead>
+        <tr><th style="width:160px">용도</th><th style="width:200px">추천 기술</th><th>이유</th><th style="width:80px">난이도</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="tech-name">일반 설정/데이터</div></td>
+          <td><div class="tech-value">localStorage</div></td>
+          <td class="tech-why">요청하신 대로. 설정값, 아이 정보, 할 일 목록 등 텍스트 데이터 저장</td>
+          <td><span class="tech-difficulty easy">쉬움</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">사진/대용량 기록</div></td>
+          <td><div class="tech-value">IndexedDB</div></td>
+          <td class="tech-why">localStorage는 5MB 한계. 아기 사진, 피부 사진 등은 IndexedDB에 저장 필요</td>
+          <td><span class="tech-difficulty mid">중간</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🤖 AI 챗봇</h3>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="tech-table">
+      <thead>
+        <tr><th style="width:160px">역할</th><th style="width:200px">추천 기술</th><th>이유</th><th style="width:80px">난이도</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="tech-name">육아 AI 챗봇</div></td>
+          <td><div class="tech-value">Anthropic Claude API</div></td>
+          <td class="tech-why">예방접종 정보, 이유식 레시피, 발달 질문 등을 자연어로 답변. 한국어 우수. 월 소량 비용 발생</td>
+          <td><span class="tech-difficulty mid">중간</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="api-box">
+    <div class="comment">// Claude API 호출 예시 (챗봇 답변 요청)</div>
+    <div><span class="key">const</span> response = <span class="key">await</span> fetch(<span class="str">'https://api.anthropic.com/v1/messages'</span>, {</div>
+    <div>&nbsp;&nbsp;method: <span class="str">'POST'</span>,</div>
+    <div>&nbsp;&nbsp;headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>, <span class="str">'x-api-key'</span>: API_KEY },</div>
+    <div>&nbsp;&nbsp;body: JSON.stringify({</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">model</span>: <span class="str">'claude-sonnet-4-5'</span>,</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">system</span>: <span class="str">'당신은 육아 전문 AI 어시스턴트입니다. 아이 월령: {age}주. 안전하고 신뢰할 수 있는 정보를 제공하세요.'</span>,</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">messages</span>: [{ role: <span class="str">'user'</span>, content: userQuestion }]</div>
+    <div>&nbsp;&nbsp;})</div>
+    <div>});</div>
+  </div>
+
+  <div class="info-box warn">
+    <div class="icon">⚠️</div>
+    <p><strong>API 키 보안 주의:</strong> Claude API 키는 절대 프론트엔드 코드에 직접 넣으면 안 됩니다. 무료로 배포 가능한 <strong>Cloudflare Workers</strong> 또는 <strong>Vercel Edge Functions</strong>를 통해 서버 역할을 만들어 API 키를 숨겨야 합니다. (난이도: 중간 — 하지만 반드시 필요한 단계입니다)</p>
+  </div>
+
+  <h3>📱 모바일 기능 (브라우저 API)</h3>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="tech-table">
+      <thead>
+        <tr><th style="width:160px">기능</th><th style="width:200px">사용 API</th><th>설명</th><th style="width:80px">지원 여부</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="tech-name">음성 인식</div></td>
+          <td><div class="tech-value">Web Speech API</div></td>
+          <td class="tech-why">별도 설치 없이 브라우저 내장. 한국어 지원. "아기 체온 38도 기록해줘" 가능</td>
+          <td><span class="tech-difficulty easy">✅ 지원</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">카메라/사진</div></td>
+          <td><div class="tech-value">input capture 속성</div></td>
+          <td class="tech-why">&lt;input type="file" capture="environment"&gt; 로 카메라 직접 실행. 별도 권한 처리 포함</td>
+          <td><span class="tech-difficulty easy">✅ 지원</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">푸시 알림</div></td>
+          <td><div class="tech-value">Web Push API</div></td>
+          <td class="tech-why">예방접종 D-1, 투약 시간 등 알림. Service Worker와 함께 작동. 서버 필요</td>
+          <td><span class="tech-difficulty mid">⚠️ 서버 필요</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">알림 (간단)</div></td>
+          <td><div class="tech-value">Notification API</div></td>
+          <td class="tech-why">앱이 열려있을 때의 알림. 푸시보다 쉬운 대안. 초기 구현에 적합</td>
+          <td><span class="tech-difficulty easy">✅ 지원</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">오디오 녹음</div></td>
+          <td><div class="tech-value">MediaRecorder API</div></td>
+          <td class="tech-why">아기 울음소리 녹음. 마이크 권한 요청 포함</td>
+          <td><span class="tech-difficulty mid">✅ 지원</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🔗 외부 서비스 연동</h3>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="tech-table">
+      <thead>
+        <tr><th style="width:160px">서비스</th><th style="width:200px">연동 방식</th><th>설명 & 제약</th><th style="width:80px">난이도</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="tech-name">📺 유튜브</div></td>
+          <td><div class="tech-value">YouTube Data API v3</div></td>
+          <td class="tech-why">아이 주수 태그로 관련 영상 검색 후 목록 표시. 무료 할당량 있음(일 10,000 쿼리)</td>
+          <td><span class="tech-difficulty mid">중간</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">🥕 당근마켓</div></td>
+          <td><div class="tech-value">딥링크 / 웹 연결</div></td>
+          <td class="tech-why">당근 공식 API 비공개. 앱 설치 여부에 따라 딥링크로 당근앱 실행하거나 당근 웹 검색 페이지로 이동</td>
+          <td><span class="tech-difficulty easy">쉬움</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">🏥 비대면 진료</div></td>
+          <td><div class="tech-value">딥링크 + 데이터 공유</div></td>
+          <td class="tech-why">닥터나우, 솜닥 등 앱으로 연결. 기록 데이터를 PDF/텍스트로 내보내기 후 사용자가 첨부</td>
+          <td><span class="tech-difficulty mid">중간</span></td>
+        </tr>
+        <tr>
+          <td><div class="tech-name">🔔 알람 (정확)</div></td>
+          <td><div class="tech-value">Cloudflare Workers + Web Push</div></td>
+          <td class="tech-why">앱이 꺼져 있어도 알림. 무료 플랜으로 충분. 초기에는 Notification API로 대체 가능</td>
+          <td><span class="tech-difficulty hard">고급</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🌐 배포 환경</h3>
+  <div class="card-grid">
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">🏗️ 추천: Vercel (무료)</h3>
+      <p style="font-size:13px">GitHub에 코드 올리면 자동 배포. HTTPS 자동 설정. 도메인 연결 쉬움. API 키 숨기는 서버리스 함수도 무료로 사용 가능</p>
+      <span class="tag orange">무료</span> <span class="tag green">자동배포</span>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">대안: Netlify (무료)</h3>
+      <p style="font-size:13px">Vercel과 유사한 기능. 드래그앤드롭 배포도 가능. Netlify Functions로 API 프록시 처리 가능</p>
+      <span class="tag blue">무료</span> <span class="tag gray">쉬운배포</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     03. FEATURES
+============================== -->
+<section id="features">
+  <div class="section-header">
+    <div class="section-number">03 · Feature Definition</div>
+    <h2 class="section-title">주요 기능 정의</h2>
+    <div class="divider"></div>
+  </div>
+
+  <!-- TAB 1 -->
+  <h3>📋 Tab 1 — 시간표 기록</h3>
+  <div class="card">
+    <p style="font-size:14px; color:var(--gray-600); margin-bottom:16px">오늘 하루 아이의 활동을 시간별로 기록하는 메인 탭. 달력으로 날짜 이동 가능</p>
+    <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:10px;">
+      <div style="background:var(--orange-light); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:22px; margin-bottom:4px">😴</div>
+        <div style="font-size:12px; font-weight:600; color:var(--orange)">수면</div>
+        <div style="font-size:11px; color:var(--gray-400); margin-top:2px">시작~종료 시각<br>총 수면 시간 자동 계산</div>
+      </div>
+      <div style="background:var(--green-light); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:22px; margin-bottom:4px">🍼</div>
+        <div style="font-size:12px; font-weight:600; color:#3A7A10">수유</div>
+        <div style="font-size:11px; color:var(--gray-400); margin-top:2px">모유/분유 선택<br>수유량(ml) 입력</div>
+      </div>
+      <div style="background:var(--blue-light); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:22px; margin-bottom:4px">🚼</div>
+        <div style="font-size:12px; font-weight:600; color:var(--blue)">배변</div>
+        <div style="font-size:11px; color:var(--gray-400); margin-top:2px">소변/대변 선택<br>변 상태 기록</div>
+      </div>
+      <div style="background:var(--purple-light); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:22px; margin-bottom:4px">😢</div>
+        <div style="font-size:12px; font-weight:600; color:var(--purple)">울음</div>
+        <div style="font-size:11px; color:var(--gray-400); margin-top:2px">시간·강도 기록<br>녹음 버튼 연동</div>
+      </div>
+      <div style="background:var(--teal-light); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:22px; margin-bottom:4px">🌳</div>
+        <div style="font-size:12px; font-weight:600; color:var(--teal)">산책</div>
+        <div style="font-size:11px; color:var(--gray-400); margin-top:2px">시간·장소 기록<br>날씨 메모</div>
+      </div>
+      <div style="background:var(--gray-100); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:22px; margin-bottom:4px">✍️</div>
+        <div style="font-size:12px; font-weight:600; color:var(--gray-600)">기타 메모</div>
+        <div style="font-size:11px; color:var(--gray-400); margin-top:2px">자유 텍스트<br>사진 첨부 가능</div>
+      </div>
+    </div>
+    <div class="info-box tip" style="margin-top:16px; margin-bottom:0">
+      <div class="icon">🎤</div>
+      <p>모든 입력은 <strong>음성으로도 가능</strong> — "분유 150ml 먹었어" → 자동으로 수유 탭에 기록</p>
+    </div>
+  </div>
+
+  <!-- TAB 2 -->
+  <h3>📅 Tab 2 — 알람 & 스케줄</h3>
+  <div class="card">
+    <p style="font-size:14px; color:var(--gray-600); margin-bottom:16px">예방접종, 이유식 시작, 분유량 증가 등 시기 중요 이벤트를 관리하는 탭</p>
+    <table class="simple">
+      <thead><tr><th>기능</th><th>상세</th></tr></thead>
+      <tbody>
+        <tr><td><strong>자동 할 일 생성</strong></td><td>아이 생일 입력 시 월령별 예방접종·이유식 일정 자동 추가</td></tr>
+        <tr><td><strong>수동 추가</strong></td><td>텍스트 입력 후 Enter 또는 + 버튼. 날짜·시간 지정 가능</td></tr>
+        <tr><td><strong>완료 처리</strong></td><td>체크 시 취소선 + 초록색 애니메이션. 완료 목록은 접을 수 있음</td></tr>
+        <tr><td><strong>삭제</strong></td><td>스와이프 또는 X 버튼. 삭제 전 확인 토스트</td></tr>
+        <tr><td><strong>챗봇 연계</strong></td><td>"예방접종에 대해 더 알고 싶어" 버튼 → 챗봇 탭으로 이동 + 자동 질문</td></tr>
+        <tr><td><strong>알림 설정</strong></td><td>각 항목마다 D-1, 당일 알림 설정 가능</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TAB 3 -->
+  <h3>🩺 Tab 3 — 건강 체크</h3>
+  <div class="card">
+    <p style="font-size:14px; color:var(--gray-600); margin-bottom:16px">아이 성장 발달과 건강 상태를 기록하는 탭</p>
+    <div class="card-grid">
+      <div>
+        <h4>발달 체크</h4>
+        <p style="font-size:13px; color:var(--gray-600)">월령별 발달 마일스톤 체크리스트 (고개 가누기, 뒤집기, 앉기, 서기 등). 달성 시 날짜 기록</p>
+      </div>
+      <div>
+        <h4>건강 기록</h4>
+        <p style="font-size:13px; color:var(--gray-600)">체온(그래프 표시), 피부 발진 상태(사진 첨부), 콧물·기침 여부 기록</p>
+      </div>
+      <div>
+        <h4>복약 정보</h4>
+        <p style="font-size:13px; color:var(--gray-600)">약 이름, 용량, 횟수, 복약 시간 기록. 투약 스케줄 탭 자동 반영</p>
+      </div>
+      <div>
+        <h4>진료 내보내기</h4>
+        <p style="font-size:13px; color:var(--gray-600)">최근 7일 기록 + 체온 그래프 + 사진을 PDF 또는 텍스트로 내보내기</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4 -->
+  <h3>🤖 Tab 4 — AI 챗봇</h3>
+  <div class="card">
+    <p style="font-size:14px; color:var(--gray-600); margin-bottom:16px">Claude AI 기반 육아 전문 챗봇. 아이 월령 정보를 기억하고 맞춤 답변 제공</p>
+    <table class="simple">
+      <thead><tr><th>질문 유형</th><th>예시 질문</th></tr></thead>
+      <tbody>
+        <tr><td>예방접종</td><td>"6주차 접종 뭐 맞아야 해?" "BCG랑 HepB 차이 알려줘"</td></tr>
+        <tr><td>이유식</td><td>"이유식 언제 시작해?" "처음 이유식 재료 뭐가 좋아?"</td></tr>
+        <tr><td>발달</td><td>"8주인데 눈 맞추기 언제부터 해?" "뒤집기 연습 방법 알려줘"</td></tr>
+        <tr><td>분유/수유</td><td>"2개월인데 분유 얼마나 먹여야 해?" "야간 수유 끊는 방법"</td></tr>
+        <tr><td>수면</td><td>"통잠 훈련 방법 알려줘" "낮잠 줄이는 시기가 언제야?"</td></tr>
+        <tr><td>쇼핑 추천</td><td>"6개월 아기 장난감 추천해줘" "이유식 준비물 뭐 사야 해?"</td></tr>
+      </tbody>
+    </table>
+    <div class="info-box success" style="margin-top:12px; margin-bottom:0">
+      <div class="icon">✅</div>
+      <p>챗봇은 아이 월령을 자동으로 알고 있어서 "이번 달 접종"처럼 구체적으로 답변합니다. 의학적 판단은 전문의 상담을 안내하는 안전장치 포함</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     04. ARCHITECTURE
+============================== -->
+<section id="architecture">
+  <div class="section-header">
+    <div class="section-number">04 · App Structure & Screen Design</div>
+    <h2 class="section-title">앱 구조 & 화면 설계</h2>
+    <div class="divider"></div>
+  </div>
+
+  <h3>파일 구조 (폴더 구성)</h3>
+  <div class="api-box">
+    <div class="comment">📁 프로젝트 폴더 구조</div>
+    <div>baby-care-app/</div>
+    <div>├── <span class="key">index.html</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 메인 HTML (싱글 페이지)</span></div>
+    <div>├── <span class="key">manifest.json</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// PWA 설정 (홈 화면 설치)</span></div>
+    <div>├── <span class="key">service-worker.js</span> &nbsp;&nbsp;<span class="comment">// 오프라인 & 푸시 알림</span></div>
+    <div>├── css/</div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">variables.css</span> &nbsp;&nbsp;<span class="comment">// 색상 & 폰트 변수</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">layout.css</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 기본 레이아웃 & 탭바</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;└── <span class="val">components.css</span> &nbsp;<span class="comment">// 버튼, 카드, 폼 등</span></div>
+    <div>├── js/</div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">app.js</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 탭 라우팅 & 초기화</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">storage.js</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// localStorage 헬퍼</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">timeline.js</span> &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 시간표 기록 탭</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">schedule.js</span> &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 알람 & 스케줄 탭</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">health.js</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 건강 체크 탭</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">chatbot.js</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// AI 챗봇 탭 & Claude API</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">voice.js</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 음성 인식 처리</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;├── <span class="val">notifications.js</span><span class="comment">// 알림 스케줄링</span></div>
+    <div>│&nbsp;&nbsp;&nbsp;└── <span class="val">youtube.js</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 유튜브 API 연동</span></div>
+    <div>└── assets/</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="str">icons/</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 앱 아이콘 (PWA용)</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="str">images/</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 정적 이미지</span></div>
+  </div>
+
+  <h3>화면 흐름 (User Flow)</h3>
+  <div class="card">
+    <h4 style="margin-top:0">신규 사용자</h4>
+    <div class="flow-step">
+      <div class="flow-box accent">앱 첫 실행</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">아이 정보 입력<br><small style="color:var(--gray-400)">(이름, 생년월일)</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">월령 자동 계산</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">메인 화면</div>
+    </div>
+    <h4>일상 사용 시나리오</h4>
+    <div class="flow-step">
+      <div class="flow-box accent">음성 버튼 탭</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">"분유 150ml"</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">AI 해석</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">수유 기록 자동 저장</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-box accent">스케줄 탭</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">예방접종 항목 클릭</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">챗봇 "더 알기"</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">접종 상세 안내</div>
+    </div>
+  </div>
+
+  <h3>화면 목업 (주요 4개 탭)</h3>
+  <div class="screen-grid">
+    <!-- 시간표 탭 -->
+    <div>
+      <div class="screen-item">
+        <div class="screen-bar"></div>
+        <div class="screen-top">
+          <div class="screen-title">📋 오늘 기록</div>
+          <div class="screen-sub">2025.1.15 (수) · 8주 3일</div>
+        </div>
+        <div class="screen-body">
+          <div class="screen-card" style="background:var(--orange-light)">
+            <div class="screen-card-title" style="color:var(--orange)">😴 수면</div>
+            <div class="screen-card-val">02:30 ~ 06:10</div>
+          </div>
+          <div class="screen-card" style="background:var(--green-light)">
+            <div class="screen-card-title" style="color:#3A7A10">🍼 수유</div>
+            <div class="screen-card-val">150ml × 4회</div>
+          </div>
+          <div class="screen-card" style="background:var(--blue-light)">
+            <div class="screen-card-title" style="color:var(--blue)">🚼 배변</div>
+            <div class="screen-card-val">소변 6 · 대변 2</div>
+          </div>
+          <div style="background:var(--orange); border-radius:8px; padding:6px; text-align:center; margin-top:8px">
+            <div style="font-size:10px; font-weight:700; color:white">+ 기록 추가</div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label">① 시간표 기록</div>
+    </div>
+    <!-- 스케줄 탭 -->
+    <div>
+      <div class="screen-item">
+        <div class="screen-bar"></div>
+        <div class="screen-top">
+          <div class="screen-title">📅 스케줄</div>
+          <div class="screen-sub">이번 주 할 일</div>
+        </div>
+        <div class="screen-body">
+          <div class="screen-card" style="border-left: 3px solid var(--orange)">
+            <div class="screen-card-title">🔔 D-2 · 1월 17일</div>
+            <div class="screen-card-val" style="font-size:10px">BCG 예방접종</div>
+          </div>
+          <div class="screen-card" style="border-left: 3px solid var(--green)">
+            <div class="screen-card-title">✅ 완료</div>
+            <div class="screen-card-val" style="font-size:10px; text-decoration:line-through; color:var(--gray-400)">소아과 1차 검진</div>
+          </div>
+          <div class="screen-card" style="border-left: 3px solid var(--blue)">
+            <div class="screen-card-title">📌 2월</div>
+            <div class="screen-card-val" style="font-size:10px">분유량 늘리기 시작</div>
+          </div>
+          <div style="background:var(--green); border-radius:8px; padding:6px; text-align:center; margin-top:8px">
+            <div style="font-size:10px; font-weight:700; color:white">+ 할 일 추가</div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label">② 알람 & 스케줄</div>
+    </div>
+    <!-- 건강 탭 -->
+    <div>
+      <div class="screen-item">
+        <div class="screen-bar"></div>
+        <div class="screen-top">
+          <div class="screen-title">🩺 건강 체크</div>
+          <div class="screen-sub">성장 & 발달</div>
+        </div>
+        <div class="screen-body">
+          <div class="screen-card" style="background:var(--red-light)">
+            <div class="screen-card-title" style="color:var(--red)">🌡️ 오늘 체온</div>
+            <div class="screen-card-val">36.8°C</div>
+          </div>
+          <div class="screen-card">
+            <div class="screen-card-title">📈 발달 체크</div>
+            <div style="font-size:9px; color:var(--gray-400); margin-top:2px">✅ 눈 맞추기 &nbsp; ✅ 소리 반응</div>
+            <div style="font-size:9px; color:var(--gray-400)">⬜ 고개 가누기 &nbsp; ⬜ 미소</div>
+          </div>
+          <div class="screen-card" style="background:var(--purple-light)">
+            <div class="screen-card-title" style="color:var(--purple)">💊 복약 중</div>
+            <div class="screen-card-val" style="font-size:10px">비타민D · 3일째</div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label">③ 건강 체크</div>
+    </div>
+    <!-- 챗봇 탭 -->
+    <div>
+      <div class="screen-item">
+        <div class="screen-bar"></div>
+        <div class="screen-top">
+          <div class="screen-title">🤖 육아 챗봇</div>
+          <div class="screen-sub">Claude AI · 8주 기준 답변</div>
+        </div>
+        <div class="screen-body">
+          <div style="background:var(--gray-100); border-radius:8px 8px 8px 0; padding:6px 8px; margin-bottom:5px">
+            <div style="font-size:9px; color:var(--gray-600)">안녕하세요! 8주 아이 관련해서 무엇이 궁금하신가요? 😊</div>
+          </div>
+          <div style="background:var(--orange); border-radius:8px 8px 0 8px; padding:6px 8px; margin-bottom:5px; margin-left:auto; max-width:80%">
+            <div style="font-size:9px; color:white">BCG 예방접종 언제 맞아야 해?</div>
+          </div>
+          <div style="background:var(--gray-100); border-radius:8px 8px 8px 0; padding:6px 8px">
+            <div style="font-size:9px; color:var(--gray-600)">BCG는 생후 4주 이내가 권장이나 지금도 가능합니다. 빨리 소아과에 예약해보세요!</div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label">④ AI 챗봇</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     05. DESIGN SYSTEM
+============================== -->
+<section id="design">
+  <div class="section-header">
+    <div class="section-number">05 · Design System</div>
+    <h2 class="section-title">디자인 시스템</h2>
+    <div class="divider"></div>
+  </div>
+
+  <h3>컬러 팔레트</h3>
+  <div class="color-grid">
+    <div class="color-swatch">
+      <div class="swatch" style="background:#FF8C42"></div>
+      <div class="swatch-name">오렌지</div>
+      <div class="swatch-hex">#FF8C42</div>
+    </div>
+    <div class="color-swatch">
+      <div class="swatch" style="background:#FFE0CC"></div>
+      <div class="swatch-name">오렌지 연</div>
+      <div class="swatch-hex">#FFE0CC</div>
+    </div>
+    <div class="color-swatch">
+      <div class="swatch" style="background:#8BC44A"></div>
+      <div class="swatch-name">연두</div>
+      <div class="swatch-hex">#8BC44A</div>
+    </div>
+    <div class="color-swatch">
+      <div class="swatch" style="background:#E2F0CC"></div>
+      <div class="swatch-name">연두 연</div>
+      <div class="swatch-hex">#E2F0CC</div>
+    </div>
+    <div class="color-swatch">
+      <div class="swatch" style="background:#FFFDF8; border:1px solid #E8E6DC"></div>
+      <div class="swatch-name">크림</div>
+      <div class="swatch-hex">#FFFDF8</div>
+    </div>
+    <div class="color-swatch">
+      <div class="swatch" style="background:#4A8FC4"></div>
+      <div class="swatch-name">블루</div>
+      <div class="swatch-hex">#4A8FC4</div>
+    </div>
+    <div class="color-swatch">
+      <div class="swatch" style="background:#8B6FCA"></div>
+      <div class="swatch-name">퍼플</div>
+      <div class="swatch-hex">#8B6FCA</div>
+    </div>
+    <div class="color-swatch">
+      <div class="swatch" style="background:#3DADA0"></div>
+      <div class="swatch-name">틸</div>
+      <div class="swatch-hex">#3DADA0</div>
+    </div>
+    <div class="color-swatch">
+      <div class="swatch" style="background:#2E2C26"></div>
+      <div class="swatch-name">다크</div>
+      <div class="swatch-hex">#2E2C26</div>
+    </div>
+  </div>
+
+  <div class="card-grid" style="margin-top:8px">
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">📐 기본 규칙</h3>
+      <p style="font-size:13px; color:var(--gray-600)">모든 화면은 <strong>max-width 430px</strong>, 좌우 패딩 16px. 하단 탭바 60px 고정. 콘텐츠 영역은 스크롤 가능</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">✍️ 타이포그래피</h3>
+      <p style="font-size:13px; color:var(--gray-600)">본문: Noto Sans KR / 제목: 16px 600 / 본문: 14px 400 / 캡션: 12px 400 / 강조: Orange (#FF8C42)</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">🎭 애니메이션</h3>
+      <p style="font-size:13px; color:var(--gray-600)">완료 체크: 0.3s ease-out 초록 페이드인 + 취소선. 기록 추가: 슬라이드다운 0.2s. 탭 전환: 페이드 0.15s</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">👆 인터랙션</h3>
+      <p style="font-size:13px; color:var(--gray-600)">버튼 탭 시 0.95 scale. 스와이프 삭제. 롱프레스로 편집 모드 진입. 햅틱(진동) 피드백</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     06. INTEGRATIONS
+============================== -->
+<section id="integrations">
+  <div class="section-header">
+    <div class="section-number">06 · External Integrations</div>
+    <h2 class="section-title">외부 연동 상세</h2>
+    <div class="divider"></div>
+  </div>
+
+  <div class="card-grid">
+    <div class="feature-card orange">
+      <div class="feature-icon orange">🎤</div>
+      <h3>음성 인식 (Web Speech API)</h3>
+      <p>마이크 버튼 탭 → 녹음 시작 → AI가 내용 해석 → 해당 탭에 자동 저장</p>
+      <p style="font-size:12px; margin-top:8px; color:var(--gray-400)">지원 명령: "수유 150ml", "체온 38도", "지금 재워", "울고 있어 녹음해줘"</p>
+      <span class="feature-tag native">브라우저 내장</span>
+    </div>
+
+    <div class="feature-card green">
+      <div class="feature-icon green">📺</div>
+      <h3>유튜브 연동 (YouTube API)</h3>
+      <p>아이 주수 기반으로 관련 영상 자동 검색 후 앱 내 미리보기 목록 표시</p>
+      <p style="font-size:12px; margin-top:8px; color:var(--gray-400)">검색 키워드 자동 생성: "{N}개월 아기 놀이법", "예방접종 후 주의사항" 등</p>
+      <span class="feature-tag ext">외부 API</span>
+    </div>
+
+    <div class="feature-card teal">
+      <div class="feature-icon teal">🥕</div>
+      <h3>당근마켓 연동</h3>
+      <p>앱 내에서 검색 후 → 당근앱 딥링크 실행 (앱 설치 시) 또는 당근 웹 연결</p>
+      <p style="font-size:12px; margin-top:8px; color:var(--gray-400)">검색어 자동 완성: "아기 책 {동네}", "유아 장난감", "분유 미개봉" 등</p>
+      <span class="feature-tag native">딥링크</span>
+    </div>
+
+    <div class="feature-card blue">
+      <div class="feature-icon blue">🏥</div>
+      <h3>비대면 진료 연계</h3>
+      <p>기록된 체온 그래프 + 증상 + 사진을 정리해 PDF/텍스트로 내보내기</p>
+      <p style="font-size:12px; margin-top:8px; color:var(--gray-400)">닥터나우, 솜닥 등 앱으로 이동. 내보낸 파일을 직접 첨부하는 방식</p>
+      <span class="feature-tag ext">내보내기 연계</span>
+    </div>
+
+    <div class="feature-card purple">
+      <div class="feature-icon purple">🔔</div>
+      <h3>푸시 알림 시스템</h3>
+      <p>예방접종 D-1 알림, 투약 시간, 이유식 시작 알림. Service Worker 기반</p>
+      <p style="font-size:12px; margin-top:8px; color:var(--gray-400)">앱이 꺼져 있어도 동작. 초기에는 앱 내 알림(Notification API)으로 대체 가능</p>
+      <span class="feature-tag native">브라우저 내장</span>
+    </div>
+
+    <div class="feature-card red">
+      <div class="feature-icon red">🤖</div>
+      <h3>Claude AI 챗봇</h3>
+      <p>아이 정보를 System Prompt에 포함해 맞춤형 육아 정보 제공</p>
+      <p style="font-size:12px; margin-top:8px; color:var(--gray-400)">Cloudflare Workers로 API 키 숨김. 대화 맥락 10턴 유지</p>
+      <span class="feature-tag ext">Anthropic API</span>
+    </div>
+  </div>
+
+  <div class="info-box danger" style="margin-top:24px">
+    <div class="icon">🚨</div>
+    <p><strong>당근마켓 공식 API 없음:</strong> 당근마켓은 외부에 공개된 공식 API가 없습니다. 직접 데이터를 가져오는 것은 불가능하며, 앱 딥링크 호출 또는 웹 검색 페이지 연결 방식으로만 구현 가능합니다. 이 점을 기획에 반영해야 합니다.</p>
+  </div>
+</section>
+
+<!-- ==============================
+     07. DATA STRUCTURE
+============================== -->
+<section id="data">
+  <div class="section-header">
+    <div class="section-number">07 · Data Structure</div>
+    <h2 class="section-title">데이터 구조</h2>
+    <div class="divider"></div>
+  </div>
+
+  <p style="color:var(--gray-600); margin-bottom:20px">localStorage에 저장되는 주요 데이터 구조입니다. JSON 형태로 관리되며, 키별로 분리 저장합니다.</p>
+
+  <div class="api-box">
+    <div class="comment">// 👶 아이 기본 정보 (baby_info)</div>
+    <div>{ <span class="key">name</span>: <span class="str">"도율이"</span>, <span class="key">birthDate</span>: <span class="str">"2024-11-01"</span>, <span class="key">gender</span>: <span class="str">"male"</span> }</div>
+    <br>
+    <div class="comment">// 📋 시간표 기록 (records_2025-01-15)</div>
+    <div>[{</div>
+    <div>&nbsp;&nbsp;<span class="key">id</span>: <span class="str">"uuid"</span>, <span class="key">type</span>: <span class="str">"feeding"</span>, <span class="key">time</span>: <span class="str">"06:30"</span>,</div>
+    <div>&nbsp;&nbsp;<span class="key">data</span>: { <span class="key">amount</span>: <span class="val">150</span>, <span class="key">feedType</span>: <span class="str">"formula"</span> }</div>
+    <div>}, ...]</div>
+    <br>
+    <div class="comment">// 📅 스케줄 (schedules)</div>
+    <div>[{</div>
+    <div>&nbsp;&nbsp;<span class="key">id</span>: <span class="str">"uuid"</span>, <span class="key">title</span>: <span class="str">"BCG 예방접종"</span>,</div>
+    <div>&nbsp;&nbsp;<span class="key">date</span>: <span class="str">"2025-01-17"</span>, <span class="key">done</span>: <span class="val">false</span>,</div>
+    <div>&nbsp;&nbsp;<span class="key">category</span>: <span class="str">"vaccination"</span>, <span class="key">notify</span>: <span class="val">true</span></div>
+    <div>}, ...]</div>
+    <br>
+    <div class="comment">// 🩺 건강 기록 (health_records)</div>
+    <div>[{</div>
+    <div>&nbsp;&nbsp;<span class="key">date</span>: <span class="str">"2025-01-15"</span>, <span class="key">temp</span>: <span class="val">36.8</span>,</div>
+    <div>&nbsp;&nbsp;<span class="key">symptoms</span>: [<span class="str">"콧물"</span>], <span class="key">memo</span>: <span class="str">"...기타"</span>,</div>
+    <div>&nbsp;&nbsp;<span class="key">meds</span>: [{ <span class="key">name</span>: <span class="str">"비타민D"</span>, <span class="key">dose</span>: <span class="str">"1방울"</span> }]</div>
+    <div>}, ...]</div>
+  </div>
+
+  <div class="info-box warn">
+    <div class="icon">⚠️</div>
+    <p><strong>localStorage 5MB 제한:</strong> 사진은 localStorage에 저장하면 안 됩니다. 사진(피부 발진 등)은 IndexedDB나 Base64 압축 후 저장하거나, 로컬 파일 시스템 접근 API(File System Access API)를 활용하세요. 텍스트 데이터만 localStorage, 바이너리는 IndexedDB로 분리하는 것이 안전합니다.</p>
+  </div>
+</section>
+
+<!-- ==============================
+     08. ROADMAP
+============================== -->
+<section id="roadmap">
+  <div class="section-header">
+    <div class="section-number">08 · Development Roadmap</div>
+    <h2 class="section-title">개발 로드맵</h2>
+    <div class="divider"></div>
+    <p class="section-desc">총 16~20주 기준. 우선순위에 따라 단계별 개발 & 실제 사용 병행 추천</p>
+  </div>
+
+  <div class="timeline">
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase p1">Phase 1</span>
+        <div class="timeline-title">기반 & 시간표 기록</div>
+        <div class="timeline-duration">1~4주</div>
+      </div>
+      <p style="font-size:14px; color:var(--gray-600)">앱의 뼈대를 만들고, 핵심인 시간표 기록 기능을 완성합니다. 이 단계를 완성하면 이미 실사용 가능한 수준이 됩니다.</p>
+      <div class="timeline-tasks">
+        <span class="task-chip">HTML 기본 구조</span>
+        <span class="task-chip">4탭 레이아웃</span>
+        <span class="task-chip">수유 기록 UI</span>
+        <span class="task-chip">수면 기록 UI</span>
+        <span class="task-chip">배변 기록 UI</span>
+        <span class="task-chip">localStorage 저장</span>
+        <span class="task-chip">아이 정보 설정</span>
+        <span class="task-chip">PWA 기본 설정</span>
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot green"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase p2">Phase 2</span>
+        <div class="timeline-title">스케줄 + AI 챗봇</div>
+        <div class="timeline-duration">5~8주</div>
+      </div>
+      <p style="font-size:14px; color:var(--gray-600)">할 일 관리와 Claude AI 챗봇을 붙입니다. 챗봇을 위해 Cloudflare Workers로 간단한 API 프록시를 만드는 것이 이 단계의 핵심입니다.</p>
+      <div class="timeline-tasks">
+        <span class="task-chip">할 일 추가/삭제</span>
+        <span class="task-chip">완료 애니메이션</span>
+        <span class="task-chip">월령별 자동 스케줄</span>
+        <span class="task-chip">Claude API 연결</span>
+        <span class="task-chip">Cloudflare Worker 설정</span>
+        <span class="task-chip">챗봇 UI</span>
+        <span class="task-chip">월령 컨텍스트 주입</span>
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot teal"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase p3">Phase 3</span>
+        <div class="timeline-title">건강 체크 + 모바일 기능</div>
+        <div class="timeline-duration">9~13주</div>
+      </div>
+      <p style="font-size:14px; color:var(--gray-600)">발달 체크, 건강 기록, 음성 인식, 카메라, 알림 등 앱을 고도화하는 단계입니다. 브라우저 권한 처리를 꼼꼼히 해야 합니다.</p>
+      <div class="timeline-tasks">
+        <span class="task-chip">발달 마일스톤 DB</span>
+        <span class="task-chip">체온 기록 + 그래프</span>
+        <span class="task-chip">복약 기록</span>
+        <span class="task-chip">음성 인식 (STT)</span>
+        <span class="task-chip">카메라 촬영</span>
+        <span class="task-chip">IndexedDB 사진 저장</span>
+        <span class="task-chip">Notification API</span>
+        <span class="task-chip">Service Worker 알림</span>
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot blue"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase p4">Phase 4</span>
+        <div class="timeline-title">외부 연동 + 완성도</div>
+        <div class="timeline-duration">14~20주</div>
+      </div>
+      <p style="font-size:14px; color:var(--gray-600)">유튜브, 당근마켓 연동, 비대면 진료 내보내기, UX 개선, 버그 수정, 최종 릴리즈 준비를 합니다.</p>
+      <div class="timeline-tasks">
+        <span class="task-chip">YouTube API 연동</span>
+        <span class="task-chip">당근 딥링크</span>
+        <span class="task-chip">진료 기록 내보내기 (PDF)</span>
+        <span class="task-chip">UX 애니메이션 전체 정리</span>
+        <span class="task-chip">성능 최적화</span>
+        <span class="task-chip">Vercel 배포</span>
+        <span class="task-chip">사용자 테스트</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==============================
+     09. RISKS
+============================== -->
+<section id="risk">
+  <div class="section-header">
+    <div class="section-number">09 · Risk & Considerations</div>
+    <h2 class="section-title">리스크 & 고려사항</h2>
+    <div class="divider"></div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">🔑 API 비용</h3>
+      <p style="font-size:13px; color:var(--gray-600)">Claude API는 사용량에 따라 비용이 발생합니다. 초기엔 미미하지만 사용자가 늘면 비용 관리가 필요합니다. 챗봇 대화 횟수 제한 또는 유료 플랜 도입을 고려하세요.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">🔒 데이터 보안</h3>
+      <p style="font-size:13px; color:var(--gray-600)">아이 건강 정보는 민감 데이터입니다. 현재 설계는 모두 기기 내 저장(localStorage)으로 외부 서버가 없습니다. 이후 클라우드 동기화 추가 시 암호화 필수입니다.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">📱 iOS 제약</h3>
+      <p style="font-size:13px; color:var(--gray-600)">iPhone Safari에서 Web Push 알림이 iOS 16.4 이상만 지원합니다. 일부 Web API도 Safari에서 동작이 다를 수 있어 iOS 테스트를 별도로 해야 합니다.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">⚕️ 의학 정보 면책</h3>
+      <p style="font-size:13px; color:var(--gray-600)">챗봇 답변은 참고용입니다. 모든 의학적 판단은 전문의와 상담하도록 안내 문구를 챗봇 답변에 항상 포함시켜야 합니다.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">🇰🇷 한국 맞춤화</h3>
+      <p style="font-size:13px; color:var(--gray-600)">예방접종 일정은 한국 국가예방접종 기준으로 반영해야 합니다. 질병관리청 예방접종 정보 (nip.kdca.go.kr) 기준으로 데이터를 구성하세요.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; font-size:15px">🔄 데이터 백업</h3>
+      <p style="font-size:13px; color:var(--gray-600)">localStorage는 브라우저 삭제 시 사라집니다. 사용자가 데이터를 JSON으로 내보내거나 가져올 수 있는 백업 기능을 초기부터 넣는 것을 강력히 권장합니다.</p>
+    </div>
+  </div>
+
+  <h3>권장 사항 요약</h3>
+  <div class="info-box success">
+    <div class="icon">✅</div>
+    <div>
+      <p style="margin-bottom:6px"><strong>Phase 1부터 실제로 쓰면서 개발하세요.</strong> 시간표 기록이 완성되면 직접 사용하면서 불편한 점을 바로 반영할 수 있습니다.</p>
+      <p style="margin-bottom:6px"><strong>Claude API 키 처리는 Phase 2 시작 전 반드시 해결하세요.</strong> Cloudflare Workers 튜토리얼은 공식 문서가 잘 정리되어 있습니다.</p>
+      <p style="margin:0"><strong>데이터 내보내기(JSON) 기능은 Phase 1에 포함하세요.</strong> 나중에 추가하면 기존 데이터 마이그레이션이 복잡해집니다.</p>
+    </div>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<footer>
+  <strong>🍊 아기돌봄 앱</strong> 프로젝트 기획서 v1.0 &nbsp;·&nbsp; HTML · CSS · Vanilla JS · Claude AI 기반 &nbsp;·&nbsp; 모바일 우선 PWA
+</footer>
+
+</body>
+</html>

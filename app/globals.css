@@ -432,6 +432,36 @@ body { display: flex; justify-content: center; overflow: hidden; }
 }
 .fab-btn:active { transform: scale(.9); }
 
+/* ── Timeline NLP Input Bar ──────────────────────────────── */
+.tl-text-input-bar {
+  display: flex; gap: 6px;
+  padding: 7px 12px; background: var(--surface);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.tl-nlp-input {
+  flex: 1; padding: 7px 12px; border-radius: var(--r-pill);
+  border: 1.5px solid var(--border); font-size: 13px;
+  background: var(--bg); outline: none; color: var(--text);
+}
+.tl-nlp-input:focus { border-color: var(--purple); }
+.tl-nlp-input::placeholder { color: var(--text-light); }
+.tl-nlp-btn {
+  padding: 7px 16px; border-radius: var(--r-pill);
+  background: var(--gradient); color: #fff;
+  font-size: 13px; font-weight: 700; border: none; cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+}
+.tl-nlp-btn:active { opacity: 0.85; }
+
+/* ── Breast side selection ────────────────────────────────── */
+.breast-side-row { display: flex; gap: 6px; margin-top: 6px; }
+.breast-side-btn {
+  flex: 1; padding: 8px 4px; border-radius: var(--r-md);
+  border: 1.5px solid var(--border); font-size: 13px; font-weight: 600;
+  background: var(--bg); color: var(--text-mid); cursor: pointer; transition: all .15s;
+}
+.breast-side-btn.active { border-color: var(--purple); background: #f0eeff; color: var(--purple); }
+
 /* ── SCHEDULE / TODO PAGE ──────────────────────────────────── */
 .cat-tabs {
   display: flex; gap: var(--sp-xs);
