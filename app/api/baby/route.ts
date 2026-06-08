@@ -1,31 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 import pool from '@/lib/db';
 import type { RowDataPacket } from 'mysql2';
 
+function generateShareCode(): string {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+async function getUserId(): Promise<number | null> {
+  const session = await getServerSession(authOptions);
+  return (session?.user as { id?: number })?.id ?? null;
+}
+
+export async function GET() {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT b.id, b.name, b.birth_date, b.gender, b.share_code
+       FROM babies b
+       JOIN baby_users bu ON b.id = bu.baby_id
+       WHERE bu.user_id = ?
+       ORDER BY b.id ASC`,
+      [userId]
+    );
+    return NextResponse.json(rows);
+  } catch (err) {
+    console.error('[GET /api/baby]', err);
+    return NextResponse.json({ error: 'DB error' }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const { name, birthDate, gender } = await req.json();
     if (!name || !birthDate || !gender) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    const [existing] = await pool.query<RowDataPacket[]>(
-      'SELECT id FROM babies WHERE name = ?',
-      [name]
-    );
-    if (existing.length > 0) {
-      await pool.query(
-        'UPDATE babies SET birth_date = ?, gender = ? WHERE id = ?',
-        [birthDate, gender, existing[0].id]
-      );
-      return NextResponse.json({ id: existing[0].id });
+    let shareCode = generateShareCode();
+    let retry = 0;
+    while (retry < 5) {
+      const [dup] = await pool.query<RowDataPacket[]>('SELECT id FROM babies WHERE share_code = ?', [shareCode]);
+      if (dup.length === 0) break;
+      shareCode = generateShareCode();
+      retry++;
     }
 
     const [result] = await pool.query(
-      'INSERT INTO babies (name, birth_date, gender) VALUES (?, ?, ?)',
-      [name, birthDate, gender]
+      'INSERT INTO babies (name, birth_date, gender, user_id, share_code) VALUES (?, ?, ?, ?, ?)',
+      [name, birthDate, gender, userId, shareCode]
     ) as [{ insertId: number }, unknown];
-    return NextResponse.json({ id: result.insertId }, { status: 201 });
+
+    const babyId = result.insertId;
+    await pool.query('INSERT INTO baby_users (baby_id, user_id) VALUES (?, ?)', [babyId, userId]);
+
+    return NextResponse.json({ id: babyId, shareCode }, { status: 201 });
   } catch (err) {
     console.error('[POST /api/baby]', err);
     return NextResponse.json({ error: 'DB error' }, { status: 500 });

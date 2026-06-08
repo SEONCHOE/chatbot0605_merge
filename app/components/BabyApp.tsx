@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -1012,6 +1013,7 @@ function BabyLoadingScreen() {
 }
 
 export default function BabyApp() {
+  const { data: session, status: sessionStatus } = useSession();
   const [mounted, setMounted] = useState(false);
   const [appState, setAppState] = useState<AppState>(defaultState);
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -1071,6 +1073,10 @@ export default function BabyApp() {
   // Setup form
   const [setupGender, setSetupGender] = useState<'boy' | 'girl'>('girl');
   const [setupSaving, setSetupSaving] = useState(false);
+  const [setupTab, setSetupTab] = useState<'new' | 'join'>('new');
+  const [joinCode, setJoinCode] = useState('');
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [shareCode, setShareCode] = useState('');
   const setupNameRef = useRef<HTMLInputElement>(null);
   const setupBirthRef = useRef<HTMLInputElement>(null);
 
@@ -1231,8 +1237,13 @@ export default function BabyApp() {
       if (cvRaw) setCustomVaccines(JSON.parse(cvRaw));
     } catch {}
 
-    // 캐시가 있으면 즉시 렌더링 (체감 속도 향상)
-    const storedBabyId = localStorage.getItem('baby_id');
+    setMounted(true);
+  }, []);
+
+  // 세션이 확인되면 아기 데이터 로드
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated') return;
+
     const cachedRaw = localStorage.getItem('app_state_cache');
     if (cachedRaw) {
       try {
@@ -1240,39 +1251,57 @@ export default function BabyApp() {
         setAppState(Object.assign(defaultState(), cached));
       } catch {}
     }
-    setMounted(true); // 캐시 유무와 무관하게 즉시 화면 표시
 
-    // DB에서 최신 데이터 백그라운드 갱신 + 개월수 기반 스케줄 시딩
-    if (storedBabyId) {
-      fetch(`/api/dev-memos?babyId=${storedBabyId}`)
-        .then(r => r.ok ? r.json() : [])
-        .then(data => { if (Array.isArray(data)) setDevMemos(data); })
-        .catch(() => {});
-
-      fetch(`/api/state?babyId=${storedBabyId}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(async data => {
-          if (!data) return;
-          const baby: Baby|null = data.baby ?? null;
-          const existingTodos: Todo[] = data.todos ?? [];
-          // 개월수 기반 스케줄 자동 시딩
-          if (baby?.birthDate) {
-            const existingTexts = new Set(existingTodos.map((t: Todo) => t.text));
-            const newItems = buildSeedItems(baby.birthDate, Number(storedBabyId), existingTexts);
-            if (newItems.length > 0) {
-              for (const todo of newItems) {
-                await fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...todo, babyId: Number(storedBabyId) }) }).catch(console.error);
-              }
-              data.todos = [...existingTodos, ...newItems].sort((a: Todo, b: Todo) => (a.date||'').localeCompare(b.date||''));
-            }
+    // 로그인된 유저의 아기 목록 조회
+    fetch('/api/baby')
+      .then(r => r.ok ? r.json() : [])
+      .then(async (babies: Array<{ id: number; name: string; birth_date: string; gender: string; share_code: string }>) => {
+        // 기존 localStorage baby_id가 있으면 현재 계정에 자동 연결
+        if (!babies || babies.length === 0) {
+          const cachedBabyId = localStorage.getItem('baby_id');
+          if (cachedBabyId) {
+            const linkRes = await fetch('/api/baby/link', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ babyId: Number(cachedBabyId) }),
+            }).then(r => r.ok ? r.json() : null).catch(() => null);
+            if (linkRes?.share_code) setShareCode(linkRes.share_code);
           }
-          const ns = Object.assign(defaultState(), data);
-          setAppState(ns);
-          try { localStorage.setItem('app_state_cache', JSON.stringify(ns)); } catch {}
-        })
-        .catch(() => {});
-    }
-  }, []);
+          return;
+        }
+        const baby = babies[0];
+        const babyId = baby.id;
+        if (baby.share_code) setShareCode(baby.share_code);
+        localStorage.setItem('baby_id', String(babyId));
+
+        fetch(`/api/dev-memos?babyId=${babyId}`)
+          .then(r => r.ok ? r.json() : [])
+          .then(data => { if (Array.isArray(data)) setDevMemos(data); })
+          .catch(() => {});
+
+        fetch(`/api/state?babyId=${babyId}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(async data => {
+            if (!data) return;
+            const existingTodos: Todo[] = data.todos ?? [];
+            if (baby.birth_date) {
+              const existingTexts = new Set(existingTodos.map((t: Todo) => t.text));
+              const newItems = buildSeedItems(baby.birth_date, babyId, existingTexts);
+              if (newItems.length > 0) {
+                for (const todo of newItems) {
+                  await fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...todo, babyId }) }).catch(console.error);
+                }
+                data.todos = [...existingTodos, ...newItems].sort((a: Todo, b: Todo) => (a.date||'').localeCompare(b.date||''));
+              }
+            }
+            const ns = Object.assign(defaultState(), data);
+            setAppState(ns);
+            try { localStorage.setItem('app_state_cache', JSON.stringify(ns)); } catch {}
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
+  }, [sessionStatus]);
 
   useEffect(() => { userOpenAIKeyRef.current = userOpenAIKey; }, [userOpenAIKey]);
   useEffect(() => { userYoutubeKeyRef.current = userYoutubeKey; }, [userYoutubeKey]);
@@ -1969,12 +1998,8 @@ ${headStyles}
   // ── Setup ────────────────────────────────────────────────────
   const handleLogout = () => {
     localStorage.clear();
-    setAppState(prev => ({ ...prev, babyId: null, baby: null }));
-    if (setupNameRef.current) setupNameRef.current.value = '';
-    if (setupBirthRef.current) setupBirthRef.current.value = '';
-    setSetupGender('girl');
-    setModal('setup');
-    showToast('로그아웃 됐어요.');
+    setAppState(defaultState());
+    signOut({ callbackUrl: '/' });
   };
 
   const handleSetup = async (e: React.FormEvent) => {
@@ -2005,10 +2030,36 @@ ${headStyles}
         }
       }
       if (babyId) localStorage.setItem('baby_id', String(babyId));
+      if (babyRes?.shareCode) setShareCode(babyRes.shareCode);
       saveAppState(ns); setModal(null);
       showToast(`👶 ${name}${koreanParticle(name,'이의','의')} 기록을 시작해요!`);
     } finally {
       setSetupSaving(false);
+    }
+  };
+
+  const handleJoin = async () => {
+    if (!joinCode.trim()) { showToast('공유 코드를 입력해주세요'); return; }
+    setJoinLoading(true);
+    try {
+      const res = await fetch('/api/baby/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareCode: joinCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || '코드 연결에 실패했어요'); return; }
+
+      const babyId = data.id;
+      localStorage.setItem('baby_id', String(babyId));
+      if (data.share_code) setShareCode(data.share_code);
+
+      const stateRes = await fetch(`/api/state?babyId=${babyId}`).then(r => r.ok ? r.json() : null).catch(() => null);
+      const ns = Object.assign(defaultState(), stateRes || { babyId, baby: { name: data.name, birthDate: data.birth_date, gender: data.gender } });
+      saveAppState(ns); setModal(null);
+      showToast(`👨‍👩‍👧 ${data.name}${koreanParticle(data.name,'이의','의')} 기록에 연결됐어요!`);
+    } finally {
+      setJoinLoading(false);
     }
   };
 
@@ -2528,8 +2579,26 @@ ${headStyles}
   const hourLabels = Array.from({length:24},(_,h)=>({h, label: h===0?'자정':h<12?`${h}시`:h===12?'정오':`${h}시`}));
   const nowMin = new Date().getHours()*60+new Date().getMinutes();
 
-  if (!mounted) return <BabyLoadingScreen />;
+  if (!mounted || sessionStatus === 'loading') return <BabyLoadingScreen />;
 
+  if (sessionStatus === 'unauthenticated') {
+    return (
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100dvh',background:'linear-gradient(135deg,#FF8040 0%,#78C96E 100%)'}}>
+        <div style={{background:'#fff',borderRadius:'24px',padding:'40px 32px',textAlign:'center',boxShadow:'0 8px 32px rgba(0,0,0,0.15)',maxWidth:'320px',width:'90%'}}>
+          <div style={{fontSize:'48px',marginBottom:'12px'}}>👶</div>
+          <h1 style={{fontSize:'22px',fontWeight:'700',color:'#1a1a1a',marginBottom:'6px'}}>아기의 기록</h1>
+          <p style={{fontSize:'14px',color:'#888',marginBottom:'32px'}}>소셜 계정으로 로그인하고<br/>아기의 성장을 기록해보세요</p>
+          <button
+            onClick={() => signIn('google')}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',width:'100%',padding:'14px',borderRadius:'12px',border:'1.5px solid #e5e7eb',background:'#fff',fontSize:'15px',fontWeight:'600',color:'#333',cursor:'pointer',marginBottom:'12px'}}
+          >
+            <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+            Google로 시작하기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Render ───────────────────────────────────────────────────
   return (
@@ -2555,6 +2624,36 @@ ${headStyles}
               <button className="modal-close" onClick={()=>setModal(null)} aria-label="닫기">✕</button>
             </div>
           )}
+          {!appState.baby && (
+            <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+              <button type="button"
+                style={{flex:1,padding:'9px',borderRadius:'10px',border:`1.5px solid ${setupTab==='new'?'var(--orange)':'var(--border)'}`,background:setupTab==='new'?'#fff5f0':'var(--bg)',color:setupTab==='new'?'var(--orange)':'var(--text-mid)',fontWeight:600,fontSize:'14px',cursor:'pointer'}}
+                onClick={()=>setSetupTab('new')}>새 아기 등록</button>
+              <button type="button"
+                style={{flex:1,padding:'9px',borderRadius:'10px',border:`1.5px solid ${setupTab==='join'?'var(--orange)':'var(--border)'}`,background:setupTab==='join'?'#fff5f0':'var(--bg)',color:setupTab==='join'?'var(--orange)':'var(--text-mid)',fontWeight:600,fontSize:'14px',cursor:'pointer'}}
+                onClick={()=>setSetupTab('join')}>공유 코드 입력</button>
+            </div>
+          )}
+          {setupTab === 'join' && !appState.baby ? (
+            <div style={{padding:'8px 0'}}>
+              <p style={{fontSize:'13px',color:'var(--text-mid)',marginBottom:'16px',lineHeight:1.5}}>배우자/보호자가 공유한 6자리 코드를 입력하면 같은 아기 데이터를 함께 볼 수 있어요.</p>
+              <div className="form-group">
+                <label>공유 코드</label>
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="예: AB12CD"
+                  maxLength={8}
+                  style={{textTransform:'uppercase',letterSpacing:'4px',fontSize:'20px',textAlign:'center',fontWeight:'700'}}
+                />
+              </div>
+              <button type="button" className="btn-primary btn-full" onClick={handleJoin} disabled={joinLoading}>
+                {joinLoading ? '연결 중...' : '연결하기 🔗'}
+              </button>
+            </div>
+          ) : (
+            <>
           <div className="setup-hero">
             <div className="setup-photo-wrap">
               <div className="setup-photo-circle" onClick={() => photoInputRef.current?.click()}>
@@ -2593,11 +2692,22 @@ ${headStyles}
               </div>
             </div>
             {appState.baby ? (
-              <button type="button" className="btn-danger btn-full" onClick={handleLogout}>로그아웃</button>
+              <>
+                {shareCode && (
+                  <div style={{background:'#f8f9fa',borderRadius:'10px',padding:'12px',marginBottom:'12px',textAlign:'center'}}>
+                    <div style={{fontSize:'12px',color:'var(--text-mid)',marginBottom:'4px'}}>아기정보 공유 코드</div>
+                    <div style={{fontSize:'22px',fontWeight:'700',letterSpacing:'4px',color:'var(--orange)'}}>{shareCode}</div>
+                  </div>
+                )}
+                <button type="button" className="btn-primary btn-full" onClick={()=>setModal(null)} style={{marginBottom:'8px'}}>계속하기 ✓</button>
+                <button type="button" className="btn-danger btn-full" onClick={handleLogout}>로그아웃</button>
+              </>
             ) : (
               <button type="submit" className="btn-primary btn-full">시작하기 ✨</button>
             )}
           </form>
+            </>
+          )}
           </>)}
         </div>
       </div>
@@ -3092,6 +3202,22 @@ ${headStyles}
             <button className="modal-close" onClick={()=>setModal(null)} aria-label="닫기">✕</button>
           </div>
           <div style={{padding:'16px',display:'flex',flexDirection:'column',gap:'20px'}}>
+
+            {/* 계정 / 공유 섹션 */}
+            {session?.user && (
+              <div style={{background:'#f8f9fa',borderRadius:'12px',padding:'14px',display:'flex',flexDirection:'column',gap:'10px'}}>
+                <div style={{fontSize:'13px',fontWeight:600,color:'#333'}}>계정</div>
+                <div style={{fontSize:'13px',color:'#555'}}>{session.user.name} · {session.user.email}</div>
+                {shareCode && (
+                  <div style={{background:'#fff',borderRadius:'10px',padding:'10px 14px',textAlign:'center',border:'1.5px solid #ffe0cc'}}>
+                    <div style={{fontSize:'11px',color:'#aaa',marginBottom:'3px'}}>아기정보 공유 코드</div>
+                    <div style={{fontSize:'22px',fontWeight:'700',letterSpacing:'4px',color:'var(--orange)'}}>{shareCode}</div>
+                  </div>
+                )}
+                <button type="button" onClick={handleLogout} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'8px',color:'#ef4444',fontSize:'13px',fontWeight:600,padding:'8px',cursor:'pointer'}}>로그아웃</button>
+              </div>
+            )}
+
             <p style={{fontSize:'13px',color:'#666',margin:0,lineHeight:1.5}}>
               키를 입력하지 않으면 <strong>기본 키</strong>로 작동합니다.<br/>개인 키를 입력하면 해당 키를 우선 사용합니다.
             </p>

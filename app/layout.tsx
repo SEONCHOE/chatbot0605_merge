@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Gaegu } from "next/font/google";
+import Providers from "./components/Providers";
 
 const gaegu = Gaegu({ weight: ['400', '700'], subsets: ['latin'], display: 'swap', variable: '--font-gaegu' });
 
@@ -23,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`h-full ${gaegu.variable}`}>
-      <body className="h-full" suppressHydrationWarning>{children}</body>
+      <body className="h-full" suppressHydrationWarning><Providers>{children}</Providers></body>
     </html>
   );
 }
