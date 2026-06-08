@@ -31,6 +31,24 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    await pool.query(
+      'UPDATE logs SET amount=?, note=? WHERE id=?',
+      [body.amount ?? null, body.note ?? '', id]
+    );
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[PATCH /api/logs/[id]]', err);
+    return NextResponse.json({ error: 'DB error' }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -2444,7 +2444,7 @@ ${headStyles}
               : `🍼 수유 완료`;
             showToast(msg);
             navigate('timeline');
-            fetch(`/api/logs/${voiceFeedStart.logId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount:consumed, note:remaining > 0 ? `${remaining}ml 남김` : '' }) }).catch(console.error);
+            fetch(`/api/logs/${voiceFeedStart.logId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ amount:consumed, note:remaining > 0 ? `${remaining}ml 남김` : '' }) }).catch(console.error);
           } else {
             // 시작 기록 없이 완료 발화 → 일반 수유 기록으로 처리
             const consumed = amount || null;
