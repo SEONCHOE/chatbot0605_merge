@@ -167,10 +167,12 @@ const VOICE_TOOLS = [
           type: { type: 'string', enum: ['feed','sleep','pee','poop','cry','walk','play','bath'], description: 'feed=수유(젖/분유/이유식 포함), sleep=수면, pee=소변(쉬/오줌/기저귀 갈았어/갈았어 — 대변 언급 없으면 기본적으로 pee), poop=대변(똥/응가/대변), cry=울음, walk=산책, play=놀이, bath=목욕' },
           times:    { type: 'array', items: { type: 'string' }, description: '기록할 시간 HH:MM 배열. 여러 시간이 언급되면 모두 포함. "2시"→"02:00", "오후 3시"→"15:00"' },
           time:     { type: 'string', description: '단일 시간 HH:MM. times가 없을 때만 사용' },
-          endTime:  { type: 'string', description: '종료 시간 HH:MM. sleep/cry/walk/play/bath에 해당' },
+          endTime:  { type: 'string', description: '종료 시간 HH:MM. sleep/cry/walk/play/bath에 해당. "X시부터 Y시간" 형태이면 time+duration으로 계산해서 채워줘.' },
+          durationMin: { type: 'number', description: '소요 시간(분). "2시간"→120, "30분"→30, "1시간 30분"→90. endTime을 계산하기 어려울 때 대신 제공.' },
           amount:   { type: 'number', description: '수유량(ml). 수유일 때만' },
           feedType: { type: 'string', enum: ['모유','분유','유축모유','혼합','이유식','우유'], description: '수유 종류. 젖/모유수유→모유, 분유→분유, 유축→유축모유, 이유식→이유식' },
           note:     { type: 'string', description: '메모나 특이사항' },
+          date:     { type: 'string', description: 'YYYY-MM-DD 형식. "어제"→제공된 yesterday 날짜. 언급 없으면 생략.' },
         },
         required: ['type'],
       },
@@ -186,7 +188,7 @@ const VOICE_TOOLS = [
         properties: {
           text:     { type: 'string', description: '할일 내용 (간결하게, 날짜 표현 제외)' },
           category: { type: 'string', enum: ['vaccine','feeding','play','supplies','other'], description: 'vaccine=예방접종·백신(명확히 접종인 경우만), feeding=분유·이유식·수유 관련, play=장난감·놀이·발달 용품, supplies=기저귀·물티슈·생필품 구매, other=병원·기타(애매하면 other)' },
-          date:     { type: 'string', description: 'YYYY-MM-DD 형식. "다음주"→제공된 nextMonday, "다음달"→제공된 nextMonth1st, "내일"→오늘+1일, "모레"→오늘+2일, "6월5일"→해당 날짜. 특정 날짜 없으면 오늘 날짜.' },
+          date:     { type: 'string', description: 'YYYY-MM-DD 형식. "어제"→제공된 yesterday, "내일"→오늘+1일, "모레"→오늘+2일, "다음주"→제공된 nextMonday, "다음달"→제공된 nextMonth1st, "6월5일"→해당 날짜. 특정 날짜 없으면 오늘 날짜.' },
         },
         required: ['text', 'category'],
       },
@@ -405,6 +407,10 @@ function parseNaturalDate(text: string): string | null {
     const d = new Date(today); d.setDate(today.getDate() + 1);
     return localDateStr(d);
   }
+  if (/어제/.test(t)) {
+    const d = new Date(today); d.setDate(today.getDate() - 1);
+    return localDateStr(d);
+  }
   // "6월 5일", "6/5" 형태
   const mdMatch = t.match(/(\d{1,2})월(\d{1,2})일?/) || t.match(/(\d{1,2})\/(\d{1,2})/);
   if (mdMatch) {
@@ -418,15 +424,17 @@ function parseNaturalDate(text: string): string | null {
   return null;
 }
 // LLM에 전달할 날짜 컨텍스트 계산 (save_schedule date 파라미터용)
-function buildDateContext(): { todayDate: string; nextMonday: string; nextMonth1st: string; todayDow: string } {
+function buildDateContext(): { todayDate: string; yesterday: string; nextMonday: string; nextMonth1st: string; todayDow: string } {
   const today = new Date();
   const dow = today.getDay();
   const dowLabel = ['일','월','화','수','목','금','토'][dow];
   const daysFromMonday = dow === 0 ? 6 : dow - 1;
   const nm = new Date(today); nm.setDate(today.getDate() - daysFromMonday + 7);
   const nm1 = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const yd = new Date(today); yd.setDate(today.getDate() - 1);
   return {
     todayDate:   localDateStr(today),
+    yesterday:   localDateStr(yd),
     todayDow:    dowLabel,
     nextMonday:  localDateStr(nm),
     nextMonth1st: localDateStr(nm1),
@@ -1745,9 +1753,9 @@ ${headStyles}
 
   // ── Log ──────────────────────────────────────────────────────
   const openAddLog = (type: LogType, initFeedType?: string) => {
-    const now = nowHHMM(), end = minToHM((hmToMin(now) + 60) % 1440);
+    const now = nowHHMM();
     setEditingLogId(null);
-    setAddLogType(type); setLfStart(now); setLfEnd(end); setLfTime(now);
+    setAddLogType(type); setLfStart(now); setLfEnd(now); setLfTime(now);
     setLfAmount(''); setLfFeedType(initFeedType || '분유'); setLfColor('노란색'); setLfReason(''); setLfNote('');
     setLfHeight(''); setLfWeight(''); setLfBreastSide('');
     setModal('addLog');
@@ -2105,8 +2113,14 @@ ${headStyles}
   };
 
   // ── Voice GPT intent routing ──────────────────────────────────
-  const handleVoiceRecord = (args: { type: LogType; times?: string[]; time?: string; endTime?: string; amount?: number; feedType?: string; note?: string }) => {
-    const dateKey = todayStr();
+  const handleVoiceRecord = (args: { type: LogType; times?: string[]; time?: string; endTime?: string; durationMin?: number; amount?: number; feedType?: string; note?: string; date?: string }) => {
+    const dateKey = (args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date)) ? args.date : todayStr();
+    // durationMin이 있고 endTime이 없으면 시작시간 + 소요시간으로 계산
+    if (!args.endTime && args.durationMin && args.time) {
+      const [h, m] = args.time.split(':').map(Number);
+      const totalMin = (h * 60 + m + args.durationMin) % 1440;
+      args.endTime = `${String(Math.floor(totalMin / 60)).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
+    }
     const timeList = (args.times && args.times.length > 0) ? args.times : [args.time || nowHHMM()];
     const ns = { ...appState };
     if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
@@ -2124,7 +2138,9 @@ ${headStyles}
     ns.logs[dateKey] = [...ns.logs[dateKey], ...newLogs].sort((a,b) => (a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
     saveAppState(ns);
     const count = newLogs.length;
-    showToast(`🎤 ${TYPE_ICONS[args.type]} ${TYPE_LABELS[args.type]} ${count > 1 ? `${count}건` : ''} 기록 완료!`);
+    const isYesterday = dateKey !== todayStr();
+    showToast(`🎤 ${TYPE_ICONS[args.type]} ${TYPE_LABELS[args.type]} ${count > 1 ? `${count}건` : ''}${isYesterday ? ' (어제)' : ''} 기록 완료!`);
+    if (isYesterday) setTimelineDate(dateKey);
     navigate('timeline');
     newLogs.forEach(log => fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error));
   };
@@ -2155,7 +2171,7 @@ ${headStyles}
       setVoiceTranscript(`"${transcript}"`);
       const babyMonths = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 5;
       const babyName = appState.baby?.name || '아기';
-      const { todayDate, todayDow, nextMonday, nextMonth1st } = buildDateContext();
+      const { todayDate, yesterday, todayDow, nextMonday, nextMonth1st } = buildDateContext();
       const nowTime = nowHHMM();
       const ago30 = (() => { const [h,m]=nowTime.split(':').map(Number); const t=(h*60+m-30+1440)%1440; return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`; })();
       const ago20 = (() => { const [h,m]=nowTime.split(':').map(Number); const t=(h*60+m-20+1440)%1440; return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`; })();
@@ -2170,7 +2186,7 @@ ${headStyles}
               role: 'system',
               content: `너는 아기 육아 앱의 음성 명령 분류기야.
 아기 이름: ${babyName}, 월령: ${babyMonths}개월
-현재 시각: ${nowTime} / 오늘: ${todayDate}(${todayDow}요일) / 다음주 월요일: ${nextMonday} / 다음달 1일: ${nextMonth1st}
+현재 시각: ${nowTime} / 오늘: ${todayDate}(${todayDow}요일) / 어제: ${yesterday} / 다음주 월요일: ${nextMonday} / 다음달 1일: ${nextMonth1st}
 
 ## 분류 우선순위
 1. 키/몸무게/체온 수치 언급 → record_measurement
@@ -2214,6 +2230,11 @@ ${headStyles}
 - "X시부터 Y시간" → time=X시, endTime=X시+Y시간 (자정 넘으면 다음날로 계산)
 
 ## Few-shot 예시
+
+[어제 활동 — "어제" 언급 시 date=${yesterday} 추가]
+"어제 오후 2시에 분유 150 줬어" → record_activity(type=feed, feedType=분유, time="14:00", amount=150, date=${yesterday})
+"어제 밤 11시부터 4시간 잤어" → record_activity(type=sleep, time="23:00", endTime="03:00", date=${yesterday})
+"어제 3시에 기저귀 갈았어" → record_activity(type=pee, time="03:00", date=${yesterday})
 
 [수유 — 이미 완료된 수유]
 "${babyName} 방금 모유 10분 먹었어" → record_activity(type=feed, feedType=모유, time=${nowTime}, note="10분")
@@ -2261,13 +2282,17 @@ ${headStyles}
 [수면 — 과거 완료 + 기간 명시 (record_activity)]
 "아기 2시부터 3시간 잤어" → record_activity(type=sleep, time="02:00", endTime="05:00")
 "오전 10시부터 1시간 30분 잤어" → record_activity(type=sleep, time="10:00", endTime="11:30")
-"밤 11시부터 4시간 잤어" → record_activity(type=sleep, time="23:00", endTime="03:00")
+"밤 11시부터 4시간 잤어" → record_activity(type=sleep, time="23:00", endTime="03:00", durationMin=240)
 "아기 낮에 2시부터 4시까지 잤어" → record_activity(type=sleep, time="14:00", endTime="16:00")
+"오전 9시부터 1시간 30분 낮잠 잤어" → record_activity(type=sleep, time="09:00", endTime="10:30", durationMin=90)
 
-[산책/놀이]
+[산책/놀이 — "시작시간 + 소요시간" 형태는 endTime을 직접 계산해서 채워줘]
 "아기 방금 30분 산책 다녀왔어" → record_activity(type=walk, endTime=${nowTime}, time=${ago30})
 "아기 지금 10분 터미타임 했어" → record_activity(type=play, note="터미타임", endTime=${nowTime}, time=${ago20})
 "아기 오후 2시부터 3시까지 산책했어" → record_activity(type=walk, time="14:00", endTime="15:00")
+"4시부터 2시간 산책했어" → record_activity(type=walk, time="04:00", endTime="06:00", durationMin=120)
+"오후 3시부터 1시간 30분 놀았어" → record_activity(type=play, time="15:00", endTime="16:30", durationMin=90)
+"오전 10시부터 45분 산책했어" → record_activity(type=walk, time="10:00", endTime="10:45", durationMin=45)
 
 [측정]
 "아기 오늘 몸무게 3.2kg이야" → record_measurement(metric=weight, value=3.2)
@@ -2723,7 +2748,7 @@ ${headStyles}
           <div className="log-type-tabs" role="tablist">
             {(['sleep','feed','pee','poop','cry','walk','play','bath','measure','other'] as LogType[]).map(type=>(
               <button key={type} className={`type-tab${addLogType===type?' active':''}`} role="tab"
-                onClick={()=>{setAddLogType(type);setShowEndTimeInput(false); const now=nowHHMM(),end=minToHM((hmToMin(now)+60)%1440); setLfStart(now);setLfEnd(end);setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
+                onClick={()=>{setAddLogType(type);setShowEndTimeInput(false); const now=nowHHMM(); setLfStart(now);setLfEnd(now);setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
                 {TYPE_ICONS[type]} {TYPE_LABELS[type]}
               </button>
             ))}

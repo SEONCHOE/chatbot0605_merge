@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePremium } from '@/lib/requirePremium';
 
 export async function POST(req: NextRequest) {
+  const auth = await requirePremium();
+  if (auth instanceof NextResponse) return auth;
+
   const apiKey = req.headers.get('x-openai-key') || process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'OpenAI API 키가 없습니다.' }, { status: 500 });
@@ -44,7 +48,6 @@ export async function POST(req: NextRequest) {
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || '';
 
-    // JSON 파싱
     const match = content.match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: '인식 실패' }, { status: 422 });
 

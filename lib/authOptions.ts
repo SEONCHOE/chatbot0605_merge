@@ -34,11 +34,12 @@ export const authOptions: NextAuthOptions = {
       if (!session.user?.email) return session;
       try {
         const [rows] = await pool.query<RowDataPacket[]>(
-          'SELECT id FROM users WHERE email = ?',
+          'SELECT id, plan FROM users WHERE email = ?',
           [session.user.email]
         );
         if (rows.length > 0) {
-          (session.user as { id?: number }).id = rows[0].id;
+          (session.user as { id?: number; plan?: string }).id = rows[0].id;
+          (session.user as { id?: number; plan?: string }).plan = rows[0].plan;
         }
       } catch (err) {
         console.error('[NextAuth session]', err);
