@@ -1227,10 +1227,6 @@ export default function BabyApp() {
       if (vrRaw) setVaccineRecords(JSON.parse(vrRaw));
     } catch {}
     try {
-      const dm = localStorage.getItem('dev_memos');
-      if (dm) setDevMemos(JSON.parse(dm));
-    } catch {}
-    try {
       const cvRaw = localStorage.getItem('custom_vaccines');
       if (cvRaw) setCustomVaccines(JSON.parse(cvRaw));
     } catch {}
@@ -1248,6 +1244,11 @@ export default function BabyApp() {
 
     // DB에서 최신 데이터 백그라운드 갱신 + 개월수 기반 스케줄 시딩
     if (storedBabyId) {
+      fetch(`/api/dev-memos?babyId=${storedBabyId}`)
+        .then(r => r.ok ? r.json() : [])
+        .then(data => { if (Array.isArray(data)) setDevMemos(data); })
+        .catch(() => {});
+
       fetch(`/api/state?babyId=${storedBabyId}`)
         .then(r => r.ok ? r.json() : null)
         .then(async data => {
@@ -3585,40 +3586,6 @@ ${headStyles}
               ))}
             </div>
 
-            {/* 맞춤 키워드 카드 */}
-            <div className="section-card">
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}}>
-                <h3 className="section-title hand" style={{margin:0}}>맞춤 키워드 확인</h3>
-                {ageInfo && <span className="shop-age-badge">{ageInfo.months + 1}개월차 맞춤</span>}
-              </div>
-              <div className="shop-flow-desc">키워드를 눌러 YouTube, 당근마켓, 맘가이드에서 검색해보세요</div>
-              <div className="kw-chips">
-                {(()=>{
-                  if (!ageInfo) return BABY_KEYWORDS_BY_STAGE['4-6'];
-                  // 한국식 "개월차" 기준(+1)으로 스테이지 매핑
-                  const stage = ageInfo.months + 1;
-                  const cur  = getShopKeywordsForAge(stage);
-                  const next = getShopKeywordsForAge(stage + 1);
-                  return [...new Set([...cur, ...next.filter(k => !cur.includes(k))])];
-                })().map((kw: string)=>(
-                  <button key={kw} className="kw-chip" onClick={()=>{ setKwPickerKeyword(kw); setKwPickerOpen(true); }}>{kw}</button>
-                ))}
-              </div>
-              <div className="shop-grid">
-                {[
-                  { icon:'🎬', name:'YouTube', desc:'키워드로 육아 영상 검색', cls:'shop-yt', href:`https://www.youtube.com/results?search_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기 `:'아기 ')+'육아 정보')}` },
-                  { icon:'🥕', name:'당근마켓', desc:'중고 장난감·아이템 검색', cls:'shop-dg', href:`https://www.daangn.com/search/${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기 `:'아기 ')+'장난감')}` },
-                  { icon:'🧴', name:'맘가이드', desc:'성분 안전성 확인', cls:'shop-mg', href:`https://momguide.co.kr/search/?q=${encodeURIComponent('아기')}` },
-                ].map(({icon,name,desc,cls,href})=>(
-                  <a key={name} className="shop-item" href={href} target="_blank" rel="noopener noreferrer">
-                    <div className={`shop-item-icon ${cls}`}>{icon}</div>
-                    <div className="shop-item-info"><div className="shop-item-name">{name}</div><div className="shop-item-desc">{desc}</div></div>
-                    <svg className="shop-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 6l6 6-6 6"/></svg>
-                  </a>
-                ))}
-              </div>
-            </div>
-
             {/* 육아 달력 */}
             <div className="section-card">
               <h3 className="section-title hand">육아 달력</h3>
@@ -3721,6 +3688,40 @@ ${headStyles}
                 })()}
               </div>
             </div>
+
+            {/* 맞춤 키워드 카드 */}
+            <div className="section-card">
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}}>
+                <h3 className="section-title hand" style={{margin:0}}>맞춤 키워드 확인</h3>
+                {ageInfo && <span className="shop-age-badge">{ageInfo.months + 1}개월차 맞춤</span>}
+              </div>
+              <div className="shop-flow-desc">키워드를 눌러 YouTube, 당근마켓, 맘가이드에서 검색해보세요</div>
+              <div className="kw-chips">
+                {(()=>{
+                  if (!ageInfo) return BABY_KEYWORDS_BY_STAGE['4-6'];
+                  // 한국식 "개월차" 기준(+1)으로 스테이지 매핑
+                  const stage = ageInfo.months + 1;
+                  const cur  = getShopKeywordsForAge(stage);
+                  const next = getShopKeywordsForAge(stage + 1);
+                  return [...new Set([...cur, ...next.filter(k => !cur.includes(k))])];
+                })().map((kw: string)=>(
+                  <button key={kw} className="kw-chip" onClick={()=>{ setKwPickerKeyword(kw); setKwPickerOpen(true); }}>{kw}</button>
+                ))}
+              </div>
+              <div className="shop-grid">
+                {[
+                  { icon:'🎬', name:'YouTube', desc:'키워드로 육아 영상 검색', cls:'shop-yt', href:`https://www.youtube.com/results?search_query=${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기 `:'아기 ')+'육아 정보')}` },
+                  { icon:'🥕', name:'당근마켓', desc:'중고 장난감·아이템 검색', cls:'shop-dg', href:`https://www.daangn.com/search/${encodeURIComponent((ageInfo?`${ageInfo.months}개월 아기 `:'아기 ')+'장난감')}` },
+                  { icon:'🧴', name:'맘가이드', desc:'성분 안전성 확인', cls:'shop-mg', href:`https://momguide.co.kr/search/?q=${encodeURIComponent('아기')}` },
+                ].map(({icon,name,desc,cls,href})=>(
+                  <a key={name} className="shop-item" href={href} target="_blank" rel="noopener noreferrer">
+                    <div className={`shop-item-icon ${cls}`}>{icon}</div>
+                    <div className="shop-item-info"><div className="shop-item-name">{name}</div><div className="shop-item-desc">{desc}</div></div>
+                    <svg className="shop-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 6l6 6-6 6"/></svg>
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -3798,11 +3799,15 @@ ${headStyles}
                 <button className="btn-primary" style={{flex:1, padding:'9px', fontSize:'13px'}}
                   onClick={()=>{
                     if(!devMemoInput.trim()){showToast('내용을 입력해주세요');return;}
-                    const updated = editingDevMemoId
-                      ? devMemos.map(m=>m.id===editingDevMemoId?{...m,date:devMemoDate,text:devMemoInput.trim()}:m)
-                      : [{id:uid(),date:devMemoDate,text:devMemoInput.trim()},...devMemos];
-                    setDevMemos(updated);
-                    try{localStorage.setItem('dev_memos',JSON.stringify(updated));}catch{}
+                    const trimmed = devMemoInput.trim();
+                    if(editingDevMemoId){
+                      setDevMemos(prev=>prev.map(m=>m.id===editingDevMemoId?{...m,date:devMemoDate,text:trimmed}:m));
+                      fetch(`/api/dev-memos/${editingDevMemoId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:devMemoDate,text:trimmed})}).catch(console.error);
+                    } else {
+                      const newMemo={id:uid(),date:devMemoDate,text:trimmed};
+                      setDevMemos(prev=>[newMemo,...prev]);
+                      fetch('/api/dev-memos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...newMemo,babyId:appState.babyId})}).catch(console.error);
+                    }
                     setDevMemoInput('');setDevMemoDate(todayStr());setEditingDevMemoId(null);
                     showToast(editingDevMemoId?'메모가 수정됐어요':'발달 메모가 저장됐어요 ✨');
                   }}>
@@ -3826,9 +3831,8 @@ ${headStyles}
                       <div className="dev-memo-item-actions">
                         <button onClick={()=>{setEditingDevMemoId(m.id);setDevMemoInput(m.text);setDevMemoDate(m.date);}}>수정</button>
                         <button onClick={()=>{
-                          const updated=devMemos.filter(x=>x.id!==m.id);
-                          setDevMemos(updated);
-                          try{localStorage.setItem('dev_memos',JSON.stringify(updated));}catch{}
+                          setDevMemos(prev=>prev.filter(x=>x.id!==m.id));
+                          fetch(`/api/dev-memos/${m.id}`,{method:'DELETE'}).catch(console.error);
                           if(editingDevMemoId===m.id){setEditingDevMemoId(null);setDevMemoInput('');setDevMemoDate(todayStr());}
                         }} style={{color:'#ef4444'}}>삭제</button>
                       </div>
