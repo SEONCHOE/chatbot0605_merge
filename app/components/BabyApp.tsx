@@ -172,7 +172,7 @@ const VOICE_TOOLS = [
           amount:   { type: 'number', description: '수유량(ml). 수유일 때만' },
           feedType: { type: 'string', enum: ['모유','분유','유축모유','혼합','이유식','우유'], description: '수유 종류. 젖/모유수유→모유, 분유→분유, 유축→유축모유, 이유식→이유식' },
           note:     { type: 'string', description: '메모나 특이사항' },
-          date:     { type: 'string', description: 'YYYY-MM-DD 형식. "어제"→제공된 yesterday 날짜. 언급 없으면 생략.' },
+          date:     { type: 'string', description: 'YYYY-MM-DD 형식. 메시지에 "어제"가 포함되면 반드시 컨텍스트의 yesterday 날짜를 입력. 날짜 언급 없으면 생략.' },
         },
         required: ['type'],
       },
@@ -1755,7 +1755,7 @@ ${headStyles}
   const openAddLog = (type: LogType, initFeedType?: string) => {
     const now = nowHHMM();
     setEditingLogId(null);
-    setAddLogType(type); setLfStart(now); setLfEnd(now); setLfTime(now);
+    setAddLogType(type); setLfStart(now); setLfEnd(minToHM((hmToMin(now)+60)%1440)); setLfTime(now);
     setLfAmount(''); setLfFeedType(initFeedType || '분유'); setLfColor('노란색'); setLfReason(''); setLfNote('');
     setLfHeight(''); setLfWeight(''); setLfBreastSide('');
     setModal('addLog');
@@ -2173,6 +2173,7 @@ ${headStyles}
       const babyName = appState.baby?.name || '아기';
       const { todayDate, yesterday, todayDow, nextMonday, nextMonth1st } = buildDateContext();
       const nowTime = nowHHMM();
+      const isAmNow = parseInt(nowTime.split(':')[0]) < 12;
       const ago30 = (() => { const [h,m]=nowTime.split(':').map(Number); const t=(h*60+m-30+1440)%1440; return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`; })();
       const ago20 = (() => { const [h,m]=nowTime.split(':').map(Number); const t=(h*60+m-20+1440)%1440; return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`; })();
       const tomorrow = (() => { const d=new Date(); d.setDate(d.getDate()+1); return localDateStr(d); })();
@@ -2224,17 +2225,30 @@ ${headStyles}
 ## 시간 변환 (HH:MM 24시간제, 현재=${nowTime})
 - "방금/지금" → ${nowTime}
 - "30분 전" → ${ago30} / "20분 전" → ${ago20} / "X분 전" → 현재에서 X분 빼기
-- "2시" → "02:00", "오후 2시" → "14:00", "오전 10시" → "10:00"
-- 여러 시간 → times 배열 (예: "2시 4시 6시" → ["02:00","04:00","06:00"])
+- 오전/오후 미표시 시간(예: "2시","4시","9시"): 현재가 ${isAmNow ? '오전' : '오후'}이므로 ${isAmNow ? '오전' : '오후'}으로 해석
+  예) "2시"→"${isAmNow ? '02' : '14'}:00", "4시"→"${isAmNow ? '04' : '16'}:00", "9시"→"${isAmNow ? '09' : '21'}:00"
+  단, "밤/새벽" 명시 시 야간 기준 / "오전/오후" 명시 시 그대로: "오후 2시"→"14:00", "오전 10시"→"10:00"
+- 여러 시간 → times 배열 (같은 오전/오후 규칙 적용)
 - "X분 산책/놀이 다녀왔어/했어" → endTime=${nowTime}, time=현재-X분
-- "X시부터 Y시간" → time=X시, endTime=X시+Y시간 (자정 넘으면 다음날로 계산)
+- "X시부터 Y시간" → time=X시(위 오전/오후 규칙), endTime=X시+Y시간 (자정 넘으면 다음날로 계산)
 
 ## Few-shot 예시
 
-[어제 활동 — "어제" 언급 시 date=${yesterday} 추가]
+[어제 활동 — "어제" 언급 시 활동 종류와 무관하게 반드시 date=${yesterday} 추가]
 "어제 오후 2시에 분유 150 줬어" → record_activity(type=feed, feedType=분유, time="14:00", amount=150, date=${yesterday})
 "어제 밤 11시부터 4시간 잤어" → record_activity(type=sleep, time="23:00", endTime="03:00", date=${yesterday})
 "어제 3시에 기저귀 갈았어" → record_activity(type=pee, time="03:00", date=${yesterday})
+"어제 오후 4시에 산책했어" → record_activity(type=walk, time="16:00", date=${yesterday})
+"어제 오전 10시에 놀았어" → record_activity(type=play, time="10:00", date=${yesterday})
+"어제 저녁 7시에 목욕했어" → record_activity(type=bath, time="19:00", date=${yesterday})
+"어제 오후 3시에 똥 쌌어" → record_activity(type=poop, time="15:00", date=${yesterday})
+"어제 오전 9시에 울었어" → record_activity(type=cry, time="09:00", date=${yesterday})
+"어제 오후 2시부터 1시간 산책했어" → record_activity(type=walk, time="14:00", endTime="15:00", durationMin=60, date=${yesterday})
+
+[자정 걸친 수면 — 어제 시작~오늘 종료: date=${yesterday}, time=어제시작, endTime=오늘종료]
+"어제 11시반부터 오늘 아침 8시반까지 잤어" → record_activity(type=sleep, time="23:30", endTime="08:30", date=${yesterday})
+"어제 밤 11시부터 오늘 오전 7시까지 잤어" → record_activity(type=sleep, time="23:00", endTime="07:00", date=${yesterday})
+"어젯밤 12시부터 오늘 6시까지 잤어" → record_activity(type=sleep, time="00:00", endTime="06:00", date=${yesterday})
 
 [수유 — 이미 완료된 수유]
 "${babyName} 방금 모유 10분 먹었어" → record_activity(type=feed, feedType=모유, time=${nowTime}, note="10분")
@@ -2280,7 +2294,7 @@ ${headStyles}
 "아기 20분 전에 잠들었어" → track_sleep(action=start, time=${ago20})
 
 [수면 — 과거 완료 + 기간 명시 (record_activity)]
-"아기 2시부터 3시간 잤어" → record_activity(type=sleep, time="02:00", endTime="05:00")
+"아기 2시부터 3시간 잤어" → record_activity(type=sleep, time="${isAmNow ? '02' : '14'}:00", endTime="${isAmNow ? '05' : '17'}:00")
 "오전 10시부터 1시간 30분 잤어" → record_activity(type=sleep, time="10:00", endTime="11:30")
 "밤 11시부터 4시간 잤어" → record_activity(type=sleep, time="23:00", endTime="03:00", durationMin=240)
 "아기 낮에 2시부터 4시까지 잤어" → record_activity(type=sleep, time="14:00", endTime="16:00")
@@ -2290,7 +2304,7 @@ ${headStyles}
 "아기 방금 30분 산책 다녀왔어" → record_activity(type=walk, endTime=${nowTime}, time=${ago30})
 "아기 지금 10분 터미타임 했어" → record_activity(type=play, note="터미타임", endTime=${nowTime}, time=${ago20})
 "아기 오후 2시부터 3시까지 산책했어" → record_activity(type=walk, time="14:00", endTime="15:00")
-"4시부터 2시간 산책했어" → record_activity(type=walk, time="04:00", endTime="06:00", durationMin=120)
+"4시부터 2시간 산책했어" → record_activity(type=walk, time="${isAmNow ? '04' : '16'}:00", endTime="${isAmNow ? '06' : '18'}:00", durationMin=120)
 "오후 3시부터 1시간 30분 놀았어" → record_activity(type=play, time="15:00", endTime="16:30", durationMin=90)
 "오전 10시부터 45분 산책했어" → record_activity(type=walk, time="10:00", endTime="10:45", durationMin=45)
 
@@ -2748,7 +2762,7 @@ ${headStyles}
           <div className="log-type-tabs" role="tablist">
             {(['sleep','feed','pee','poop','cry','walk','play','bath','measure','other'] as LogType[]).map(type=>(
               <button key={type} className={`type-tab${addLogType===type?' active':''}`} role="tab"
-                onClick={()=>{setAddLogType(type);setShowEndTimeInput(false); const now=nowHHMM(); setLfStart(now);setLfEnd(now);setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
+                onClick={()=>{setAddLogType(type);setShowEndTimeInput(false); const now=nowHHMM(); setLfStart(now);setLfEnd(minToHM((hmToMin(now)+60)%1440));setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
                 {TYPE_ICONS[type]} {TYPE_LABELS[type]}
               </button>
             ))}
