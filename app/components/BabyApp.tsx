@@ -8,7 +8,7 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 // Web Speech API — not yet included in TypeScript 5.9 DOM lib
 interface SpeechRecognitionEvent extends Event { results: SpeechRecognitionResultList; }
 interface SpeechRecognitionLike {
-  lang: string; interimResults: boolean; maxAlternatives: number;
+  lang: string; interimResults: boolean; maxAlternatives: number; continuous: boolean;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
   onerror: ((e: Event) => void) | null;
   onend: (() => void) | null;
@@ -32,6 +32,7 @@ interface Log {
   id: string; type: LogType; date: string; note: string;
   startTime?: string; endTime?: string; time?: string;
   amount?: number | null; feedType?: string; color?: string; reason?: string;
+  isContinuation?: boolean; continuationFrom?: string;
 }
 interface Todo { id: string; text: string; category: TodoCat; completed: boolean; createdAt: number; date?: string; }
 interface HealthLog { id: string; type: HealthLogType; detail: string; date: string; time: string; photo?: string; }
@@ -1152,6 +1153,7 @@ export default function BabyApp() {
   // Voice recognition
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const voiceSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // YouTube (info page)
   const [ytView, setYtView] = useState<'home'|'list'>('home');
@@ -1755,7 +1757,7 @@ ${headStyles}
   const openAddLog = (type: LogType, initFeedType?: string) => {
     const now = nowHHMM();
     setEditingLogId(null);
-    setAddLogType(type); setLfStart(now); setLfEnd(minToHM((hmToMin(now)+60)%1440)); setLfTime(now);
+    setAddLogType(type); setLfStart(now); setLfEnd(now); setLfTime(now);
     setLfAmount(''); setLfFeedType(initFeedType || '분유'); setLfColor('노란색'); setLfReason(''); setLfNote('');
     setLfHeight(''); setLfWeight(''); setLfBreastSide('');
     setModal('addLog');
@@ -1835,7 +1837,7 @@ ${headStyles}
     setEditingLogDateKey(selectedLog.dateKey);
     setAddLogType(selectedLog.type);
     setLfStart(selectedLog.startTime || '');
-    setLfEnd(selectedLog.endTime || '');
+    setLfEnd(selectedLog.endTime || selectedLog.startTime || '');
     setLfTime(selectedLog.time || '');
     setLfAmount(selectedLog.amount?.toString() || '');
     setLfFeedType(selectedLog.feedType || '분유');
@@ -2114,13 +2116,17 @@ ${headStyles}
 
   // ── Voice GPT intent routing ──────────────────────────────────
   const handleVoiceRecord = (args: { type: LogType; times?: string[]; time?: string; endTime?: string; durationMin?: number; amount?: number; feedType?: string; note?: string; date?: string }) => {
-    const dateKey = (args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date)) ? args.date : todayStr();
+    const hasExplicitDate = !!(args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date));
     // durationMin이 있고 endTime이 없으면 시작시간 + 소요시간으로 계산
     if (!args.endTime && args.durationMin && args.time) {
       const [h, m] = args.time.split(':').map(Number);
       const totalMin = (h * 60 + m + args.durationMin) % 1440;
       args.endTime = `${String(Math.floor(totalMin / 60)).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
     }
+    // LLM이 날짜를 명시하지 않았는데 종료시각이 시작시각보다 빠르면(자정을 넘김) 시작일을 어제로 보정
+    const isDurationType = args.type === 'sleep' || args.type === 'cry' || args.type === 'walk' || args.type === 'play' || args.type === 'bath';
+    const crossesMidnight = isDurationType && !!args.time && !!args.endTime && args.endTime <= args.time;
+    const dateKey = hasExplicitDate ? args.date! : (crossesMidnight ? shiftDate(todayStr(), -1) : todayStr());
     const timeList = (args.times && args.times.length > 0) ? args.times : [args.time || nowHHMM()];
     const ns = { ...appState };
     if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
@@ -2521,9 +2527,12 @@ ${headStyles}
   // ── Computed ─────────────────────────────────────────────────
   const ageInfo = appState.baby ? getAgeInfo(appState.baby.birthDate) : null;
   const todayLogs = appState.logs[todayStr()] || [];
+  const yesterdayOvernightSleepMin = (appState.logs[shiftDate(todayStr(), -1)] || [])
+    .filter(l=>l.type==='sleep'&&l.endTime&&hmToMin(l.endTime)<=hmToMin(l.startTime||'00:00'))
+    .reduce((acc,l)=>acc+hmToMin(l.endTime!), 0);
   const sleepMin = todayLogs.filter(l=>l.type==='sleep'&&l.endTime).reduce((acc,l)=>{
     let d=hmToMin(l.endTime!)-hmToMin(l.startTime!); if(d<0) d+=1440; return acc+d;
-  }, 0);
+  }, yesterdayOvernightSleepMin);
   const isNightSleep = (t?: string) => !!t && (t >= '20:00' || t < '08:00');
   const calcSleepMin = (logs: typeof todayLogs) => logs.filter(l=>l.type==='sleep'&&l.endTime).reduce((acc,l)=>{
     let d=hmToMin(l.endTime!)-hmToMin(l.startTime!); if(d<0) d+=1440; return acc+d;
@@ -2582,7 +2591,11 @@ ${headStyles}
     return b.createdAt-a.createdAt;
   });
 
-  const timelineLogs = appState.logs[timelineDate] || [];
+  const overnightContinuations: Log[] = (appState.logs[shiftDate(timelineDate, -1)] || [])
+    .filter(l => (l.type==='sleep'||l.type==='cry'||l.type==='walk'||l.type==='play'||l.type==='bath')
+      && l.endTime && hmToMin(l.endTime) <= hmToMin(l.startTime || '00:00'))
+    .map(l => ({ ...l, startTime: '00:00', continuationFrom: l.startTime, isContinuation: true }));
+  const timelineLogs = [...overnightContinuations, ...(appState.logs[timelineDate] || [])];
 
   // ── Timeline overlap layout ───────────────────────────────────
   const timelineLayout = (() => {
@@ -2762,7 +2775,7 @@ ${headStyles}
           <div className="log-type-tabs" role="tablist">
             {(['sleep','feed','pee','poop','cry','walk','play','bath','measure','other'] as LogType[]).map(type=>(
               <button key={type} className={`type-tab${addLogType===type?' active':''}`} role="tab"
-                onClick={()=>{setAddLogType(type);setShowEndTimeInput(false); const now=nowHHMM(); setLfStart(now);setLfEnd(minToHM((hmToMin(now)+60)%1440));setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
+                onClick={()=>{setAddLogType(type);setShowEndTimeInput(false); const now=nowHHMM(); setLfStart(now);setLfEnd(now);setLfTime(now);setLfNote('');setLfAmount('');setLfFeedType('분유');setLfReason('');setLfColor('노란색');}}>
                 {TYPE_ICONS[type]} {TYPE_LABELS[type]}
               </button>
             ))}
@@ -2807,7 +2820,7 @@ ${headStyles}
                     <div className="time-adj-row">
                       {[-30,-10,-5,-1,1,5,10,30].map(d=>(
                         <button key={d} type="button" className={`time-adj-btn${d<0?' neg':' pos'}`}
-                          onClick={()=>setLfEnd(minToHM(((hmToMin(lfEnd)+d)%1440+1440)%1440))}>
+                          onClick={()=>setLfEnd(minToHM(((hmToMin(lfEnd||lfStart)+d)%1440+1440)%1440))}>
                           {d>0?`+${d}`:d}분
                         </button>
                       ))}
@@ -2817,16 +2830,16 @@ ${headStyles}
 
                 {/* 소요 시간 (항상 표시 — duration 버튼으로도 조정 가능) */}
                 <div className="form-group">
-                  {(()=>{const dur=((hmToMin(lfEnd)-hmToMin(lfStart))+1440)%1440;const h=Math.floor(dur/60),m=dur%60;const lbl=h>0?(m>0?`${h}시간 ${m}분`:`${h}시간`):`${m}분`;return(<label>소요 시간 <span className="dur-badge">{lbl}</span></label>);})()}
+                  {(()=>{const dur=((hmToMin(lfEnd||lfStart)-hmToMin(lfStart))+1440)%1440;const h=Math.floor(dur/60),m=dur%60;const lbl=h>0?(m>0?`${h}시간 ${m}분`:`${h}시간`):`${m}분`;return(<label>소요 시간 <span className="dur-badge">{lbl}</span></label>);})()}
                   <div className="time-adj-row dur-row">
                     {[-30,-10,-5,-1,1,5,10,30].map(d=>(
                       <button key={d} type="button" className={`time-adj-btn${d<0?' neg':' pos'}`}
-                        onClick={()=>setLfEnd(minToHM(((hmToMin(lfEnd)+d)%1440+1440)%1440))}>
+                        onClick={()=>setLfEnd(minToHM(((hmToMin(lfEnd||lfStart)+d)%1440+1440)%1440))}>
                         {d>0?`+${d}`:d}분
                       </button>
                     ))}
                   </div>
-                  {!showEndTimeInput && <div className="time-adj-endtime">종료 {lfEnd}</div>}
+                  {!showEndTimeInput && <div className="time-adj-endtime">종료 {lfEnd||lfStart}</div>}
                 </div>
               </>
             )}
@@ -3674,23 +3687,26 @@ ${headStyles}
                   const feedLabel = log.type==='feed'?(log.feedType||'수유')+(breastSide?` ${breastSide}`:''):TYPE_LABELS[log.type];
                   let label = TYPE_ICONS[log.type]+' '+feedLabel;
                   if(totalCols > 1) label = TYPE_ICONS[log.type]; // 좁을 땐 아이콘만
+                  const durStart = log.isContinuation ? (log.continuationFrom || log.startTime!) : log.startTime!;
                   if(totalCols === 1) {
                     if(log.type==='feed'&&log.amount) label+=` ${log.amount}ml`;
-                    if(log.type==='sleep'&&log.endTime) label+=` (${fmtDuration(log.startTime!,log.endTime)})`;
-                    if(log.type==='walk'&&log.endTime) label+=` (${fmtDuration(log.startTime!,log.endTime)})`;
+                    if(log.type==='sleep'&&log.endTime) label+=` (${fmtDuration(durStart,log.endTime)})`;
+                    if(log.type==='walk'&&log.endTime) label+=` (${fmtDuration(durStart,log.endTime)})`;
                   }
+                  if(log.isContinuation) label = `↳ ${label} (어제부터 이어짐)`;
                   const fullLabel = (() => {
                     let l = TYPE_ICONS[log.type]+' '+feedLabel;
                     if(log.type==='feed'&&log.amount) l+=` ${log.amount}ml`;
-                    if(log.type==='sleep'&&log.endTime) l+=` (${fmtDuration(log.startTime!,log.endTime)})`;
-                    if(log.type==='walk'&&log.endTime) l+=` (${fmtDuration(log.startTime!,log.endTime)})`;
+                    if(log.type==='sleep'&&log.endTime) l+=` (${fmtDuration(durStart,log.endTime)})`;
+                    if(log.type==='walk'&&log.endTime) l+=` (${fmtDuration(durStart,log.endTime)})`;
+                    if(log.isContinuation) l += ' · 어제부터 이어짐';
                     return l;
                   })();
                   return (
-                    <div key={log.id} className={`tl-block ${log.type}`}
+                    <div key={log.isContinuation ? `${log.id}-cont` : log.id} className={`tl-block ${log.type}${log.isContinuation?' continuation':''}`}
                       style={{top:`${top}px`, height:`${height}px`, left, right, width:'auto'}}
                       title={fullLabel}
-                      onClick={()=>openLogDetail(timelineDate,log)}>
+                      onClick={()=>openLogDetail(log.date, log.isContinuation ? {...log, startTime: log.continuationFrom} : log)}>
                       {height>=28 ? label : TYPE_ICONS[log.type]}
                     </div>
                   );
@@ -4812,7 +4828,7 @@ ${headStyles}
 
       {/* Voice Overlay */}
       {voiceOverlay && (
-        <div className="voice-overlay" onClick={()=>{ recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>
+        <div className="voice-overlay" onClick={()=>{ if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; } recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>
           <div className="voice-sheet" onClick={e=>e.stopPropagation()}>
             <div className="voice-header">
               <div className="voice-icon">{voiceProcessing ? '🧠' : isRecording ? '🎙️' : '🎤'}</div>
@@ -4822,7 +4838,7 @@ ${headStyles}
               {[1,2,3,4,5].map(i=><div key={i} className="voice-bar" style={{height:`${isRecording&&!voiceProcessing?Math.random()*32+6:6}px`}}/>)}
             </div>
             <div className="voice-transcript">{voiceTranscript || voiceProcessing ? voiceTranscript : '말씀해 주세요'}</div>
-            <button className="voice-cancel" onClick={()=>{ recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>취소</button>
+            <button className="voice-cancel" onClick={()=>{ if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; } recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>취소</button>
           </div>
         </div>
       )}
@@ -4848,7 +4864,10 @@ ${headStyles}
             onClick={()=>{
               const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
               if (!SpeechRecognition) { alert('이 브라우저는 음성 인식을 지원하지 않습니다.'); return; }
-              if (isRecording) { recognitionRef.current?.stop(); setVoiceOverlay(false); setVoiceProcessing(false); return; }
+              if (isRecording) {
+                if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; }
+                recognitionRef.current?.stop(); setVoiceOverlay(false); setVoiceProcessing(false); return;
+              }
 
               // iOS 감지 (Safari on iPhone/iPad)
               const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -4859,23 +4878,36 @@ ${headStyles}
               let retryCount = 0;
               const MAX_RETRIES = 2;
 
+              // 말하는 도중 잠깐 쉬어도 끊기지 않도록, 마지막 음성 인식 결과 이후
+              // 이 시간(ms) 동안 추가 발화가 없을 때만 "말이 끝났다"고 판단해 제출한다.
+              const SILENCE_MS = 1200;
+
               const startRecognition = () => {
                 const recognition = new SpeechRecognition();
                 recognition.lang = 'ko-KR';
                 // iOS는 interimResults=true에서 불안정 → false로 고정
                 recognition.interimResults = !isIOS;
+                // continuous: 엔진이 문장 사이 짧은 멈춤에서 자체적으로 세션을 끝내버리지 않도록 유지
+                recognition.continuous = !isIOS;
                 recognition.maxAlternatives = 1;
 
                 let lastTranscript = '';
+
+                const finalizeAndSubmit = () => {
+                  if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; }
+                  recognitionRef.current?.stop();
+                  if (lastTranscript.trim()) processVoiceInput(lastTranscript);
+                };
 
                 recognition.onresult = (e: SpeechRecognitionEvent) => {
                   const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
                   lastTranscript = transcript;
                   setVoiceTranscript(transcript);
-                  // iOS는 onend에서 처리, 그 외는 isFinal 즉시 처리
-                  if (!isIOS && e.results[e.results.length - 1].isFinal) {
-                    recognitionRef.current?.stop();
-                    processVoiceInput(transcript);
+                  // iOS는 onend에서 처리. 그 외는 isFinal 즉시 제출하지 않고,
+                  // 일정 시간 동안 추가 발화가 없는지 지켜본 뒤에만 제출한다.
+                  if (!isIOS) {
+                    if (voiceSilenceTimerRef.current) clearTimeout(voiceSilenceTimerRef.current);
+                    voiceSilenceTimerRef.current = setTimeout(finalizeAndSubmit, SILENCE_MS);
                   }
                 };
 
@@ -4891,6 +4923,7 @@ ${headStyles}
                     return;
                   }
                   // 복구 불가 에러 → 오버레이 닫기
+                  if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; }
                   setIsRecording(false); setVoiceOverlay(false); setVoiceProcessing(false);
                   if (errMsg === 'no-speech')       showToast('🎤 음성이 감지되지 않았어요. 다시 시도해주세요');
                   else if (errMsg === 'not-allowed') showToast('🎤 마이크 권한을 허용해주세요');
@@ -4900,6 +4933,7 @@ ${headStyles}
                 };
 
                 recognition.onend = () => {
+                  if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; }
                   // iOS: onresult에서 받은 마지막 텍스트로 처리
                   if (isIOS && lastTranscript) {
                     processVoiceInput(lastTranscript);

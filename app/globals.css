@@ -380,6 +380,7 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .tl-block.play    { background: var(--bg-play);  color: var(--c-play);  border-left: 3px solid var(--c-play); }
 .tl-block.bath    { background: var(--bg-bath);  color: var(--c-bath);  border-left: 3px solid var(--c-bath); }
 .tl-block.measure { background: #F0F0F8; color: #666; border-left: 3px solid #aaa; }
+.tl-block.continuation { border-top: 2px dashed currentColor; opacity: .75; }
 
 .tl-now-line {
   position: absolute; left: 0; right: 0; height: 2px;
