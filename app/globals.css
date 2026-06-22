@@ -35,7 +35,7 @@
   --sh-md: 0 4px 16px rgba(0,0,0,.10);
   --sh-lg: 0 8px 32px rgba(0,0,0,.14);
   --h-header: 62px;
-  --h-nav:    62px;
+  --h-nav:    70px;
 }
 
 /* ── Base ──────────────────────────────────────────────────── */
@@ -1022,13 +1022,13 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .upcoming-date-badge.today { background: #dcfce7; color: #16a34a; }
 .upcoming-date-badge.past  { background: #fee2e2; color: #dc2626; }
 
-/* ── Bottom Nav Redesign (7-col + center FAB mic) ───────────── */
+/* ── Bottom Nav Redesign (5-col + center FAB mic) ───────────── */
 .bottom-nav {
   height: var(--h-nav);
   background: rgba(255,247,239,.96);
   border-top: 1px solid var(--border);
   display: grid !important;
-  grid-template-columns: 1fr 1fr 1fr 80px 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 92px 1fr 1fr;
   flex-shrink: 0; z-index: 10;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -1036,7 +1036,7 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .nav-item {
   display: flex; flex-direction: column;
   align-items: center; justify-content: flex-end;
-  gap: 3px; padding-bottom: 9px;
+  gap: 4px; padding-bottom: 16px;
   color: var(--text-light); transition: color .2s;
   position: relative; text-decoration: none;
 }
@@ -1048,27 +1048,27 @@ body { display: flex; justify-content: center; overflow: hidden; }
   width: 22px; height: 3px;
   background: var(--gradient); border-radius: 0 0 3px 3px;
 }
-.nav-svg { width: 22px; height: 22px; }
-.nav-label { font-size: 9px; font-weight: 700; letter-spacing: -.2px; }
-.nav-icon  { font-size: 20px; line-height: 1; }
+.nav-svg { width: 26px; height: 26px; }
+.nav-label { font-size: 10px; font-weight: 700; letter-spacing: -.2px; }
+.nav-icon  { font-size: 22px; line-height: 1; }
 
 .nav-center-area {
   display: flex; align-items: flex-end;
-  justify-content: center; padding-bottom: 8px;
+  justify-content: center; padding-bottom: 12px;
 }
 .nav-fab-mic {
-  position: relative; width: 52px; height: 52px; border-radius: 50%;
+  position: relative; width: 64px; height: 64px; border-radius: 50%;
   background: linear-gradient(135deg, #78C96E 0%, #95D088 100%);
   color: white; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 6px 18px rgba(120,201,110,.45);
-  transform: translateY(-18px);
+  transform: translateY(-24px);
   transition: transform .2s, box-shadow .2s;
   border: 3px solid rgba(255,247,239,.9);
 }
-.nav-fab-mic:hover  { transform: translateY(-20px); box-shadow: 0 8px 22px rgba(120,201,110,.55); }
-.nav-fab-mic:active { transform: translateY(-14px) scale(.96); }
+.nav-fab-mic:hover  { transform: translateY(-26px); box-shadow: 0 8px 22px rgba(120,201,110,.55); }
+.nav-fab-mic:active { transform: translateY(-20px) scale(.96); }
 .nav-fab-mic::after {
-  content: ''; position: absolute; inset: -6px; border-radius: 50%;
+  content: ''; position: absolute; inset: -7px; border-radius: 50%;
   border: 2px solid rgba(120,201,110,.4);
   animation: mic-pulse 2.4s ease-out infinite; pointer-events: none;
 }
@@ -1083,8 +1083,8 @@ body { display: flex; justify-content: center; overflow: hidden; }
 }
 .nav-fab-mic.listening::after { border-color: rgba(255,94,94,.45); }
 @keyframes mic-breath {
-  from { transform: translateY(-18px) scale(1); }
-  to   { transform: translateY(-18px) scale(1.1); }
+  from { transform: translateY(-24px) scale(1); }
+  to   { transform: translateY(-24px) scale(1.1); }
 }
 
 /* ── Voice Overlay ──────────────────────────────────────────── */

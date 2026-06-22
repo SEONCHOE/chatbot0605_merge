@@ -17,7 +17,7 @@ interface SpeechRecognitionLike {
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
 type LogType = 'sleep' | 'feed' | 'pee' | 'poop' | 'cry' | 'walk' | 'play' | 'bath' | 'measure' | 'other';
-type Page = 'home' | 'timeline' | 'schedule' | 'health' | 'chat' | 'info';
+type Page = 'home' | 'timeline' | 'health' | 'info';
 type ModalState = 'setup' | 'addLog' | 'healthLog' | 'logDetail' | 'settings' | null;
 type TodoCat = 'vaccine' | 'feeding' | 'play' | 'supplies' | 'other';
 type TodoFilter = 'all' | TodoCat;
@@ -1091,6 +1091,8 @@ export default function BabyApp() {
 
   // Page state
   const [timelineDate, setTimelineDate] = useState(() => todayStr());
+  const [scheduleTab, setScheduleTab] = useState<'timeline'|'schedule'>('timeline');
+  const [infoTab, setInfoTab] = useState<'video'|'chat'>('video');
   const [voiceSleepStart, setVoiceSleepStart] = useState<{logId:string; time:string} | null>(null);
   const [voiceFeedStart, setVoiceFeedStart] = useState<{logId:string; time:string; amount:number; feedType:string} | null>(null);
   const [voiceCryStart, setVoiceCryStart] = useState<{logId:string; time:string} | null>(null);
@@ -1356,6 +1358,14 @@ export default function BabyApp() {
     if (chatMessagesRef.current)
       setTimeout(() => { chatMessagesRef.current!.scrollTop = chatMessagesRef.current!.scrollHeight; }, 30);
   }, [chatMessages]);
+
+  // 챗봇 탭에 진입 경로와 무관하게 기본 안내 멘트를 항상 먼저 보여준다
+  useEffect(() => {
+    if (chatMessages.length === 0 && !chatBotReady) {
+      setChatBotReady(true);
+      setChatMessages([{ id: uid(), role: 'bot', html: `안녕하세요! 👋<br>${appState.baby?.name || '아기'}의 기록 도우미예요.<br>예방접종, 이유식, 분유량, 발달 등 궁금한 것을 무엇이든 물어보세요!` }]);
+    }
+  }, [appState.baby, chatMessages.length, chatBotReady]);
 
   // Weather fetch on mount
   useEffect(() => {
@@ -1747,10 +1757,11 @@ ${headStyles}
   // ── Navigation ────────────────────────────────────────────────
   const navigate = (page: Page) => {
     setCurrentPage(page);
-    if (page === 'chat' && !chatBotReady) {
-      setChatBotReady(true);
-      setChatMessages([{ id: uid(), role: 'bot', html: `안녕하세요! 👋<br>${appState.baby?.name || '아기'}의 기록 도우미예요.<br>예방접종, 이유식, 분유량, 발달 등 궁금한 것을 무엇이든 물어보세요!` }]);
-    }
+  };
+
+  const goToChat = () => {
+    setInfoTab('chat');
+    navigate('info');
   };
 
   // ── Log ──────────────────────────────────────────────────────
@@ -2166,7 +2177,8 @@ ${headStyles}
     saveAppState(ns);
     const [,dm,dd] = resolvedDate.split('-').map(Number);
     showToast(isScheduled ? `🎤 ${dm}/${dd}에 추가됐어요: ${args.text}` : `🎤 스케줄에 추가됐어요: ${args.text}`);
-    navigate('schedule');
+    setScheduleTab('schedule');
+    navigate('timeline');
     fetch('/api/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...newTodo, babyId: appState.babyId }) }).catch(console.error);
   };
 
@@ -2512,13 +2524,13 @@ ${headStyles}
           }
         }
       } else {
-        navigate('chat');
+        goToChat();
         setTimeout(() => sendChat(transcript), 200);
       }
     } catch (err) {
       console.error('[voice router]', err);
       closeOverlay();
-      navigate('chat');
+      goToChat();
       setTimeout(() => sendChat(transcript), 200);
       showToast('💬 챗봇으로 연결했어요');
     }
@@ -3549,7 +3561,7 @@ ${headStyles}
             <div className="section-card">
               <div className="section-header">
                 <h3 className="section-title hand">다가오는 일정</h3>
-                <button className="see-all-btn" onClick={()=>navigate('schedule')}>전체 →</button>
+                <button className="see-all-btn" onClick={()=>{setScheduleTab('schedule');navigate('timeline');}}>전체 →</button>
               </div>
               <div className="home-upcoming-list">
                 {(()=>{
@@ -3628,6 +3640,12 @@ ${headStyles}
 
         {/* ❷ TIMELINE */}
         <section id="page-timeline" className={`page${currentPage==='timeline'?' active':''}`} style={{display:'flex',flexDirection:'column'}}>
+          <div className="h-tabs" role="tablist">
+            {([['timeline','시간표'],['schedule','스케줄']] as ['timeline'|'schedule',string][]).map(([tab,label])=>(
+              <button key={tab} className={`h-tab${scheduleTab===tab?' active':''}`} role="tab" onClick={()=>setScheduleTab(tab)}>{label}</button>
+            ))}
+          </div>
+          <div className={`h-section${scheduleTab==='timeline'?' active':''}`} style={{display:scheduleTab==='timeline'?'flex':'none',flexDirection:'column',flex:1,minHeight:0}}>
           <div className="date-nav">
             <button className="date-nav-btn" onClick={()=>setTimelineDate(d=>shiftDate(d,-1))} aria-label="이전 날">‹</button>
             <span className="date-nav-title">{fmtDisplayDate(timelineDate)}</span>
@@ -3715,10 +3733,10 @@ ${headStyles}
             </div>
           </div>
           <button className="fab-btn" onClick={()=>openAddLog('sleep')} aria-label="기록 추가">+</button>
-        </section>
+          </div>
 
-        {/* ❸ SCHEDULE */}
-        <section id="page-schedule" className={`page${currentPage==='schedule'?' active':''}`} style={{display:'flex',flexDirection:'column'}}>
+          {/* ❸ SCHEDULE */}
+          <div className={`h-section${scheduleTab==='schedule'?' active':''}`} style={{display:scheduleTab==='schedule'?'flex':'none',flexDirection:'column',flex:1,minHeight:0,overflowY:'auto'}}>
           <div className="cat-tabs" role="tablist">
             {(['all','vaccine','feeding','play','supplies','other'] as (TodoFilter)[]).map(cat=>(
               <button key={cat} className={`cat-tab${todoFilter===cat?' active':''}`} role="tab" onClick={()=>setTodoFilter(cat)}>
@@ -3757,7 +3775,7 @@ ${headStyles}
                     <div className="todo-meta">
                       <span className={`todo-badge badge-${todo.category}`}>{CAT_LABELS[todo.category]}</span>
                       {todo.date && (() => { const [,m,d]=todo.date!.split('-').map(Number); return <span className="todo-date-badge">{m}/{d}</span>; })()}
-                      <button className="todo-ask-btn" onClick={()=>{ navigate('chat'); const q:Record<TodoCat,string>={vaccine:'예방접종 일정 알려줘',feeding:'이유식 언제 시작해요?',play:'이 시기 추천 장난감 알려줘',supplies:'아기 생필품 추천해줘',other:'아기 건강 정보 알려줘'}; setTimeout(()=>sendChat(q[todo.category]),300); }}>💬 챗봇에게 묻기</button>
+                      <button className="todo-ask-btn" onClick={()=>{ goToChat(); const q:Record<TodoCat,string>={vaccine:'예방접종 일정 알려줘',feeding:'이유식 언제 시작해요?',play:'이 시기 추천 장난감 알려줘',supplies:'아기 생필품 추천해줘',other:'아기 건강 정보 알려줘'}; setTimeout(()=>sendChat(q[todo.category]),300); }}>💬 챗봇에게 묻기</button>
                     </div>
                   </div>
                   <div className="todo-actions">
@@ -3904,6 +3922,7 @@ ${headStyles}
                 ))}
               </div>
             </div>
+          </div>
           </div>
         </section>
 
@@ -4413,8 +4432,14 @@ ${headStyles}
           </div>
         </section>
 
-        {/* ❺ CHAT */}
-        <section id="page-chat" className={`page page-chat-layout${currentPage==='chat'?' active':''}`}>
+        {/* ❺ INFO (merged: 영상추천 + 챗봇) */}
+        <section id="page-info" className={`page${currentPage==='info'?' active':''}`} style={{display:'flex',flexDirection:'column'}}>
+          <div className="h-tabs" role="tablist">
+            {([['video','영상추천'],['chat','챗봇']] as ['video'|'chat',string][]).map(([tab,label])=>(
+              <button key={tab} className={`h-tab${infoTab===tab?' active':''}`} role="tab" onClick={()=>setInfoTab(tab)}>{label}</button>
+            ))}
+          </div>
+          <div className={`h-section${infoTab==='chat'?' active':''}`} style={{display:infoTab==='chat'?'flex':'none',flexDirection:'column',flex:1,minHeight:0,overflow:'hidden'}}>
           <div className="chat-bot-header">
             <div className="bot-avatar-lg">🤱</div>
             <div><div className="bot-name">{appState.baby?.name ? `${appState.baby.name}의 기록` : '아기의 기록'}</div><div className="bot-status">🤖 RAG AI 모드</div></div>
@@ -4527,10 +4552,9 @@ ${headStyles}
               onKeyDown={e=>{ if(e.key==='Enter'){e.preventDefault();sendChat(chatInput);} }} />
             <button className="chat-send-btn" onClick={()=>sendChat(chatInput)}>↑</button>
           </div>
-        </section>
+          </div>
 
-        {/* ❻ INFO */}
-        <section id="page-info" className={`page${currentPage==='info'?' active':''}`}>
+          <div className={`h-section${infoTab==='video'?' active':''}`} style={{display:infoTab==='video'?'block':'none',flex:1,minHeight:0,overflowY:'auto'}}>
           <div className="page-scroll">
 
 
@@ -4801,6 +4825,7 @@ ${headStyles}
             ) : null}
 
           </div>
+          </div>
         </section>
 
       </main>
@@ -4852,10 +4877,6 @@ ${headStyles}
         <button className={`nav-item${currentPage==='timeline'?' active':''}`} onClick={()=>navigate('timeline')} aria-label="시간표" aria-current={currentPage==='timeline'?'page':undefined}>
           <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
           <span className="nav-label">시간표</span>
-        </button>
-        <button className={`nav-item${currentPage==='schedule'?' active':''}`} onClick={()=>navigate('schedule')} aria-label="스케줄" aria-current={currentPage==='schedule'?'page':undefined}>
-          <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
-          <span className="nav-label">스케줄</span>
         </button>
 
         {/* Center FAB mic */}
@@ -4948,7 +4969,7 @@ ${headStyles}
 
               startRecognition();
             }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="9" y="1" width="6" height="11" rx="3"/>
               <path d="M5 10a7 7 0 0014 0M12 19v4M8 23h8"/>
             </svg>
@@ -4958,10 +4979,6 @@ ${headStyles}
         <button className={`nav-item${currentPage==='health'?' active':''}`} onClick={()=>navigate('health')} aria-label="건강" aria-current={currentPage==='health'?'page':undefined}>
           <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.8 8.6a5.5 5.5 0 00-9.3-3 5.5 5.5 0 00-9.3 3c0 6.5 9.3 11.4 9.3 11.4s9.3-4.9 9.3-11.4z"/></svg>
           <span className="nav-label">건강</span>
-        </button>
-        <button className={`nav-item${currentPage==='chat'?' active':''}`} onClick={()=>navigate('chat')} aria-label="챗봇" aria-current={currentPage==='chat'?'page':undefined}>
-          <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          <span className="nav-label">챗봇</span>
         </button>
         <button className={`nav-item${currentPage==='info'?' active':''}`} onClick={()=>navigate('info')} aria-label="정보" aria-current={currentPage==='info'?'page':undefined}>
           <svg className="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 0 0023 12a29 29 0 00-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" stroke="none"/></svg>
