@@ -8,7 +8,7 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 // Web Speech API — not yet included in TypeScript 5.9 DOM lib
 interface SpeechRecognitionEvent extends Event { results: SpeechRecognitionResultList; }
 interface SpeechRecognitionLike {
-  lang: string; interimResults: boolean; maxAlternatives: number; continuous: boolean;
+  lang: string; interimResults: boolean; maxAlternatives: number;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
   onerror: ((e: Event) => void) | null;
   onend: (() => void) | null;
@@ -1155,7 +1155,6 @@ export default function BabyApp() {
   // Voice recognition
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const voiceSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // YouTube (info page)
   const [ytView, setYtView] = useState<'home'|'list'>('home');
@@ -4434,9 +4433,9 @@ ${headStyles}
 
         {/* ❺ INFO (merged: 영상추천 + 챗봇) */}
         <section id="page-info" className={`page${currentPage==='info'?' active':''}`} style={{display:'flex',flexDirection:'column'}}>
-          <div className="h-tabs" role="tablist">
+          <div className="h-tabs h-tabs-compact" role="tablist">
             {([['video','영상추천'],['chat','챗봇']] as ['video'|'chat',string][]).map(([tab,label])=>(
-              <button key={tab} className={`h-tab${infoTab===tab?' active':''}`} role="tab" onClick={()=>setInfoTab(tab)}>{label}</button>
+              <button key={tab} className={`h-tab h-tab-compact${infoTab===tab?' active':''}`} role="tab" onClick={()=>setInfoTab(tab)}>{label}</button>
             ))}
           </div>
           <div className={`h-section${infoTab==='chat'?' active':''}`} style={{display:infoTab==='chat'?'flex':'none',flexDirection:'column',flex:1,minHeight:0,overflow:'hidden'}}>
@@ -4853,7 +4852,7 @@ ${headStyles}
 
       {/* Voice Overlay */}
       {voiceOverlay && (
-        <div className="voice-overlay" onClick={()=>{ if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; } recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>
+        <div className="voice-overlay" onClick={()=>{ recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>
           <div className="voice-sheet" onClick={e=>e.stopPropagation()}>
             <div className="voice-header">
               <div className="voice-icon">{voiceProcessing ? '🧠' : isRecording ? '🎙️' : '🎤'}</div>
@@ -4863,7 +4862,7 @@ ${headStyles}
               {[1,2,3,4,5].map(i=><div key={i} className="voice-bar" style={{height:`${isRecording&&!voiceProcessing?Math.random()*32+6:6}px`}}/>)}
             </div>
             <div className="voice-transcript">{voiceTranscript || voiceProcessing ? voiceTranscript : '말씀해 주세요'}</div>
-            <button className="voice-cancel" onClick={()=>{ if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; } recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>취소</button>
+            <button className="voice-cancel" onClick={()=>{ recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>취소</button>
           </div>
         </div>
       )}
@@ -4885,10 +4884,7 @@ ${headStyles}
             onClick={()=>{
               const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
               if (!SpeechRecognition) { alert('이 브라우저는 음성 인식을 지원하지 않습니다.'); return; }
-              if (isRecording) {
-                if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; }
-                recognitionRef.current?.stop(); setVoiceOverlay(false); setVoiceProcessing(false); return;
-              }
+              if (isRecording) { recognitionRef.current?.stop(); setVoiceOverlay(false); setVoiceProcessing(false); return; }
 
               // iOS 감지 (Safari on iPhone/iPad)
               const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -4899,36 +4895,23 @@ ${headStyles}
               let retryCount = 0;
               const MAX_RETRIES = 2;
 
-              // 말하는 도중 잠깐 쉬어도 끊기지 않도록, 마지막 음성 인식 결과 이후
-              // 이 시간(ms) 동안 추가 발화가 없을 때만 "말이 끝났다"고 판단해 제출한다.
-              const SILENCE_MS = 1200;
-
               const startRecognition = () => {
                 const recognition = new SpeechRecognition();
                 recognition.lang = 'ko-KR';
                 // iOS는 interimResults=true에서 불안정 → false로 고정
                 recognition.interimResults = !isIOS;
-                // continuous: 엔진이 문장 사이 짧은 멈춤에서 자체적으로 세션을 끝내버리지 않도록 유지
-                recognition.continuous = !isIOS;
                 recognition.maxAlternatives = 1;
 
                 let lastTranscript = '';
-
-                const finalizeAndSubmit = () => {
-                  if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; }
-                  recognitionRef.current?.stop();
-                  if (lastTranscript.trim()) processVoiceInput(lastTranscript);
-                };
 
                 recognition.onresult = (e: SpeechRecognitionEvent) => {
                   const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
                   lastTranscript = transcript;
                   setVoiceTranscript(transcript);
-                  // iOS는 onend에서 처리. 그 외는 isFinal 즉시 제출하지 않고,
-                  // 일정 시간 동안 추가 발화가 없는지 지켜본 뒤에만 제출한다.
-                  if (!isIOS) {
-                    if (voiceSilenceTimerRef.current) clearTimeout(voiceSilenceTimerRef.current);
-                    voiceSilenceTimerRef.current = setTimeout(finalizeAndSubmit, SILENCE_MS);
+                  // iOS는 onend에서 처리, 그 외는 isFinal 즉시 처리
+                  if (!isIOS && e.results[e.results.length - 1].isFinal) {
+                    recognitionRef.current?.stop();
+                    processVoiceInput(transcript);
                   }
                 };
 
@@ -4944,7 +4927,6 @@ ${headStyles}
                     return;
                   }
                   // 복구 불가 에러 → 오버레이 닫기
-                  if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; }
                   setIsRecording(false); setVoiceOverlay(false); setVoiceProcessing(false);
                   if (errMsg === 'no-speech')       showToast('🎤 음성이 감지되지 않았어요. 다시 시도해주세요');
                   else if (errMsg === 'not-allowed') showToast('🎤 마이크 권한을 허용해주세요');
@@ -4954,7 +4936,6 @@ ${headStyles}
                 };
 
                 recognition.onend = () => {
-                  if (voiceSilenceTimerRef.current) { clearTimeout(voiceSilenceTimerRef.current); voiceSilenceTimerRef.current = null; }
                   // iOS: onresult에서 받은 마지막 텍스트로 처리
                   if (isIOS && lastTranscript) {
                     processVoiceInput(lastTranscript);
