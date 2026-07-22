@@ -162,7 +162,7 @@ const VOICE_TOOLS = [
     type: 'function',
     function: {
       name: 'record_activity',
-      description: '아기의 활동(수유, 수면, 기저귀, 산책, 울음, 놀이, 목욕)을 시간표에 기록합니다. 여러 시간이 언급되면 times 배열에 모두 담아주세요.',
+      description: '아기의 활동(수유, 수면, 기저귀, 산책, 울음, 놀이, 목욕)을 시간표에 기록합니다. 활동 종류와 무관하게 여러 시간이 언급되면(예: "2시 4시에 놀았어", "3시 6시에 똥 쌌어") times 배열에 모든 시간을 담아 각각 기록합니다.',
       parameters: {
         type: 'object',
         properties: {
@@ -2271,7 +2271,7 @@ ${headStyles}
 - 오전/오후 미표시 시간(예: "2시","4시","9시"): 현재가 ${isAmNow ? '오전' : '오후'}이므로 ${isAmNow ? '오전' : '오후'}으로 해석
   예) "2시"→"${isAmNow ? '02' : '14'}:00", "4시"→"${isAmNow ? '04' : '16'}:00", "9시"→"${isAmNow ? '09' : '21'}:00"
   단, "밤/새벽" 명시 시 야간 기준 / "오전/오후" 명시 시 그대로: "오후 2시"→"14:00", "오전 10시"→"10:00"
-- 여러 시간 → times 배열 (같은 오전/오후 규칙 적용)
+- 여러 시간 → times 배열 (같은 오전/오후 규칙 적용). 활동 종류(수유·수면·대변·소변·놀이·산책·목욕·울음)와 무관하게 시간이 2개 이상 언급되면 반드시 times 배열로 각 시간마다 기록. 단, 시작·종료가 있는 하나의 구간("X시부터 Y시까지")은 times가 아니라 time+endTime 사용.
 - "X분 산책/놀이 다녀왔어/했어" → endTime=${nowTime}, time=현재-X분
 - "X시부터 Y시간" → time=X시(위 오전/오후 규칙), endTime=X시+Y시간 (자정 넘으면 다음날로 계산)
 
@@ -2287,6 +2287,15 @@ ${headStyles}
 "어제 오후 3시에 똥 쌌어" → record_activity(type=poop, time="15:00", date=${yesterday})
 "어제 오전 9시에 울었어" → record_activity(type=cry, time="09:00", date=${yesterday})
 "어제 오후 2시부터 1시간 산책했어" → record_activity(type=walk, time="14:00", endTime="15:00", durationMin=60, date=${yesterday})
+
+[여러 시간대 — 활동 종류 무관하게 times 배열로 각각 기록]
+"아기 10시 12시 2시에 똥 쌌어" → record_activity(type=poop, times=["${isAmNow ? '10:00' : '22:00'}","12:00","${isAmNow ? '02:00' : '14:00'}"])
+"오전 9시, 11시에 쉬했어" → record_activity(type=pee, times=["09:00","11:00"])
+"아기 오전 10시랑 오후 3시에 놀았어" → record_activity(type=play, times=["10:00","15:00"])
+"2시 4시에 산책했어" → record_activity(type=walk, times=["${isAmNow ? '02:00' : '14:00'}","${isAmNow ? '04:00' : '16:00'}"])
+"아기 어제 오후 1시, 4시에 낮잠 잤어" → record_activity(type=sleep, times=["13:00","16:00"], date=${yesterday})
+"아침 8시, 저녁 7시에 목욕했어" → record_activity(type=bath, times=["08:00","19:00"])
+"3시 5시 7시에 울었어" → record_activity(type=cry, times=["${isAmNow ? '03:00' : '15:00'}","${isAmNow ? '05:00' : '17:00'}","${isAmNow ? '07:00' : '19:00'}"])
 
 [자정 걸친 수면 — 어제 시작~오늘 종료: date=${yesterday}, time=어제시작, endTime=오늘종료]
 "어제 11시반부터 오늘 아침 8시반까지 잤어" → record_activity(type=sleep, time="23:30", endTime="08:30", date=${yesterday})
