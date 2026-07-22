@@ -2222,8 +2222,30 @@ ${headStyles}
     try {
       setVoiceProcessing(true);
       setVoiceTranscript(`"${transcript}"`);
-      // ── 직전 음성 기록 교정 감지 ("아니, 10시까지 잤어" 등) ──
       const prevRec = lastVoiceRecordRef.current;
+      // ── 직전 음성 기록 삭제 감지 ("방금 기록 지워줘/취소해줘" 등) ──
+      const deleteCue = /(방금|직전|마지막|방금\s?전|조금\s?전).*(지워|삭제|취소|없애|빼)|(지워|삭제|취소|없애|빼)(줘|주세요|버려|해줘|해|주라|라)?\s*$/.test(transcript)
+        && !/(아니|말고|대신)/.test(transcript); // 교정("아니 ... 지워말고")과 구분
+      if (deleteCue && prevRec && (Date.now() - prevRec.at) < 5 * 60 * 1000) {
+        closeOverlay();
+        const ns = { ...appState };
+        if (ns.logs[prevRec.dateKey]) {
+          ns.logs[prevRec.dateKey] = ns.logs[prevRec.dateKey].filter(l => !prevRec.logIds.includes(l.id));
+          saveAppState(ns);
+        }
+        prevRec.logIds.forEach(id => fetch(`/api/logs/${id}`, { method: 'DELETE' }).catch(console.error));
+        showToast(`🎤 ${TYPE_ICONS[prevRec.args.type]} ${TYPE_LABELS[prevRec.args.type]} 방금 기록 ${prevRec.logIds.length > 1 ? `${prevRec.logIds.length}건 ` : ''}삭제했어요`);
+        lastVoiceRecordRef.current = null; // 중복 삭제 방지
+        setTimelineDate(prevRec.dateKey);
+        navigate('timeline');
+        return;
+      }
+      if (deleteCue && !prevRec) {
+        closeOverlay();
+        showToast('🎤 방금 삭제할 기록이 없어요');
+        return;
+      }
+      // ── 직전 음성 기록 교정 감지 ("아니, 10시까지 잤어" 등) ──
       const correctionCue = /^\s*(아니|아니야|아니라|아니고|아냐|틀렸|잘못|수정|고쳐|정정)/.test(transcript);
       const isCorrection = !!(correctionCue && prevRec && (Date.now() - prevRec.at) < 5 * 60 * 1000);
       const correctionContext = isCorrection ? (() => {
