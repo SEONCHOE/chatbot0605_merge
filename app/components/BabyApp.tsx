@@ -2128,6 +2128,16 @@ ${headStyles}
   };
 
   // ── Voice GPT intent routing ──────────────────────────────────
+  // 오늘 기록의 시각을 "가장 최근 과거"로 확정 (기록은 항상 과거)
+  // 오전(t)·오후(t±12h) 두 후보 중 현재 이전이면서 가장 가까운(최근) 것을 선택. 둘 다 미래면 그대로 둠.
+  const toMinOfDay = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+  const fmtMin = (mn: number) => `${String(Math.floor(mn / 60)).padStart(2, '0')}:${String(mn % 60).padStart(2, '0')}`;
+  const recentPastToday = (t: string): string => {
+    const nowMin = toMinOfDay(nowHHMM());
+    const a = toMinOfDay(t);
+    const cands = [a, (a + 720) % 1440].filter(x => x <= nowMin);
+    return cands.length ? fmtMin(Math.max(...cands)) : t;
+  };
   const handleVoiceRecord = (args: VoiceRecordArgs, replace?: { dateKey: string; logIds: string[] }) => {
     const hasExplicitDate = !!(args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date));
     // durationMin이 있고 endTime이 없으면 시작시간 + 소요시간으로 계산
@@ -2141,6 +2151,21 @@ ${headStyles}
     const crossesMidnight = isDurationType && !!args.time && !!args.endTime && args.endTime <= args.time;
     const dateKey = hasExplicitDate ? args.date! : (crossesMidnight ? shiftDate(todayStr(), -1) : todayStr());
     const timeList = (args.times && args.times.length > 0) ? args.times : [args.time || nowHHMM()];
+    // 가장 최근 과거로 보정: 오늘 기록의 애매한 시각을 과거 쪽으로 확정
+    // (예: 오전 11시 "2시에 놀았어" → 02:00, 오후 5시 "1시에 먹였어" → 13:00)
+    if (!hasExplicitDate && dateKey === todayStr()) {
+      if (timeList.length === 1 && args.endTime) {
+        // 시작·종료 구간: 시작 보정량만큼 종료도 함께 이동해 소요시간 유지
+        const fixed = recentPastToday(timeList[0]);
+        if (fixed !== timeList[0]) {
+          const delta = (toMinOfDay(fixed) - toMinOfDay(timeList[0]) + 1440) % 1440;
+          timeList[0] = fixed;
+          args.endTime = fmtMin((toMinOfDay(args.endTime) + delta) % 1440);
+        }
+      } else {
+        for (let i = 0; i < timeList.length; i++) timeList[i] = recentPastToday(timeList[i]);
+      }
+    }
     const ns = { ...appState };
     // 교정 모드: 직전에 만든 기록을 먼저 제거하고 교정된 내용으로 다시 기록
     if (replace && ns.logs[replace.dateKey]) {
@@ -2268,8 +2293,10 @@ ${headStyles}
 ## 시간 변환 (HH:MM 24시간제, 현재=${nowTime})
 - "방금/지금" → ${nowTime}
 - "30분 전" → ${ago30} / "20분 전" → ${ago20} / "X분 전" → 현재에서 X분 빼기
-- 오전/오후 미표시 시간(예: "2시","4시","9시"): 현재가 ${isAmNow ? '오전' : '오후'}이므로 ${isAmNow ? '오전' : '오후'}으로 해석
-  예) "2시"→"${isAmNow ? '02' : '14'}:00", "4시"→"${isAmNow ? '04' : '16'}:00", "9시"→"${isAmNow ? '09' : '21'}:00"
+- 오전/오후 미표시 시간(예: "2시","7시","9시","1시"): **기록은 항상 과거(이미 일어난 일)다.** 그 시각의 오전 후보(N시)와 오후 후보(N+12시) 두 개 중, **현재 시각 ${nowTime}보다 이전이면서 가장 가까운(최근) 후보**를 고른다. 현재보다 미래인 후보는 절대 고르지 않는다.
+  · 현재 오전 11시일 때: "7시"→07:00 (오후 7시=19:00은 미래라 제외), "2시"→02:00 (오후 2시=14:00은 미래)
+  · 현재 오후 2시(14:00)일 때: "7시"→07:00 (오전 7시가 과거, 오후 7시=19:00은 미래)
+  · 현재 오후 5시(17:00)일 때: "1시"→13:00 (오전 1시·오후 1시 둘 다 과거지만 더 최근인 오후 1시), "9시"→09:00 (오후 9시=21:00은 미래)
   단, "밤/새벽" 명시 시 야간 기준 / "오전/오후" 명시 시 그대로: "오후 2시"→"14:00", "오전 10시"→"10:00"
 - 여러 시간 → times 배열 (같은 오전/오후 규칙 적용). 활동 종류(수유·수면·대변·소변·놀이·산책·목욕·울음)와 무관하게 시간이 2개 이상 언급되면 반드시 times 배열로 각 시간마다 기록. 단, 시작·종료가 있는 하나의 구간("X시부터 Y시까지")은 times가 아니라 time+endTime 사용.
 - "X분 산책/놀이 다녀왔어/했어" → endTime=${nowTime}, time=현재-X분
@@ -2344,6 +2371,9 @@ ${headStyles}
 "${babyName} 지금 자고 있어" → track_sleep(action=start, time=${nowTime})
 "${babyName} 방금 깼어" → track_sleep(action=end, time=${nowTime})
 "아기 20분 전에 잠들었어" → track_sleep(action=start, time=${ago20})
+"아기 7시에 일어났어" → track_sleep(action=end, time="07:00")   ← 시각이 언급되면 반드시 time에 그 시각을 넣어라(미표시 시간은 위 오전/오후·미래금지 규칙 적용)
+"아기 3시에 깼어" → track_sleep(action=end, time="${isAmNow ? '03' : '15'}:00")
+"9시에 잠들었어" → track_sleep(action=start, time="${isAmNow ? '09' : '21'}:00")
 
 [수면 — 과거 완료 + 기간 명시 (record_activity)]
 "아기 2시부터 3시간 잤어" → record_activity(type=sleep, time="${isAmNow ? '02' : '14'}:00", endTime="${isAmNow ? '05' : '17'}:00")
@@ -2442,7 +2472,7 @@ ${headStyles}
         }
       } else if (fn === 'track_sleep') {
         const { action, time } = args as { action: 'start' | 'end'; time?: string };
-        const t = time || nowHHMM();
+        const t = recentPastToday(time || nowHHMM());
         const dateKey = todayStr();
         if (action === 'start') {
           // 시작 시각만 기록, logId 저장
