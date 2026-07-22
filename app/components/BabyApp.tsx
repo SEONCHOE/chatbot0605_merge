@@ -8,7 +8,7 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 // Web Speech API — not yet included in TypeScript 5.9 DOM lib
 interface SpeechRecognitionEvent extends Event { results: SpeechRecognitionResultList; }
 interface SpeechRecognitionLike {
-  lang: string; interimResults: boolean; maxAlternatives: number;
+  lang: string; interimResults: boolean; maxAlternatives: number; continuous: boolean;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
   onerror: ((e: Event) => void) | null;
   onend: (() => void) | null;
@@ -34,6 +34,7 @@ interface Log {
   amount?: number | null; feedType?: string; color?: string; reason?: string;
   isContinuation?: boolean; continuationFrom?: string;
 }
+type VoiceRecordArgs = { type: LogType; times?: string[]; time?: string; endTime?: string; durationMin?: number; amount?: number; feedType?: string; note?: string; date?: string };
 interface Todo { id: string; text: string; category: TodoCat; completed: boolean; createdAt: number; date?: string; }
 interface HealthLog { id: string; type: HealthLogType; detail: string; date: string; time: string; photo?: string; }
 interface Medication { id: string; name: string; dose: string; freq: string; note: string; date: string; }
@@ -1155,6 +1156,8 @@ export default function BabyApp() {
   // Voice recognition
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // 직전 음성 기록 (교정 발화 "아니 10시까지 잤어" 처리용)
+  const lastVoiceRecordRef = useRef<{ dateKey: string; logIds: string[]; args: VoiceRecordArgs; at: number } | null>(null);
 
   // YouTube (info page)
   const [ytView, setYtView] = useState<'home'|'list'>('home');
@@ -2125,7 +2128,7 @@ ${headStyles}
   };
 
   // ── Voice GPT intent routing ──────────────────────────────────
-  const handleVoiceRecord = (args: { type: LogType; times?: string[]; time?: string; endTime?: string; durationMin?: number; amount?: number; feedType?: string; note?: string; date?: string }) => {
+  const handleVoiceRecord = (args: VoiceRecordArgs, replace?: { dateKey: string; logIds: string[] }) => {
     const hasExplicitDate = !!(args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date));
     // durationMin이 있고 endTime이 없으면 시작시간 + 소요시간으로 계산
     if (!args.endTime && args.durationMin && args.time) {
@@ -2139,6 +2142,11 @@ ${headStyles}
     const dateKey = hasExplicitDate ? args.date! : (crossesMidnight ? shiftDate(todayStr(), -1) : todayStr());
     const timeList = (args.times && args.times.length > 0) ? args.times : [args.time || nowHHMM()];
     const ns = { ...appState };
+    // 교정 모드: 직전에 만든 기록을 먼저 제거하고 교정된 내용으로 다시 기록
+    if (replace && ns.logs[replace.dateKey]) {
+      ns.logs[replace.dateKey] = ns.logs[replace.dateKey].filter(l => !replace.logIds.includes(l.id));
+      replace.logIds.forEach(id => fetch(`/api/logs/${id}`, { method:'DELETE' }).catch(console.error));
+    }
     if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
     const newLogs: Log[] = timeList.map(t => {
       const log: Log = { id: uid(), type: args.type, date: dateKey, note: args.note || '' };
@@ -2153,9 +2161,12 @@ ${headStyles}
     });
     ns.logs[dateKey] = [...ns.logs[dateKey], ...newLogs].sort((a,b) => (a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
     saveAppState(ns);
+    // 다음 교정 발화를 위해 이번 기록을 저장
+    lastVoiceRecordRef.current = { dateKey, logIds: newLogs.map(l => l.id), args, at: Date.now() };
     const count = newLogs.length;
     const isYesterday = dateKey !== todayStr();
-    showToast(`🎤 ${TYPE_ICONS[args.type]} ${TYPE_LABELS[args.type]} ${count > 1 ? `${count}건` : ''}${isYesterday ? ' (어제)' : ''} 기록 완료!`);
+    const verb = replace ? '수정' : '기록';
+    showToast(`🎤 ${TYPE_ICONS[args.type]} ${TYPE_LABELS[args.type]} ${count > 1 ? `${count}건` : ''}${isYesterday ? ' (어제)' : ''} ${verb} 완료!`);
     if (isYesterday) setTimelineDate(dateKey);
     navigate('timeline');
     newLogs.forEach(log => fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error));
@@ -2186,6 +2197,21 @@ ${headStyles}
     try {
       setVoiceProcessing(true);
       setVoiceTranscript(`"${transcript}"`);
+      // ── 직전 음성 기록 교정 감지 ("아니, 10시까지 잤어" 등) ──
+      const prevRec = lastVoiceRecordRef.current;
+      const correctionCue = /^\s*(아니|아니야|아니라|아니고|아냐|틀렸|잘못|수정|고쳐|정정)/.test(transcript);
+      const isCorrection = !!(correctionCue && prevRec && (Date.now() - prevRec.at) < 5 * 60 * 1000);
+      const correctionContext = isCorrection ? (() => {
+        const p = prevRec!.args;
+        const parts = [`종류=${TYPE_LABELS[p.type]}`];
+        if (p.times && p.times.length) parts.push(`시간=${p.times.join(', ')}`);
+        else if (p.time) parts.push(`시작=${p.time}`);
+        if (p.endTime) parts.push(`종료=${p.endTime}`);
+        if (p.amount != null) parts.push(`양=${p.amount}ml`);
+        if (p.feedType) parts.push(`수유종류=${p.feedType}`);
+        parts.push(`날짜=${prevRec!.dateKey}`);
+        return parts.join(', ');
+      })() : '';
       const babyMonths = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 5;
       const babyName = appState.baby?.name || '아기';
       const { todayDate, yesterday, todayDow, nextMonday, nextMonth1st } = buildDateContext();
@@ -2354,10 +2380,15 @@ ${headStyles}
 - "그쳤어" 단독 → 맥락상 울음이 있었으면 track_cry(end), 아니면 chat_response
 - "쉬했어/소변봤어/오줌 쌌어" → pee (poop 아님, 대변 언급 없으면 무조건 pee)`,
             },
-            { role: 'user', content: transcript },
+            { role: 'user', content: isCorrection
+              ? `[직전 기록 교정 요청]
+직전에 기록한 활동: ${correctionContext}
+사용자 교정 발화: "${transcript}"
+직전 기록을 기준으로, 교정 발화에서 바뀐 부분만 반영해 record_activity로 '전체' 정보를 다시 반환해줘. 교정 발화에 언급되지 않은 값(종류·시작시간·양·수유종류·날짜 등)은 직전 기록 값을 그대로 유지해.`
+              : transcript },
           ],
           tools: VOICE_TOOLS,
-          tool_choice: 'required',
+          tool_choice: isCorrection ? { type: 'function', function: { name: 'record_activity' } } : 'required',
         }),
       });
       if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -2368,7 +2399,7 @@ ${headStyles}
       const args = JSON.parse(tcall.function.arguments);
       closeOverlay();
       if (fn === 'record_activity') {
-        handleVoiceRecord(args as Parameters<typeof handleVoiceRecord>[0]);
+        handleVoiceRecord(args as VoiceRecordArgs, isCorrection && prevRec ? { dateKey: prevRec.dateKey, logIds: prevRec.logIds } : undefined);
       } else if (fn === 'save_schedule') {
         handleVoiceSchedule(args as { text: string; category: string });
       } else if (fn === 'record_measurement') {
@@ -4900,18 +4931,31 @@ ${headStyles}
                 recognition.lang = 'ko-KR';
                 // iOS는 interimResults=true에서 불안정 → false로 고정
                 recognition.interimResults = !isIOS;
+                // continuous: 문장 중간에 잠깐 멈춰도 엔진이 세션을 끝내지 않도록 유지
+                // (예: "어제 11시부터 [멈칫] 오늘 9시까지 잤어"가 앞부분에서 잘리지 않게)
+                recognition.continuous = !isIOS;
                 recognition.maxAlternatives = 1;
 
                 let lastTranscript = '';
+                let submitted = false;          // 중복 제출 방지 가드
+                let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+                const submit = () => {
+                  if (submitted) return;        // 이미 제출했으면 무시 (stop 직후 결과 재유입 대비)
+                  submitted = true;
+                  if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+                  try { recognition.stop(); } catch { /* already stopped */ }
+                  if (lastTranscript.trim()) processVoiceInput(lastTranscript.trim());
+                };
 
                 recognition.onresult = (e: SpeechRecognitionEvent) => {
-                  const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-                  lastTranscript = transcript;
-                  setVoiceTranscript(transcript);
-                  // iOS는 onend에서 처리, 그 외는 isFinal 즉시 처리
-                  if (!isIOS && e.results[e.results.length - 1].isFinal) {
-                    recognitionRef.current?.stop();
-                    processVoiceInput(transcript);
+                  if (submitted) return;
+                  lastTranscript = Array.from(e.results).map(r => r[0].transcript).join('');
+                  setVoiceTranscript(lastTranscript);
+                  // isFinal에 즉시 제출하지 않고, 마지막 발화 후 일정 시간 정적이 유지될 때만 제출
+                  if (!isIOS) {
+                    if (silenceTimer) clearTimeout(silenceTimer);
+                    silenceTimer = setTimeout(submit, 1500);
                   }
                 };
 
@@ -4926,7 +4970,10 @@ ${headStyles}
                     setTimeout(startRecognition, 1000);
                     return;
                   }
+                  // no-speech인데 이미 받아둔 텍스트가 있으면 그걸로 제출
+                  if (errMsg === 'no-speech' && lastTranscript.trim()) { submit(); return; }
                   // 복구 불가 에러 → 오버레이 닫기
+                  if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
                   setIsRecording(false); setVoiceOverlay(false); setVoiceProcessing(false);
                   if (errMsg === 'no-speech')       showToast('🎤 음성이 감지되지 않았어요. 다시 시도해주세요');
                   else if (errMsg === 'not-allowed') showToast('🎤 마이크 권한을 허용해주세요');
@@ -4936,11 +4983,9 @@ ${headStyles}
                 };
 
                 recognition.onend = () => {
-                  // iOS: onresult에서 받은 마지막 텍스트로 처리
-                  if (isIOS && lastTranscript) {
-                    processVoiceInput(lastTranscript);
-                    return;
-                  }
+                  if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+                  // 아직 제출 안 했는데 받아둔 텍스트가 있으면 제출 (엔진이 자체 종료한 경우 대비)
+                  if (!submitted && lastTranscript.trim()) { submit(); return; }
                   if (!voiceProcessing) setIsRecording(false);
                 };
 
