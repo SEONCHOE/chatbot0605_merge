@@ -3990,10 +3990,10 @@ ${headStyles}
               <div className="kw-chips">
                 {(()=>{
                   if (!ageInfo) return BABY_KEYWORDS_BY_STAGE['4-6'];
-                  // 한국식 "개월차" 기준(+1)으로 스테이지 매핑
-                  const stage = ageInfo.months + 1;
-                  const cur  = getShopKeywordsForAge(stage);
-                  const next = getShopKeywordsForAge(stage + 1);
+                  // 실제 개월수 기준으로 현재 단계 + 다음 단계 키워드를 함께 노출
+                  // (배지의 "개월차"는 +1 표기지만, 키워드 조회는 실제 개월수로 해야 단계가 어긋나지 않음)
+                  const cur  = getShopKeywordsForAge(ageInfo.months);
+                  const next = getShopKeywordsForAge(ageInfo.months + 3);
                   return [...new Set([...cur, ...next.filter(k => !cur.includes(k))])];
                 })().map((kw: string)=>(
                   <button key={kw} className="kw-chip" onClick={()=>{ setKwPickerKeyword(kw); setKwPickerOpen(true); }}>{kw}</button>
