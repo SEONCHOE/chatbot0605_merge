@@ -3,16 +3,17 @@ import pool from '@/lib/db';
 import type { RowDataPacket } from 'mysql2';
 
 async function ensureTable() {
+  // Postgres 문법 (테이블 인덱스는 별도 문장). 이미 마이그레이션 스키마로 생성돼 있으면 no-op.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dev_memos (
       id VARCHAR(36) PRIMARY KEY,
       baby_id INT NOT NULL,
       memo_date DATE NOT NULL,
       text TEXT NOT NULL,
-      created_at BIGINT NOT NULL,
-      INDEX idx_baby (baby_id)
+      created_at BIGINT NOT NULL
     )
   `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_devmemos_baby ON dev_memos (baby_id)');
 }
 
 export async function GET(req: NextRequest) {

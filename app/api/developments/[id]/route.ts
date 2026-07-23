@@ -21,8 +21,8 @@ export async function PATCH(
     await pool.query(
       `INSERT INTO developments (baby_id, milestone_id, completed)
        VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE completed = ?`,
-      [babyId, milestoneId, completed ? 1 : 0, completed ? 1 : 0]
+       ON CONFLICT (baby_id, milestone_id) DO UPDATE SET completed = EXCLUDED.completed`,
+      [babyId, milestoneId, completed ? 1 : 0]
     );
     return NextResponse.json({ ok: true });
   } catch (err) {

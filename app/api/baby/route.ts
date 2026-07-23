@@ -52,12 +52,11 @@ export async function POST(req: NextRequest) {
       retry++;
     }
 
-    const [result] = await pool.query(
-      'INSERT INTO babies (name, birth_date, gender, user_id, share_code) VALUES (?, ?, ?, ?, ?)',
+    const [rows] = await pool.query<{ id: number }[]>(
+      'INSERT INTO babies (name, birth_date, gender, user_id, share_code) VALUES (?, ?, ?, ?, ?) RETURNING id',
       [name, birthDate, gender, userId, shareCode]
-    ) as [{ insertId: number }, unknown];
-
-    const babyId = result.insertId;
+    );
+    const babyId = rows[0].id;
     await pool.query('INSERT INTO baby_users (baby_id, user_id) VALUES (?, ?)', [babyId, userId]);
 
     return NextResponse.json({ id: babyId, shareCode }, { status: 201 });
