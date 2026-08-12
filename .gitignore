@@ -54,6 +54,9 @@ my_db.txt
 # Claude Code chat history
 .claude/
 
+# 발표자료
+발표자료/
+
 # 문서 파일 (기획서 등)
 *.docx
 *.pptx
