@@ -12,7 +12,7 @@ interface SpeechRecognitionLike {
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
   onerror: ((e: Event) => void) | null;
   onend: (() => void) | null;
-  start(): void; stop(): void;
+  start(): void; stop(): void; abort?(): void;
 }
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
@@ -2643,10 +2643,18 @@ ${headStyles}
   const nightSleepMin = calcSleepMin(todayLogs.filter(l=>isNightSleep(l.startTime)));
   const napSleepMin   = calcSleepMin(todayLogs.filter(l=>!isNightSleep(l.startTime)));
   const feedCount = todayLogs.filter(l=>l.type==='feed').length;
-  const breastCount = todayLogs.filter(l=>l.type==='feed'&&l.feedType==='모유').length;
-  const formulaCount = todayLogs.filter(l=>l.type==='feed'&&l.feedType!=='모유').length;
-  const breastMl = todayLogs.filter(l=>l.type==='feed'&&l.feedType==='모유').reduce((s,l)=>s+(l.amount||0),0);
-  const formulaMl = todayLogs.filter(l=>l.type==='feed'&&l.feedType!=='모유').reduce((s,l)=>s+(l.amount||0),0);
+  // 수유 집계: 모유 / 분유(유축·혼합·우유 포함) / 이유식 3분류.
+  // 이유식은 분유와 성격이 달라 따로 센다 (예전엔 !== '모유' 라 분유 칸에 합산됐다)
+  const isBreast  = (l: Log) => l.type==='feed' && l.feedType==='모유';
+  const isSolid   = (l: Log) => l.type==='feed' && l.feedType==='이유식';
+  const isFormula = (l: Log) => l.type==='feed' && !isBreast(l) && !isSolid(l);
+  const sumMl = (f: (l: Log)=>boolean) => todayLogs.filter(f).reduce((s,l)=>s+(l.amount||0),0);
+  const breastCount  = todayLogs.filter(isBreast).length;
+  const formulaCount = todayLogs.filter(isFormula).length;
+  const solidCount   = todayLogs.filter(isSolid).length;
+  const breastMl  = sumMl(isBreast);
+  const formulaMl = sumMl(isFormula);
+  const solidMl   = sumMl(isSolid);
   const peeCount   = todayLogs.filter(l=>l.type==='pee').length;
   const poopCount  = todayLogs.filter(l=>l.type==='poop').length;
   const diaperCount = peeCount + poopCount;
@@ -2962,7 +2970,7 @@ ${headStyles}
             )}
             {addLogType==='feed' && (
               <>
-                <div className="form-group"><label>수유량 (ml)</label><input type="number" value={lfAmount} onChange={e=>setLfAmount(e.target.value)} placeholder="예: 120" min="0" max="500" /></div>
+                <div className="form-group"><label>{lfFeedType==='이유식'?'섭취량 (g)':'수유량 (ml)'}</label><input type="number" value={lfAmount} onChange={e=>setLfAmount(e.target.value)} placeholder={lfFeedType==='이유식'?'예: 80':'예: 120'} min="0" max="500" /></div>
                 <div className="form-group">
                   <label>수유 방법</label>
                   <select value={lfFeedType} onChange={e=>{setLfFeedType(e.target.value);setLfBreastSide('');}}>
@@ -3500,7 +3508,7 @@ ${headStyles}
                 {/* 수유 */}
                 <div className="bhs-item">
                   {feedCount === 0 ? <div className="bhs-cat-lbl">🍼</div> : (
-                    <div className="bhs-cols">
+                    <div className="bhs-cols bhs-cols--3">
                       <div className="bhs-col">
                         <span className="bhs-col-num">{breastCount===0?'—':breastMl>0?`${breastMl}ml`:`${breastCount}회`}</span>
                         <span className="bhs-col-lbl">모유</span>
@@ -3508,6 +3516,10 @@ ${headStyles}
                       <div className="bhs-col">
                         <span className="bhs-col-num">{formulaCount===0?'—':formulaMl>0?`${formulaMl}ml`:`${formulaCount}회`}</span>
                         <span className="bhs-col-lbl">분유</span>
+                      </div>
+                      <div className="bhs-col">
+                        <span className="bhs-col-num">{solidCount===0?'—':solidMl>0?`${solidMl}g`:`${solidCount}회`}</span>
+                        <span className="bhs-col-lbl">이유식</span>
                       </div>
                     </div>
                   )}
@@ -4988,6 +5000,14 @@ ${headStyles}
               const MAX_RETRIES = 2;
 
               const startRecognition = () => {
+                // 이전 인스턴스가 살아있으면 완전히 끊는다.
+                // 재시도 시 인식기 두 개가 동시에 돌면 각자의 submitted 가드가 별개라 같은 발화가 두 번 제출된다.
+                const stale = recognitionRef.current;
+                if (stale) {
+                  stale.onresult = null; stale.onend = null; stale.onerror = null;
+                  try { stale.abort ? stale.abort() : stale.stop(); } catch { /* already dead */ }
+                }
+
                 const recognition = new SpeechRecognition();
                 recognition.lang = 'ko-KR';
                 // iOS는 interimResults=true에서 불안정 → false로 고정
@@ -4997,22 +5017,40 @@ ${headStyles}
                 recognition.continuous = !isIOS;
                 recognition.maxAlternatives = 1;
 
-                let lastTranscript = '';
+                let finalTranscript = '';       // 확정된 구간만 누적
+                let interimText = '';           // 화면 표시용 (제출에는 확정분 우선)
+                let finalizedUpTo = 0;          // 이 인덱스 미만은 이미 finalTranscript에 반영됨
                 let submitted = false;          // 중복 제출 방지 가드
                 let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+                const currentText = () => (finalTranscript + interimText).trim();
 
                 const submit = () => {
                   if (submitted) return;        // 이미 제출했으면 무시 (stop 직후 결과 재유입 대비)
                   submitted = true;
                   if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
                   try { recognition.stop(); } catch { /* already stopped */ }
-                  if (lastTranscript.trim()) processVoiceInput(lastTranscript.trim());
+                  const text = currentText();
+                  if (text) processVoiceInput(text);
                 };
 
                 recognition.onresult = (e: SpeechRecognitionEvent) => {
                   if (submitted) return;
-                  lastTranscript = Array.from(e.results).map(r => r[0].transcript).join('');
-                  setVoiceTranscript(lastTranscript);
+                  // results 전체를 join하면 안 된다.
+                  // continuous 모드에서 엔진은 확정된 구간을 이후 이벤트에도 계속 들고 오고,
+                  // 모바일 Chrome은 같은 구간을 interim/final로 중복 전달하기도 한다.
+                  // → "아기가 아기가 지금지금 밥밥" 처럼 어절이 겹쳐 나온다.
+                  // 새로 확정된 인덱스만 한 번씩 누적하고, 미확정분은 표시용으로만 쓴다.
+                  interimText = '';
+                  for (let i = 0; i < e.results.length; i++) {
+                    const r = e.results[i];
+                    if (r.isFinal) {
+                      if (i >= finalizedUpTo) { finalTranscript += r[0].transcript; finalizedUpTo = i + 1; }
+                    } else {
+                      interimText += r[0].transcript;
+                    }
+                  }
+                  setVoiceTranscript(currentText());
                   // isFinal에 즉시 제출하지 않고, 마지막 발화 후 일정 시간 정적이 유지될 때만 제출
                   if (!isIOS) {
                     if (silenceTimer) clearTimeout(silenceTimer);
@@ -5032,7 +5070,7 @@ ${headStyles}
                     return;
                   }
                   // no-speech인데 이미 받아둔 텍스트가 있으면 그걸로 제출
-                  if (errMsg === 'no-speech' && lastTranscript.trim()) { submit(); return; }
+                  if (errMsg === 'no-speech' && currentText()) { submit(); return; }
                   // 복구 불가 에러 → 오버레이 닫기
                   if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
                   setIsRecording(false); setVoiceOverlay(false); setVoiceProcessing(false);
@@ -5046,7 +5084,7 @@ ${headStyles}
                 recognition.onend = () => {
                   if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
                   // 아직 제출 안 했는데 받아둔 텍스트가 있으면 제출 (엔진이 자체 종료한 경우 대비)
-                  if (!submitted && lastTranscript.trim()) { submit(); return; }
+                  if (!submitted && currentText()) { submit(); return; }
                   if (!voiceProcessing) setIsRecording(false);
                 };
 

@@ -987,6 +987,14 @@ body { display: flex; justify-content: center; overflow: hidden; }
 .bhs-divider { background: rgba(0,0,0,.08); width: 1px; margin: 6px 0; }
 .bhs-cat-lbl { font-size: 19px; font-weight: 700; color: #777; font-family: var(--font-gaegu), -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; }
 .bhs-cols { display: flex; gap: 10px; justify-content: center; }
+/* 3분류(모유·분유·이유식)는 셀 폭이 좁아 간격·글자를 줄인다 */
+.bhs-cols--3 { gap: 6px; }
+.bhs-cols--3 .bhs-col-num { font-size: 15px; }
+.bhs-cols--3 .bhs-col-lbl { font-size: 10px; white-space: nowrap; }
+@media (max-width: 360px) {
+  .bhs-cols--3 { gap: 4px; }
+  .bhs-cols--3 .bhs-col-num { font-size: 13px; }
+}
 .bhs-col  { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .bhs-col-num {
   font-size: 20px; font-weight: 700; color: #444; line-height: 1;
