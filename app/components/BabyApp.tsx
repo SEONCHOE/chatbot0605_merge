@@ -48,6 +48,24 @@ interface AppState {
   development: Record<string, boolean>;
   growth: Growth[];
 }
+type RecordDomain = 'activity' | 'vaccine' | 'schedule' | 'health' | 'medication' | 'growth';
+type RecordAggregate = 'list' | 'count' | 'sum' | 'last' | 'first';
+interface RecordQueryArgs {
+  domain: RecordDomain;
+  logType?: LogType;
+  dateFrom?: string;
+  dateTo?: string;
+  aggregate?: RecordAggregate;
+  keyword?: string;
+}
+interface RecordQueryResult {
+  domain: RecordDomain;
+  aggregate: RecordAggregate;
+  filter: Record<string, string>;
+  count: number;
+  totalAmountMl?: number;
+  items: Record<string, string | number>[];
+}
 interface VaccineRecord { vaccineId: string; dose: number; date: string; hospital: string; option?: string; note?: string; }
 interface CustomVaccine  { id: string; name: string; sub: string; maxDoses: number; }
 interface VaccineInfo    { id: string; name: string; sub: string; maxDoses: number; options?: string[]; }
@@ -174,7 +192,7 @@ const VOICE_TOOLS = [
           amount:   { type: 'number', description: '수유량(ml). 수유일 때만' },
           feedType: { type: 'string', enum: ['모유','분유','유축모유','혼합','이유식','우유'], description: '수유 종류. 젖/모유수유→모유, 분유→분유, 유축→유축모유, 이유식→이유식' },
           note:     { type: 'string', description: '메모나 특이사항' },
-          date:     { type: 'string', description: 'YYYY-MM-DD 형식. 메시지에 "어제"가 포함되면 반드시 컨텍스트의 yesterday 날짜를 입력. 날짜 언급 없으면 생략.' },
+          date:     { type: 'string', description: 'YYYY-MM-DD 형식. 과거 날짜 표현("어제","그저께","N일 전","지난주 X요일","지지난주","M월 D일")이 있으면 반드시 컨텍스트의 "과거 날짜" 목록에서 해당 날짜를 그대로 찾아 입력. 추측해서 계산하지 말 것. 날짜 언급이 전혀 없으면 생략(=오늘).' },
         },
         required: ['type'],
       },
@@ -221,7 +239,8 @@ const VOICE_TOOLS = [
         type: 'object',
         properties: {
           action: { type: 'string', enum: ['start', 'end'], description: 'start=수면 시작, end=기상' },
-          time:   { type: 'string', description: '시각 HH:MM. 없으면 생략' },
+          time:   { type: 'string', description: '시각 HH:MM. 24시간제로 정확히. "저녁 11시 50분"→"23:50", "밤 10시"→"22:00", "새벽 2시"→"02:00". 없으면 생략' },
+          date:   { type: 'string', description: 'YYYY-MM-DD. 과거 날짜 표현("어제","그저께","N일 전")이 있으면 반드시 컨텍스트의 "과거 날짜" 목록에서 그대로 찾아 입력. 날짜 언급이 없으면 생략.' },
         },
         required: ['action'],
       },
@@ -238,7 +257,8 @@ const VOICE_TOOLS = [
           action:   { type: 'string', enum: ['start', 'end'], description: 'start=수유 시작, end=수유 완료' },
           feedType: { type: 'string', enum: ['모유','분유','유축모유','혼합','이유식','우유'], description: '수유 종류' },
           amount:   { type: 'number', description: 'start: 줄 예정 수유량(ml) / end: 남긴 양(ml). 다 먹었으면 0' },
-          time:     { type: 'string', description: '시각 HH:MM' },
+          time:     { type: 'string', description: '시각 HH:MM. 24시간제로 정확히. "저녁 11시"→"23:00", "새벽 3시"→"03:00"' },
+          date:     { type: 'string', description: 'YYYY-MM-DD. 과거 날짜 표현이 있으면 컨텍스트의 "과거 날짜" 목록에서 그대로 찾아 입력. 없으면 생략.' },
         },
         required: ['action'],
       },
@@ -254,7 +274,8 @@ const VOICE_TOOLS = [
         properties: {
           action: { type: 'string', enum: ['start', 'end'], description: 'start=울음 시작, end=울음 종료' },
           reason: { type: 'string', enum: ['배고픔','기저귀','졸림','배앓이','안아달라',''], description: '울음 원인 추정. 명확하지 않으면 생략' },
-          time:   { type: 'string', description: '시각 HH:MM. 없으면 생략' },
+          time:   { type: 'string', description: '시각 HH:MM. 24시간제로 정확히. "저녁 11시"→"23:00"' },
+          date:   { type: 'string', description: 'YYYY-MM-DD. 과거 날짜 표현이 있으면 컨텍스트의 "과거 날짜" 목록에서 그대로 찾아 입력. 없으면 생략.' },
         },
         required: ['action'],
       },
@@ -272,6 +293,52 @@ const VOICE_TOOLS = [
         },
         required: ['message'],
       },
+    },
+  },
+];
+
+// ── Chat Tools (기록 조회 vs 일반 질문 라우터) ───────────────────
+// 챗봇 입력을 두 갈래로 나눈다. query_records는 이 아기의 실제 저장된
+// 기록을 로컬(appState/localStorage)에서 조회하고, general_question은
+// 기존 RAG 문서 기반 답변 경로로 보낸다.
+const CHAT_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'query_records',
+      description: '이 아기의 과거 기록을 조회한다. "어제 몇 시에 잤어?", "오늘 수유 몇 번 했어?", "2차 접종 언제 했지?", "언제 감기 걸렸었지?", "지난번에 먹은 약이 뭐지?" 처럼 저장된 기록을 되짚는 질문에 사용. 여러 영역을 봐야 하는 질문이면 이 함수를 여러 번 호출해도 된다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          domain: {
+            type: 'string',
+            enum: ['activity','vaccine','schedule','health','medication','growth'],
+            description: 'activity=시간표(수유·수면·기저귀·울음·산책·놀이·목욕), vaccine=예방접종 완료 이력(몇 차, 언제, 어느 병원, 백신 종류), schedule=할일·예약 일정, health=건강기록(체온·발진·증상 — "감기 걸린 시기"는 여기), medication=복약기록(약 이름·용량 — "먹은 약"은 여기), growth=키·몸무게',
+          },
+          logType: {
+            type: 'string',
+            enum: ['feed','sleep','pee','poop','cry','walk','play','bath'],
+            description: 'domain=activity일 때만 사용. feed=수유, sleep=수면, pee=소변, poop=대변, cry=울음, walk=산책, play=놀이, bath=목욕. 활동 종류가 특정되지 않으면 생략',
+          },
+          dateFrom: { type: 'string', description: '조회 시작일 YYYY-MM-DD. "어제/N일 전/지난주" 같은 표현은 반드시 컨텍스트의 "과거 날짜" 목록에서 그대로 찾아 쓸 것. 기간 언급이 없으면 생략(=전체 기간)' },
+          dateTo:   { type: 'string', description: '조회 종료일 YYYY-MM-DD. 하루만 조회하면 dateFrom과 같게. 생략 시 오늘까지' },
+          aggregate: {
+            type: 'string',
+            enum: ['list','count','sum','last','first'],
+            description: 'list=목록(기본), count="몇 번" 횟수, sum="총 몇 ml" 수유량 합계, last="지난번/마지막/최근" 가장 최근 1건, first="처음/언제부터" 가장 오래된 1건',
+          },
+          keyword: { type: 'string', description: '검색어. 예: "감기", "MMR", "3차", "해열제". 백신명·차수·증상·약 이름을 그대로 넣는다. 없으면 생략' },
+        },
+        required: ['domain'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'general_question',
+      description: '이 아기의 과거 기록과 무관한 일반 질문. 육아 지식, 의학·발달 정보, 방법 문의, 권장 일정("예방접종 언제 맞아야 해?" 같은 미래·일반 정보) 등.',
+      parameters: { type: 'object', properties: {}, required: [] },
     },
   },
 ];
@@ -356,6 +423,40 @@ function fmtDisplayDate(s: string) {
 function nowHHMM() { const d=new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 function hmToMin(hhmm: string) { const [h,m]=hhmm.split(':').map(Number); return h*60+m; }
 function minToHM(min: number) { return `${String(Math.floor(min/60)).padStart(2,'0')}:${String(min%60).padStart(2,'0')}`; }
+
+// 음성 기록의 날짜·시각을 함께 확정한다. 기록은 항상 "이미 일어난 일"이므로
+// 날짜가 명시되지 않았는데 시각이 현재보다 미래면 전날로 넘겨야 한다.
+//  - 날짜 명시  → 그대로 (시각 보정 없음)
+//  - 13시 이후  → 오후가 명시된 시각. 절대 ±12h 뒤집지 않는다.
+//                 (예: 00:50에 "저녁 11시 50분" → 어제 23:50. 오늘 11:50이 아니다)
+//  - 0~12시     → 오전/오후 모호. 오늘 안에서 가장 최근 과거를 고르고,
+//                 두 후보 모두 미래면 어제의 더 늦은 쪽을 고른다.
+//                 (예: 00:50에 "11시 50분" → 어제 23:50)
+function resolveLogDateTime(time: string, explicitDate?: string): { date: string; time: string } {
+  if (explicitDate && /^\d{4}-\d{2}-\d{2}$/.test(explicitDate)) return { date: explicitDate, time };
+  const today = todayStr();
+  const nowMin = hmToMin(nowHHMM());
+  const a = hmToMin(time);
+  if (Math.floor(a / 60) >= 13) {
+    return a <= nowMin ? { date: today, time } : { date: shiftDate(today, -1), time };
+  }
+  const pm = (a + 720) % 1440;
+  const past = [a, pm].filter(x => x <= nowMin);
+  if (past.length) return { date: today, time: minToHM(Math.max(...past)) };
+  return { date: shiftDate(today, -1), time: minToHM(Math.max(a, pm)) };
+}
+
+// 진행 중이던 수면/울음의 종료 시각. 시작 시각 이후가 되도록 오전/오후를 확정한다.
+// 종료가 시작보다 이르면 자정을 넘긴 것으로 보고 그대로 둔다(타임라인이 이어짐 처리).
+//  예: 어제 23:50 시작 + "7시에 일어났어" → 07:00 (19:00이 아님)
+function endTimeAfter(startTime: string, spoken?: string): string {
+  if (!spoken) return nowHHMM();
+  const s = hmToMin(startTime), a = hmToMin(spoken);
+  if (Math.floor(a / 60) >= 13) return spoken;
+  const elapsed = (x: number) => (x - s + 1440) % 1440;
+  const pm = (a + 720) % 1440;
+  return minToHM(elapsed(a) <= elapsed(pm) ? a : pm);
+}
 function fmtDuration(s: string, e: string) {
   let d=hmToMin(e)-hmToMin(s); if(d<=0) d+=1440;
   const h=Math.floor(d/60),m=d%60; return h>0?`${h}시간 ${m}분`:`${m}분`;
@@ -447,17 +548,39 @@ function parseNaturalDate(text: string): string | null {
   return null;
 }
 // LLM에 전달할 날짜 컨텍스트 계산 (save_schedule date 파라미터용)
-function buildDateContext(): { todayDate: string; yesterday: string; nextMonday: string; nextMonth1st: string; todayDow: string } {
+function buildDateContext(): { todayDate: string; yesterday: string; dayBeforeYesterday: string; pastDays: string; nextMonday: string; nextMonth1st: string; todayDow: string; thisMonthStart: string; lastMonthStart: string; lastMonthEnd: string; lastWeekStart: string; lastWeekEnd: string } {
   const today = new Date();
+  const DOW = ['일','월','화','수','목','금','토'];
   const dow = today.getDay();
-  const dowLabel = ['일','월','화','수','목','금','토'][dow];
+  const dowLabel = DOW[dow];
   const daysFromMonday = dow === 0 ? 6 : dow - 1;
   const nm = new Date(today); nm.setDate(today.getDate() - daysFromMonday + 7);
   const nm1 = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const yd = new Date(today); yd.setDate(today.getDate() - 1);
+  const back = (n: number) => { const d = new Date(today); d.setDate(today.getDate() - n); return d; };
+  // 과거 날짜 앵커 — "그저께", "3일 전", "지난주 화요일" 같은 표현을 LLM이
+  // 추측하지 않도록 최근 14일치 실제 날짜를 요일과 함께 그대로 넘긴다.
+  // 기록 조회 질문("지난달", "3주 전")까지 커버하려면 60일치가 필요하다.
+  const NAMES: Record<number, string> = { 1: '어제', 2: '그저께' };
+  const pastDays = Array.from({ length: 60 }, (_, i) => {
+    const n = i + 1, d = back(n);
+    const alias = NAMES[n] ? `${NAMES[n]}/` : '';
+    return `${alias}${n}일 전=${localDateStr(d)}(${DOW[d.getDay()]})`;
+  }).join(', ');
+  const thisMonth1st = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastMonth1st = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthLast = new Date(today.getFullYear(), today.getMonth(), 0);
+  const lastWeekMon = new Date(today); lastWeekMon.setDate(today.getDate() - daysFromMonday - 7);
+  const lastWeekSun = new Date(lastWeekMon); lastWeekSun.setDate(lastWeekMon.getDate() + 6);
   return {
+    thisMonthStart: localDateStr(thisMonth1st),
+    lastMonthStart: localDateStr(lastMonth1st),
+    lastMonthEnd:   localDateStr(lastMonthLast),
+    lastWeekStart:  localDateStr(lastWeekMon),
+    lastWeekEnd:    localDateStr(lastWeekSun),
     todayDate:   localDateStr(today),
-    yesterday:   localDateStr(yd),
+    yesterday:   localDateStr(back(1)),
+    dayBeforeYesterday: localDateStr(back(2)),
+    pastDays,
     todayDow:    dowLabel,
     nextMonday:  localDateStr(nm),
     nextMonth1st: localDateStr(nm1),
@@ -1074,6 +1197,7 @@ export default function BabyApp() {
   const [lfColor, setLfColor] = useState('노란색');
   const [lfReason, setLfReason] = useState('');
   const [lfNote, setLfNote] = useState('');
+  const [lfDate, setLfDate] = useState(todayStr());
   const [lfHeight, setLfHeight] = useState('');
   const [lfWeight, setLfWeight] = useState('');
   const [lfBreastSide, setLfBreastSide] = useState<'좌'|'우'|''>('');
@@ -1115,9 +1239,10 @@ export default function BabyApp() {
   const [timelineDate, setTimelineDate] = useState(() => todayStr());
   const [scheduleTab, setScheduleTab] = useState<'timeline'|'schedule'>('timeline');
   const [infoTab, setInfoTab] = useState<'video'|'chat'>('video');
-  const [voiceSleepStart, setVoiceSleepStart] = useState<{logId:string; time:string} | null>(null);
-  const [voiceFeedStart, setVoiceFeedStart] = useState<{logId:string; time:string; amount:number; feedType:string} | null>(null);
-  const [voiceCryStart, setVoiceCryStart] = useState<{logId:string; time:string} | null>(null);
+  // dateKey를 함께 들고 있어야 자정을 넘겨 종료할 때 시작 로그를 찾을 수 있다
+  const [voiceSleepStart, setVoiceSleepStart] = useState<{logId:string; time:string; dateKey:string} | null>(null);
+  const [voiceFeedStart, setVoiceFeedStart] = useState<{logId:string; time:string; amount:number; feedType:string; dateKey:string} | null>(null);
+  const [voiceCryStart, setVoiceCryStart] = useState<{logId:string; time:string; dateKey:string} | null>(null);
   const [quickFeedOpen,   setQuickFeedOpen]   = useState(false);
   const [quickDiaperOpen, setQuickDiaperOpen] = useState(false);
   const [quickOtherOpen,  setQuickOtherOpen]  = useState(false);
@@ -1792,6 +1917,7 @@ ${headStyles}
     const now = nowHHMM();
     setEditingLogId(null);
     setAddLogType(type); setLfStart(now); setLfEnd(now); setLfTime(now);
+    setLfDate(currentPage === 'timeline' ? timelineDate : todayStr());
     setLfAmount(''); setLfFeedType(initFeedType || '분유'); setLfColor('노란색'); setLfReason(''); setLfNote('');
     setLfHeight(''); setLfWeight(''); setLfBreastSide('');
     setModal('addLog');
@@ -1799,7 +1925,9 @@ ${headStyles}
 
   const saveLog = () => {
     const isEdit = !!editingLogId;
-    const dateKey = isEdit ? editingLogDateKey : (currentPage === 'timeline' ? timelineDate : todayStr());
+    const dateKey = lfDate || (isEdit ? editingLogDateKey : (currentPage === 'timeline' ? timelineDate : todayStr()));
+    // 수정 중 날짜를 옮겼으면 원래 날짜에서 제거해야 중복으로 남지 않는다
+    const movedFrom = isEdit && editingLogDateKey && editingLogDateKey !== dateKey ? editingLogDateKey : null;
     const log: Log = { id: editingLogId || uid(), type: addLogType, date: dateKey, note: lfNote.trim() };
     if (addLogType === 'sleep' || addLogType === 'feed' || addLogType === 'cry' || addLogType === 'walk' || addLogType === 'play' || addLogType === 'bath') {
       if (!lfStart) { showToast('시작 시간을 입력해주세요'); return; }
@@ -1840,8 +1968,14 @@ ${headStyles}
     if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
     const sorted = (arr: Log[]) => arr.sort((a,b)=>(a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
     if (isEdit) {
-      ns.logs[dateKey] = sorted(ns.logs[dateKey].map(l => l.id === editingLogId ? log : l));
+      if (movedFrom) {
+        ns.logs[movedFrom] = (ns.logs[movedFrom] || []).filter(l => l.id !== editingLogId);
+        ns.logs[dateKey] = sorted([...ns.logs[dateKey], log]);
+      } else {
+        ns.logs[dateKey] = sorted(ns.logs[dateKey].map(l => l.id === editingLogId ? log : l));
+      }
       saveAppState(ns); setModal(null); setEditingLogId(null);
+      if (movedFrom) setTimelineDate(dateKey);
       showToast(`✏️ ${TYPE_LABELS[addLogType]} 기록이 수정됐어요!`);
       fetch(`/api/logs/${editingLogId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(log) }).catch(console.error);
     } else {
@@ -1869,6 +2003,7 @@ ${headStyles}
     if (!selectedLog) return;
     setEditingLogId(selectedLog.id);
     setEditingLogDateKey(selectedLog.dateKey);
+    setLfDate(selectedLog.dateKey);
     setAddLogType(selectedLog.type);
     setLfStart(selectedLog.startTime || '');
     setLfEnd(selectedLog.endTime || selectedLog.startTime || '');
@@ -2107,16 +2242,238 @@ ${headStyles}
     }
   };
 
+  // ── Record query (지난 기록 조회) ──────────────────────────────
+  // 모든 기록이 이미 클라이언트에 있으므로(appState + localStorage 접종기록)
+  // 서버 왕복 없이 로컬에서 집계한다.
+  const HEALTH_TYPE_LABELS: Record<HealthLogType, string> = { temp:'체온', rash:'발진', symptom:'증상', other:'기타' };
+
+  const runRecordQuery = (args: RecordQueryArgs): RecordQueryResult => {
+    const agg: RecordAggregate = args.aggregate || 'list';
+    const from = args.dateFrom || '';
+    const to   = args.dateTo   || '';
+    const inRange = (d: string) => (!from || d >= from) && (!to || d <= to);
+    const kw = (args.keyword || '').trim().toLowerCase();
+    const hit = (...fields: (string | undefined)[]) =>
+      !kw || fields.some(f => (f || '').toLowerCase().includes(kw));
+
+    const filter: Record<string, string> = { };
+    if (args.logType) filter.활동 = TYPE_LABELS[args.logType];
+    if (from) filter.시작일 = from;
+    if (to)   filter.종료일 = to;
+    if (args.keyword) filter.검색어 = args.keyword;
+
+    let items: Record<string, string | number>[] = [];
+    let totalAmountMl: number | undefined;
+
+    if (args.domain === 'activity') {
+      const flat = Object.values(appState.logs).flat()
+        .filter(l => inRange(l.date))
+        .filter(l => !args.logType || l.type === args.logType)
+        .filter(l => hit(l.note, l.feedType, l.reason));
+      flat.sort((a, b) => (a.date + (a.startTime || a.time || '')).localeCompare(b.date + (b.startTime || b.time || '')));
+      if (args.logType === 'feed') totalAmountMl = flat.reduce((s, l) => s + (l.amount || 0), 0);
+      items = flat.map(l => {
+        const o: Record<string, string | number> = { 종류: TYPE_LABELS[l.type], 날짜: l.date };
+        if (l.startTime) o.시작 = l.startTime;
+        if (l.endTime)   o.종료 = l.endTime;
+        if (l.time)      o.시각 = l.time;
+        if (l.startTime && l.endTime) {
+          const [sh, sm] = l.startTime.split(':').map(Number);
+          const [eh, em] = l.endTime.split(':').map(Number);
+          let min = (eh * 60 + em) - (sh * 60 + sm);
+          if (min < 0) min += 1440; // 자정 넘김
+          o.지속분 = min;
+        }
+        if (l.amount)   o.수유량ml = l.amount;
+        if (l.feedType) o.수유종류 = l.feedType;
+        if (l.color)    o.색깔 = l.color;
+        if (l.reason)   o.원인 = l.reason;
+        if (l.note)     o.메모 = l.note;
+        return o;
+      });
+    } else if (args.domain === 'vaccine') {
+      const info = [...VAC_BASIC, ...VAC_OPTIONAL, ...customVaccines];
+      const nameOf = (id: string) => info.find(v => v.id === id)?.name || id;
+      const subOf  = (id: string) => info.find(v => v.id === id)?.sub || '';
+      const recs = vaccineRecords
+        .filter(r => inRange(r.date))
+        // "3차" 같은 차수 검색어도 잡아야 하므로 차수 문자열을 검색 대상에 포함
+        .filter(r => hit(nameOf(r.vaccineId), subOf(r.vaccineId), r.option, r.hospital, r.note, `${r.dose}차`));
+      recs.sort((a, b) => a.date.localeCompare(b.date));
+      items = recs.map(r => {
+        const o: Record<string, string | number> = { 백신: nameOf(r.vaccineId), 차수: `${r.dose}차`, 접종일: r.date };
+        const sub = subOf(r.vaccineId);
+        if (sub)        o.예방질환 = sub;
+        if (r.option)   o.백신종류 = r.option;
+        if (r.hospital) o.병원 = r.hospital;
+        if (r.note)     o.메모 = r.note;
+        return o;
+      });
+    } else if (args.domain === 'schedule') {
+      const ts = appState.todos
+        .filter(t => !t.date || inRange(t.date))
+        .filter(t => hit(t.text));
+      ts.sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.createdAt - b.createdAt);
+      items = ts.map(t => {
+        const o: Record<string, string | number> = { 할일: t.text, 분류: CAT_LABELS[t.category], 완료: t.completed ? '완료' : '미완료' };
+        if (t.date) o.예정일 = t.date;
+        return o;
+      });
+    } else if (args.domain === 'health') {
+      const hs = appState.health.logs
+        .filter(h => inRange(h.date))
+        .filter(h => hit(h.detail, HEALTH_TYPE_LABELS[h.type]));
+      hs.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      items = hs.map(h => {
+        const o: Record<string, string | number> = { 구분: HEALTH_TYPE_LABELS[h.type], 내용: h.detail, 날짜: h.date };
+        if (h.time) o.시각 = h.time;
+        return o;
+      });
+    } else if (args.domain === 'medication') {
+      const ms = appState.health.medications
+        .filter(m => inRange(m.date))
+        .filter(m => hit(m.name, m.note, m.dose, m.freq));
+      ms.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      items = ms.map(m => {
+        const o: Record<string, string | number> = { 약이름: m.name };
+        if (m.date) o.처방일 = m.date;
+        if (m.dose) o.용량 = m.dose;
+        if (m.freq) o.복용횟수 = m.freq;
+        if (m.note) o.메모 = m.note;
+        return o;
+      });
+    } else {
+      const gs = appState.growth.filter(g => inRange(g.date));
+      gs.sort((a, b) => a.date.localeCompare(b.date));
+      items = gs.map(g => {
+        const o: Record<string, string | number> = { 날짜: g.date };
+        if (g.height != null) o.키cm = g.height;
+        if (g.weight != null) o.몸무게kg = g.weight;
+        return o;
+      });
+    }
+
+    const count = items.length;
+    if (agg === 'count')      items = [];
+    else if (agg === 'sum')   items = [];
+    else if (agg === 'last')  items = items.slice(-1);
+    else if (agg === 'first') items = items.slice(0, 1);
+    else                      items = items.slice(-20); // 최신 20건
+
+    return { domain: args.domain, aggregate: agg, filter, count, totalAmountMl, items };
+  };
+
+  // 1단계 — 기록 조회 질문인지 LLM 툴콜로 판별
+  const routeChatIntent = async (text: string): Promise<RecordQueryArgs[] | null> => {
+    const dc = buildDateContext();
+    const systemPrompt = `너는 육아 앱 챗봇의 라우터야. 사용자 질문을 보고 반드시 함수를 호출해.
+
+## 오늘 날짜
+오늘=${dc.todayDate}(${dc.todayDow}), 이번달 1일=${dc.thisMonthStart}, 지난달=${dc.lastMonthStart}~${dc.lastMonthEnd}, 지난주=${dc.lastWeekStart}~${dc.lastWeekEnd}
+
+## 과거 날짜 (이 목록에서 그대로 찾아 쓸 것. 직접 계산하지 마라)
+${dc.pastDays}
+
+## 판단 기준
+- 이 아기에게 **이미 일어난 일**을 묻는다 → query_records
+  "어제 몇 시에 잤어?" / "오늘 수유 몇 번 했어?" / "2차 접종 언제 했지?" / "3차 접종 종류가 뭐지?" / "언제 감기 걸렸었지?" / "지난번에 먹은 약이 뭐지?" / "지난주에 몇 번 산책했어?" / "몸무게 얼마였지?"
+- **일반 지식·권장사항·방법**을 묻는다 → general_question
+  "이유식 언제 시작해?" / "예방접종 일정 알려줘" / "수면교육 방법" / "N개월 발달 정보"
+- 애매하면 general_question.
+- 서로 다른 영역을 봐야 하는 질문이면 query_records를 여러 번 호출해라.
+  예: "감기 걸렸을 때 먹은 약이 뭐지?" → query_records(domain=health, keyword="감기") + query_records(domain=medication)
+
+## 예시
+"어제 아기 몇시에 잤어?" → query_records(domain=activity, logType=sleep, dateFrom=${dc.yesterday}, dateTo=${dc.yesterday})
+"오늘 수유 몇 번 했어?" → query_records(domain=activity, logType=feed, dateFrom=${dc.todayDate}, dateTo=${dc.todayDate}, aggregate=count)
+"오늘 분유 총 얼마나 먹었어?" → query_records(domain=activity, logType=feed, dateFrom=${dc.todayDate}, dateTo=${dc.todayDate}, aggregate=sum)
+"2차 접종 언제 했지?" → query_records(domain=vaccine, keyword="2차")
+"3차 접종 종류가 뭐지?" → query_records(domain=vaccine, keyword="3차")
+"아기가 언제 감기 걸렸었지?" → query_records(domain=health, keyword="감기")
+"지난번에 먹은 감기약이 뭐지?" → query_records(domain=medication, aggregate=last)
+"마지막으로 잔 게 언제야?" → query_records(domain=activity, logType=sleep, aggregate=last)`;
+
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini', temperature: 0, max_tokens: 300,
+        tools: CHAT_TOOLS, tool_choice: 'required',
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }],
+      }),
+    });
+    const data = await res.json();
+    const calls = data.choices?.[0]?.message?.tool_calls;
+    if (!Array.isArray(calls) || !calls.length) return null;
+    const queries: RecordQueryArgs[] = [];
+    for (const c of calls) {
+      if (c.function?.name !== 'query_records') return null; // general_question이 섞이면 일반 경로
+      try { queries.push(JSON.parse(c.function.arguments) as RecordQueryArgs); } catch { /* 무시 */ }
+    }
+    return queries.length ? queries : null;
+  };
+
+  // 2단계 — 조회 결과를 LLM이 한국어 문장으로 풀어준다 (RAG 출처 없음)
+  const answerFromRecords = async (text: string, results: RecordQueryResult[]): Promise<string> => {
+    const dc = buildDateContext();
+    const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : null;
+    const name = appState.baby?.name || '아기';
+    const systemPrompt = `너는 육아 기록 비서야. 아기 이름: ${name}, 월령: ${months != null ? months + '개월' : '미입력'}. 오늘: ${dc.todayDate}(${dc.todayDow}).
+아래 [조회 결과]는 이 아기의 앱에 실제로 저장된 기록이야.
+- 반드시 [조회 결과]에 있는 내용만으로 답해. 없는 건 "그 기록은 없어요"라고 말해.
+- 절대 추측하거나 지어내지 마. 일반 육아 지식을 덧붙이지 마.
+- 한국어로 간결하게. 중요한 값(시각·날짜·횟수·약 이름)은 <strong>볼드</strong>, 여러 건이면 <ul><li>.
+- 시각은 "오후 9시 30분"처럼 자연스럽게 읽어줘. 지속분은 "1시간 20분"으로 바꿔줘.
+- count는 건수, totalAmountMl은 총 수유량(ml)이야.
+
+[조회 결과]
+${JSON.stringify(results, null, 0)}`;
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini', temperature: 0.2, max_tokens: 500,
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }],
+      }),
+    });
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '';
+  };
+
   // ── Chat ─────────────────────────────────────────────────────
   const sendChat = async (text: string) => {
     if (!text.trim()) return;
     setChatInput('');
-    const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : null;
     const name = appState.baby?.name || '아기';
     setChatMessages(prev => [...prev,
       { id: uid(), role: 'user', html: escHtml(text) },
       { id: 'typing', role: 'bot', html: '', isTyping: true },
     ]);
+    const reply = (html: string) =>
+      setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html }]);
+
+    // 기록 조회 질문이면 로컬 기록으로 답한다. 기록이 연결되지 않았으면 건너뛴다.
+    if (appState.babyId != null) {
+      try {
+        const queries = await routeChatIntent(text);
+        if (queries) {
+          const results = queries.map(runRecordQuery);
+          if (results.every(r => r.count === 0)) {
+            reply(`아직 해당 기록이 없어요. 기록을 남기면 언제든 다시 물어볼 수 있어요 🍼`);
+            return;
+          }
+          const html = await answerFromRecords(text, results);
+          if (html) { reply(html); return; }
+        }
+      } catch { /* 라우팅 실패 시 일반 RAG 경로로 폴백 */ }
+    }
+
+    await askGeneral(text, name);
+  };
+
+  // 기존 RAG 기반 일반 육아 질문 경로
+  const askGeneral = async (text: string, name: string) => {
+    const months = appState.baby ? getAgeInfo(appState.baby.birthDate).months : null;
     try {
       const { chunks, figures } = await searchRAG(text);
       const context = chunks.length
@@ -2149,17 +2506,8 @@ ${headStyles}
   };
 
   // ── Voice GPT intent routing ──────────────────────────────────
-  // 오늘 기록의 시각을 "가장 최근 과거"로 확정 (기록은 항상 과거)
-  // 오전(t)·오후(t±12h) 두 후보 중 현재 이전이면서 가장 가까운(최근) 것을 선택. 둘 다 미래면 그대로 둠.
-  const toMinOfDay = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
-  const fmtMin = (mn: number) => `${String(Math.floor(mn / 60)).padStart(2, '0')}:${String(mn % 60).padStart(2, '0')}`;
-  const recentPastToday = (t: string): string => {
-    const nowMin = toMinOfDay(nowHHMM());
-    const a = toMinOfDay(t);
-    const cands = [a, (a + 720) % 1440].filter(x => x <= nowMin);
-    return cands.length ? fmtMin(Math.max(...cands)) : t;
-  };
-  const handleVoiceRecord = (args: VoiceRecordArgs, replace?: { dateKey: string; logIds: string[] }) => {
+  // 시각의 오전/오후 확정과 전날 넘김은 모두 resolveLogDateTime이 처리한다.
+  const handleVoiceRecord =(args: VoiceRecordArgs, replace?: { dateKey: string; logIds: string[] }) => {
     const hasExplicitDate = !!(args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date));
     // durationMin이 있고 endTime이 없으면 시작시간 + 소요시간으로 계산
     if (!args.endTime && args.durationMin && args.time) {
@@ -2170,22 +2518,28 @@ ${headStyles}
     // LLM이 날짜를 명시하지 않았는데 종료시각이 시작시각보다 빠르면(자정을 넘김) 시작일을 어제로 보정
     const isDurationType = args.type === 'sleep' || args.type === 'cry' || args.type === 'walk' || args.type === 'play' || args.type === 'bath';
     const crossesMidnight = isDurationType && !!args.time && !!args.endTime && args.endTime <= args.time;
-    const dateKey = hasExplicitDate ? args.date! : (crossesMidnight ? shiftDate(todayStr(), -1) : todayStr());
     const timeList = (args.times && args.times.length > 0) ? args.times : [args.time || nowHHMM()];
-    // 가장 최근 과거로 보정: 오늘 기록의 애매한 시각을 과거 쪽으로 확정
-    // (예: 오전 11시 "2시에 놀았어" → 02:00, 오후 5시 "1시에 먹였어" → 13:00)
-    if (!hasExplicitDate && dateKey === todayStr()) {
-      if (timeList.length === 1 && args.endTime) {
-        // 시작·종료 구간: 시작 보정량만큼 종료도 함께 이동해 소요시간 유지
-        const fixed = recentPastToday(timeList[0]);
-        if (fixed !== timeList[0]) {
-          const delta = (toMinOfDay(fixed) - toMinOfDay(timeList[0]) + 1440) % 1440;
-          timeList[0] = fixed;
-          args.endTime = fmtMin((toMinOfDay(args.endTime) + delta) % 1440);
-        }
-      } else {
-        for (let i = 0; i < timeList.length; i++) timeList[i] = recentPastToday(timeList[i]);
-      }
+    // 날짜·시각 확정. 날짜가 명시되지 않았으면 resolveLogDateTime이
+    // 오전/오후 모호성을 풀고, 시각이 아직 오지 않았으면 전날로 넘긴다.
+    // (예: 00:50에 "저녁 11시 50분부터 잤어" → 어제 23:50)
+    let dateKey: string;
+    if (hasExplicitDate) {
+      dateKey = args.date!;
+    } else if (crossesMidnight) {
+      dateKey = shiftDate(todayStr(), -1);
+    } else if (timeList.length === 1 && args.endTime) {
+      // 시작·종료 구간: 시작 보정량만큼 종료도 함께 이동해 소요시간 유지
+      const r = resolveLogDateTime(timeList[0]);
+      const delta = (hmToMin(r.time) - hmToMin(timeList[0]) + 1440) % 1440;
+      if (delta) args.endTime = minToHM((hmToMin(args.endTime) + delta) % 1440);
+      timeList[0] = r.time;
+      dateKey = r.date;
+    } else {
+      // 여러 시각이 한 발화에 있으면 날짜는 첫 시각 기준으로 통일
+      const first = resolveLogDateTime(timeList[0]);
+      dateKey = first.date;
+      timeList[0] = first.time;
+      for (let i = 1; i < timeList.length; i++) timeList[i] = resolveLogDateTime(timeList[i]).time;
     }
     const ns = { ...appState };
     // 교정 모드: 직전에 만든 기록을 먼저 제거하고 교정된 내용으로 다시 기록
@@ -2282,7 +2636,7 @@ ${headStyles}
       })() : '';
       const babyMonths = appState.baby ? getAgeInfo(appState.baby.birthDate).months : 5;
       const babyName = appState.baby?.name || '아기';
-      const { todayDate, yesterday, todayDow, nextMonday, nextMonth1st } = buildDateContext();
+      const { todayDate, yesterday, dayBeforeYesterday, pastDays, todayDow, nextMonday, nextMonth1st } = buildDateContext();
       const nowTime = nowHHMM();
       const isAmNow = parseInt(nowTime.split(':')[0]) < 12;
       const ago30 = (() => { const [h,m]=nowTime.split(':').map(Number); const t=(h*60+m-30+1440)%1440; return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`; })();
@@ -2299,6 +2653,9 @@ ${headStyles}
               content: `너는 아기 육아 앱의 음성 명령 분류기야.
 아기 이름: ${babyName}, 월령: ${babyMonths}개월
 현재 시각: ${nowTime} / 오늘: ${todayDate}(${todayDow}요일) / 어제: ${yesterday} / 다음주 월요일: ${nextMonday} / 다음달 1일: ${nextMonth1st}
+
+## 과거 날짜 (이 목록에서 그대로 찾아 쓸 것. 직접 계산하지 마라)
+${pastDays}
 
 ## 분류 우선순위
 1. 키/몸무게/체온 수치 언급 → record_measurement
@@ -2357,6 +2714,20 @@ ${headStyles}
 "어제 오후 3시에 똥 쌌어" → record_activity(type=poop, time="15:00", date=${yesterday})
 "어제 오전 9시에 울었어" → record_activity(type=cry, time="09:00", date=${yesterday})
 "어제 오후 2시부터 1시간 산책했어" → record_activity(type=walk, time="14:00", endTime="15:00", durationMin=60, date=${yesterday})
+
+[그저께·N일 전·지난주 — 위 "과거 날짜" 목록에서 날짜를 찾아 date에 넣는다]
+"그저께 오후 2시에 분유 150 줬어" → record_activity(type=feed, feedType=분유, time="14:00", amount=150, date=${dayBeforeYesterday})
+"그저께 밤 10시에 잤어" → record_activity(type=sleep, time="22:00", date=${dayBeforeYesterday})
+"3일 전에 목욕했어" → record_activity(type=bath, date=<과거 날짜 목록의 "3일 전">)
+"5일 전 오전 9시에 이유식 먹었어" → record_activity(type=feed, feedType=이유식, time="09:00", date=<과거 날짜 목록의 "5일 전">)
+"지난주 화요일에 예방접종하고 울었어" → record_activity(type=cry, date=<과거 날짜 목록에서 요일이 (화)인 가장 가까운 날짜>)
+"일주일 전에 산책했어" → record_activity(type=walk, date=<과거 날짜 목록의 "7일 전">)
+
+## 과거 날짜 기록 규칙
+- 과거 날짜가 지정되면 "미래 시각 금지" 보정을 적용하지 마라. 그 날의 실제 시각을 그대로 쓴다.
+- 시간 언급이 없으면 time을 생략한다 (임의로 현재 시각을 넣지 마라).
+- 오전/오후가 불분명한 과거 시각은 오후로 해석한다. 단 "새벽/아침"이 붙으면 오전.
+  "그저께 3시에 먹였어" → time="15:00" / "그저께 새벽 3시에 깼어" → time="03:00"
 
 [여러 시간대 — 활동 종류 무관하게 times 배열로 각각 기록]
 "아기 10시 12시 2시에 똥 쌌어" → record_activity(type=poop, times=["${isAmNow ? '10:00' : '22:00'}","12:00","${isAmNow ? '02:00' : '14:00'}"])
@@ -2417,6 +2788,22 @@ ${headStyles}
 "아기 7시에 일어났어" → track_sleep(action=end, time="07:00")   ← 시각이 언급되면 반드시 time에 그 시각을 넣어라(미표시 시간은 위 오전/오후·미래금지 규칙 적용)
 "아기 3시에 깼어" → track_sleep(action=end, time="${isAmNow ? '03' : '15'}:00")
 "9시에 잠들었어" → track_sleep(action=start, time="${isAmNow ? '09' : '21'}:00")
+
+[자정을 넘기는 수면 — 날짜를 반드시 채워라]
+"어제 저녁 11시 50분부터 자고있어" → track_sleep(action=start, time="23:50", date="${yesterday}")
+  ← "저녁/밤 11시"는 반드시 23:00대다. 11:00으로 쓰지 마라.
+"어젯밤 10시 반에 재웠어" → track_sleep(action=start, time="22:30", date="${yesterday}")
+"그저께 밤 12시에 잠들었어" → track_sleep(action=start, time="00:00", date="${dayBeforeYesterday}")
+"어제 밤 11시부터 오늘 아침 7시까지 잤어" → record_activity(type=sleep, time="23:00", endTime="07:00", date="${yesterday}")
+  ← 자정을 넘기는 완료된 수면은 record_activity로. date는 잠들기 시작한 날.
+"어젯밤 새벽 2시에 깨서 울었어" → record_activity(type=cry, time="02:00", date="${todayDate}")
+  ← "어젯밤 새벽 N시"는 달력상 오늘 새벽이다. 날짜를 하루 빼지 마라.
+
+## 오전/오후 표기 규칙 (반드시 24시간제로 변환)
+- "저녁 N시"·"밤 N시"(N=7~11) → N+12 (저녁 11시=23:00, 밤 9시=21:00)
+- "새벽 N시"·"아침 N시"(N=1~11) → 그대로 (새벽 2시=02:00)
+- "낮 12시"=12:00, "밤 12시"·"자정"=00:00
+- "오후 N시"(N=1~11) → N+12
 
 [수면 — 과거 완료 + 기간 명시 (record_activity)]
 "아기 2시부터 3시간 잤어" → record_activity(type=sleep, time="${isAmNow ? '02' : '14'}:00", endTime="${isAmNow ? '05' : '17'}:00")
@@ -2514,24 +2901,27 @@ ${headStyles}
           fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId:ns.babyId }) }).catch(console.error);
         }
       } else if (fn === 'track_sleep') {
-        const { action, time } = args as { action: 'start' | 'end'; time?: string };
-        const t = recentPastToday(time || nowHHMM());
-        const dateKey = todayStr();
+        const { action, time, date } = args as { action: 'start' | 'end'; time?: string; date?: string };
         if (action === 'start') {
-          // 시작 시각만 기록, logId 저장
+          // 시작 시각만 기록, logId + dateKey 저장
+          const { date: dateKey, time: t } = resolveLogDateTime(time || nowHHMM(), date);
           const logId = uid();
           const log: Log = { id: logId, type: 'sleep', date: dateKey, note: '', startTime: t };
           const ns = { ...appState };
           if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
           ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
           saveAppState(ns);
-          setVoiceSleepStart({ logId, time: t });
-          showToast(`😴 ${t} 수면 시작 기록. "아기 깼어"로 종료하세요`);
+          setVoiceSleepStart({ logId, time: t, dateKey });
+          const dayLabel = dateKey !== todayStr() ? `${dateKey.slice(5).replace('-','/')} ` : '';
+          showToast(`😴 ${dayLabel}${t} 수면 시작 기록. "아기 깼어"로 종료하세요`);
+          if (dateKey !== todayStr()) setTimelineDate(dateKey);
           navigate('timeline');
           fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error);
         } else {
-          // 저장된 시작 로그에 endTime 추가
+          // 저장된 시작 로그에 endTime 추가. 자정을 넘겼으면 시작 로그는 전날 키에 있다.
           if (voiceSleepStart) {
+            const dateKey = voiceSleepStart.dateKey;
+            const t = endTimeAfter(voiceSleepStart.time, time);
             const ns = { ...appState };
             if (ns.logs[dateKey]) {
               ns.logs[dateKey] = ns.logs[dateKey].map(l =>
@@ -2541,6 +2931,7 @@ ${headStyles}
             saveAppState(ns);
             setVoiceSleepStart(null);
             showToast(`😴 수면 종료: ${voiceSleepStart.time} ~ ${t}`);
+            setTimelineDate(dateKey);
             navigate('timeline');
             fetch(`/api/logs/${voiceSleepStart.logId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ endTime: t }) }).catch(console.error);
           } else {
@@ -2548,9 +2939,11 @@ ${headStyles}
           }
         }
       } else if (fn === 'track_feed') {
-        const { action, feedType, amount, time } = args as { action:'start'|'end'; feedType?:string; amount?:number; time?:string };
-        const t = time || nowHHMM();
-        const dateKey = todayStr();
+        const { action, feedType, amount, time, date } = args as { action:'start'|'end'; feedType?:string; amount?:number; time?:string; date?:string };
+        const resolved = resolveLogDateTime(time || nowHHMM(), date);
+        // 종료 발화는 시작 로그가 놓인 날짜(자정을 넘겼으면 전날)를 그대로 따라간다
+        const dateKey = action === 'end' && voiceFeedStart ? voiceFeedStart.dateKey : resolved.date;
+        const t = resolved.time;
         if (action === 'start') {
           // 즉시 기록 (A방식) + voiceFeedStart 상태 저장
           const logId = uid();
@@ -2561,7 +2954,7 @@ ${headStyles}
           if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
           ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||a.time||'').localeCompare(b.startTime||b.time||''));
           saveAppState(ns);
-          setVoiceFeedStart({ logId, time:t, amount:givenAmount, feedType:ft });
+          setVoiceFeedStart({ logId, time:t, amount:givenAmount, feedType:ft, dateKey });
           const amountStr = givenAmount ? ` ${givenAmount}ml` : '';
           showToast(`🍼 ${ft}${amountStr} 수유 시작. 완료되면 "다 먹었어" 또는 "Xml 남겼어"라고 말해주세요`);
           navigate('timeline');
@@ -2604,22 +2997,24 @@ ${headStyles}
           }
         }
       } else if (fn === 'track_cry') {
-        const { action, reason, time } = args as { action:'start'|'end'; reason?:string; time?:string };
-        const t = time || nowHHMM();
-        const dateKey = todayStr();
+        const { action, reason, time, date } = args as { action:'start'|'end'; reason?:string; time?:string; date?:string };
         if (action === 'start') {
+          const { date: dateKey, time: t } = resolveLogDateTime(time || nowHHMM(), date);
           const logId = uid();
           const log: Log = { id:logId, type:'cry', date:dateKey, note:reason||'', startTime:t };
           const ns = { ...appState };
           if (!ns.logs[dateKey]) ns.logs[dateKey] = [];
           ns.logs[dateKey] = [...ns.logs[dateKey], log].sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
           saveAppState(ns);
-          setVoiceCryStart({ logId, time: t });
+          setVoiceCryStart({ logId, time: t, dateKey });
           showToast(`😢 ${t} 울음 시작 기록. "아기 그쳤어"로 종료하세요`);
+          if (dateKey !== todayStr()) setTimelineDate(dateKey);
           navigate('timeline');
           fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...log, babyId: appState.babyId }) }).catch(console.error);
         } else {
           if (voiceCryStart) {
+            const dateKey = voiceCryStart.dateKey;
+            const t = endTimeAfter(voiceCryStart.time, time);
             const ns = { ...appState };
             if (ns.logs[dateKey]) {
               ns.logs[dateKey] = ns.logs[dateKey].map(l =>
@@ -2629,6 +3024,7 @@ ${headStyles}
             saveAppState(ns);
             setVoiceCryStart(null);
             showToast(`😢 울음 종료: ${voiceCryStart.time} ~ ${t}`);
+            setTimelineDate(dateKey);
             navigate('timeline');
             fetch(`/api/logs/${voiceCryStart.logId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ endTime: t }) }).catch(console.error);
           } else {
@@ -2913,6 +3309,16 @@ ${headStyles}
             ))}
           </div>
           <div className="log-form-content">
+            {/* 날짜 — 전날부터 이어지는 기록을 수기로 옮길 수 있어야 한다 */}
+            <div className="form-group">
+              <label>날짜</label>
+              <input type="date" value={lfDate} max={todayStr()} onChange={e=>setLfDate(e.target.value||todayStr())} />
+              {lfDate !== todayStr() && (
+                <div style={{fontSize:'12px',color:'var(--text-mid)',marginTop:'4px'}}>
+                  {lfDate === shiftDate(todayStr(),-1) ? '어제' : lfDate.slice(5).replace('-','/')} 기록으로 저장됩니다
+                </div>
+              )}
+            </div>
             {(addLogType==='sleep'||addLogType==='feed'||addLogType==='cry'||addLogType==='walk'||addLogType==='play'||addLogType==='bath') && (
               <>
                 {/* 시작 시간 */}
@@ -4665,7 +5071,13 @@ ${headStyles}
                   {msg:'아이 훈육 방법 알려줘',            label:'🧑‍🏫 훈육 방법'},
                   {msg:'아기 수면 습관 개선 방법',         label:'😴 수면 습관'},
                 ];
-              return chips.map(({msg,label})=>(
+              // 기록 조회 예시는 아기가 연결된 경우에만 맨 앞에 노출
+              const recordChips = appState.babyId != null ? [
+                {msg:'어제 몇 시에 잤어?',        label:'😴 어제 취침'},
+                {msg:'오늘 수유 몇 번 했어?',     label:'🍼 오늘 수유'},
+                {msg:'지난번 접종 언제 했지?',    label:'💉 지난 접종'},
+              ] : [];
+              return [...recordChips, ...chips].map(({msg,label})=>(
                 <button key={msg} className="qr-btn" onClick={()=>sendChat(msg)}>{label}</button>
               ));
             })()}
