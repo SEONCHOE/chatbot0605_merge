@@ -362,6 +362,27 @@ function fmtDuration(s: string, e: string) {
 }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
+/**
+ * STT 구간 병합 — 인덱스가 아니라 '내용 겹침'을 기준으로 붙인다.
+ * 안드로이드 Chrome은 continuous 모드에서 final 결과를 누적형으로 준다.
+ * (results = ["1시에", "1시에 모유", "모유 먹었어"])
+ * 인덱스 기준으로 한 번씩만 붙여도 "1시에 1시에 모유모유 먹었어"가 되므로,
+ * 앞뒤 겹치는 부분을 잘라내고 이어야 한다. 데스크톱처럼 구간이 안 겹쳐서
+ * 오면 그냥 뒤에 붙으므로 양쪽 모두에서 동작한다.
+ */
+function mergeTranscript(base: string, seg: string): string {
+  const b = base.trim(), s = seg.trim();
+  if (!s) return b;
+  if (!b) return s;
+  if (b === s || b.endsWith(s)) return b;   // 같은 구간 재전달 → 무시
+  if (s.startsWith(b)) return s;            // 누적형 결과 → 통째로 대체
+  // b의 꼬리와 s의 머리가 겹치면 겹친 만큼 잘라낸다
+  for (let n = Math.min(b.length, s.length); n > 0; n--) {
+    if (b.slice(-n) === s.slice(0, n)) return b + s.slice(n);
+  }
+  return b + ' ' + s;
+}
+
 // 자연어 날짜 표현을 YYYY-MM-DD로 변환. 매칭 없으면 null 반환
 function parseNaturalDate(text: string): string | null {
   const t = text.replace(/\s/g, '');
@@ -5023,7 +5044,7 @@ ${headStyles}
                 let submitted = false;          // 중복 제출 방지 가드
                 let silenceTimer: ReturnType<typeof setTimeout> | null = null;
 
-                const currentText = () => (finalTranscript + interimText).trim();
+                const currentText = () => mergeTranscript(finalTranscript, interimText);
 
                 const submit = () => {
                   if (submitted) return;        // 이미 제출했으면 무시 (stop 직후 결과 재유입 대비)
@@ -5036,18 +5057,22 @@ ${headStyles}
 
                 recognition.onresult = (e: SpeechRecognitionEvent) => {
                   if (submitted) return;
-                  // results 전체를 join하면 안 된다.
-                  // continuous 모드에서 엔진은 확정된 구간을 이후 이벤트에도 계속 들고 오고,
-                  // 모바일 Chrome은 같은 구간을 interim/final로 중복 전달하기도 한다.
-                  // → "아기가 아기가 지금지금 밥밥" 처럼 어절이 겹쳐 나온다.
-                  // 새로 확정된 인덱스만 한 번씩 누적하고, 미확정분은 표시용으로만 쓴다.
+                  // 중복 방지에 두 겹의 가드가 필요하다.
+                  //  1) finalizedUpTo — 이벤트마다 results 전체가 다시 오므로,
+                  //     이미 반영한 인덱스는 건너뛴다.
+                  //  2) mergeTranscript — 안드로이드는 새 인덱스의 내용 자체가
+                  //     앞 구간을 다시 포함하는 누적형이라, 겹치는 부분을 잘라낸다.
+                  // 둘 중 하나만 있으면 "1시에 1시에 모유모유 먹었어"가 남는다.
                   interimText = '';
                   for (let i = 0; i < e.results.length; i++) {
                     const r = e.results[i];
                     if (r.isFinal) {
-                      if (i >= finalizedUpTo) { finalTranscript += r[0].transcript; finalizedUpTo = i + 1; }
+                      if (i >= finalizedUpTo) {
+                        finalTranscript = mergeTranscript(finalTranscript, r[0].transcript);
+                        finalizedUpTo = i + 1;
+                      }
                     } else {
-                      interimText += r[0].transcript;
+                      interimText = mergeTranscript(interimText, r[0].transcript);
                     }
                   }
                   setVoiceTranscript(currentText());
