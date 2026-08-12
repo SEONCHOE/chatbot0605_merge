@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import { useVoiceAgent, mergeTranscript, htmlToSpeech, toastToSpeech, isIOSDevice } from './useVoiceAgent';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -462,27 +463,6 @@ function fmtDuration(s: string, e: string) {
   const h=Math.floor(d/60),m=d%60; return h>0?`${h}시간 ${m}분`:`${m}분`;
 }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-
-/**
- * STT 구간 병합 — 인덱스가 아니라 '내용 겹침'을 기준으로 붙인다.
- * 안드로이드 Chrome은 continuous 모드에서 final 결과를 누적형으로 준다.
- * (results = ["1시에", "1시에 모유", "모유 먹었어"])
- * 인덱스 기준으로 한 번씩만 붙여도 "1시에 1시에 모유모유 먹었어"가 되므로,
- * 앞뒤 겹치는 부분을 잘라내고 이어야 한다. 데스크톱처럼 구간이 안 겹쳐서
- * 오면 그냥 뒤에 붙으므로 양쪽 모두에서 동작한다.
- */
-function mergeTranscript(base: string, seg: string): string {
-  const b = base.trim(), s = seg.trim();
-  if (!s) return b;
-  if (!b) return s;
-  if (b === s || b.endsWith(s)) return b;   // 같은 구간 재전달 → 무시
-  if (s.startsWith(b)) return s;            // 누적형 결과 → 통째로 대체
-  // b의 꼬리와 s의 머리가 겹치면 겹친 만큼 잘라낸다
-  for (let n = Math.min(b.length, s.length); n > 0; n--) {
-    if (b.slice(-n) === s.slice(0, n)) return b + s.slice(n);
-  }
-  return b + ' ' + s;
-}
 
 // 자연어 날짜 표현을 YYYY-MM-DD로 변환. 매칭 없으면 null 반환
 function parseNaturalDate(text: string): string | null {
@@ -1302,6 +1282,15 @@ export default function BabyApp() {
   // Voice recognition
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // ── 핸즈프리(호출어) ──
+  // 기본 OFF. 켜면 음성이 계속 인식 서버로 나가므로 사용자가 명시적으로 켜야 한다.
+  const [handsFree, setHandsFree] = useState(false);
+  const [handsFreeNotice, setHandsFreeNotice] = useState(false); // 최초 1회 고지
+  const [voiceAutoStart, setVoiceAutoStart] = useState(false);   // ?voice=1 iOS 폴백용
+  // 음성 명령 1건당 확인 낭독 1회. showToast/챗봇 답변 중 먼저 오는 쪽이 소비한다.
+  const voiceAwaitingReplyRef = useRef(false);
+  const speakRef = useRef<(text: string, opts?: { thenListen?: boolean }) => void>(() => {});
+  const finishCommandRef = useRef<() => void>(() => {});
   // 직전 음성 기록 (교정 발화 "아니 10시까지 잤어" 처리용)
   const lastVoiceRecordRef = useRef<{ dateKey: string; logIds: string[]; args: VoiceRecordArgs; at: number } | null>(null);
 
@@ -1380,6 +1369,16 @@ export default function BabyApp() {
     const ytKey  = localStorage.getItem('user_youtube_key') || '';
     setUserOpenAIKey(oaiKey); setUserYoutubeKey(ytKey);
     userOpenAIKeyRef.current = oaiKey; userYoutubeKeyRef.current = ytKey;
+    setHandsFreeNotice(localStorage.getItem('handsfree_notice') === '1');
+    // 시리 단축어/어시스턴트가 ?voice=1로 열어주면 바로 듣기 시작한다.
+    // iOS Safari는 제스처 없는 recognition.start()를 막으므로 탭 유도 화면을 띄운다.
+    const wantsVoice = new URLSearchParams(window.location.search).get('voice') === '1';
+    if (wantsVoice) {
+      if (isIOSDevice()) setVoiceAutoStart(true);
+      else setHandsFree(true);
+    } else if (localStorage.getItem('handsfree') === '1') {
+      setHandsFree(true);
+    }
     try {
       const ckRaw = localStorage.getItem('yt_custom_keywords');
       if (ckRaw) setYtCustomKeywords(JSON.parse(ckRaw));
@@ -1700,6 +1699,12 @@ export default function BabyApp() {
     setToast(msg); setToastVisible(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastVisible(false), duration);
+    // 음성 명령의 결과 토스트라면 읽어준다. 화면을 안 보는 사용자에겐 이게 유일한 확인이다.
+    // 손으로 저장했을 때까지 말하면 시끄러우므로 '음성 명령 진행 중'일 때만 읽는다.
+    if (voiceAwaitingReplyRef.current) {
+      voiceAwaitingReplyRef.current = false;
+      speakRef.current(toastToSpeech(msg));
+    }
   }, []);
 
   // ── Report download / share ───────────────────────────────────
@@ -2441,6 +2446,16 @@ ${JSON.stringify(results, null, 0)}`;
   };
 
   // ── Chat ─────────────────────────────────────────────────────
+  // 봇 답변을 화면에 붙이고, 음성으로 물었던 질문이면 답도 읽어준다.
+  // (출처 카드는 빼고 300자까지 — htmlToSpeech)
+  const botReply = useCallback((html: string) => {
+    setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html }]);
+    if (voiceAwaitingReplyRef.current) {
+      voiceAwaitingReplyRef.current = false;
+      speakRef.current(htmlToSpeech(html));
+    }
+  }, []);
+
   const sendChat = async (text: string) => {
     if (!text.trim()) return;
     setChatInput('');
@@ -2449,8 +2464,7 @@ ${JSON.stringify(results, null, 0)}`;
       { id: uid(), role: 'user', html: escHtml(text) },
       { id: 'typing', role: 'bot', html: '', isTyping: true },
     ]);
-    const reply = (html: string) =>
-      setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html }]);
+    const reply = botReply;
 
     // 기록 조회 질문이면 로컬 기록으로 답한다. 기록이 연결되지 않았으면 건너뛴다.
     if (appState.babyId != null) {
@@ -2488,10 +2502,10 @@ ${JSON.stringify(results, null, 0)}`;
       });
       const data = await res.json();
       const html = (data.choices?.[0]?.message?.content || getBotResponse(text, months, name)) + renderSources(chunks, figures);
-      setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html }]);
+      botReply(html);
     } catch {
       const months2 = appState.baby ? getAgeInfo(appState.baby.birthDate).months : null;
-      setChatMessages(prev => [...prev.filter(m => m.id !== 'typing'), { id: uid(), role: 'bot', html: getBotResponse(text, months2, name) }]);
+      botReply(getBotResponse(text, months2, name));
     }
   };
 
@@ -3043,6 +3057,45 @@ ${pastDays}
       showToast('💬 챗봇으로 연결했어요');
     }
   };
+
+  // ── 핸즈프리 음성 에이전트 ────────────────────────────────────
+  // 호출어를 들으면 processVoiceInput으로 합류시킨다. 기존 FAB 경로와 동일한 종착점.
+  const voiceAgent = useVoiceAgent({
+    enabled: handsFree,
+    externalBusy: isRecording,   // FAB이 마이크를 잡고 있으면 비켜준다
+    onNotice: showToast,
+    onCommand: (text) => {
+      voiceAwaitingReplyRef.current = true;
+      // 확인 낭독이 끝내 안 오면 'processing'에 갇혀 대기로 못 돌아온다. 15초 뒤 강제 복귀.
+      setTimeout(() => {
+        if (voiceAwaitingReplyRef.current) {
+          voiceAwaitingReplyRef.current = false;
+          finishCommandRef.current();
+        }
+      }, 15000);
+      processVoiceInput(text);
+    },
+  });
+  useEffect(() => { speakRef.current = voiceAgent.speak; }, [voiceAgent.speak]);
+  useEffect(() => { finishCommandRef.current = voiceAgent.finishCommand; }, [voiceAgent.finishCommand]);
+
+  // 핸즈프리 토글. 켤 때 최초 1회만 "계속 듣는다"는 사실을 고지한다.
+  const toggleHandsFree = () => {
+    const next = !handsFree;
+    setHandsFree(next);
+    setVoiceAutoStart(false);
+    try { localStorage.setItem('handsfree', next ? '1' : '0'); } catch {}
+    if (next && !handsFreeNotice) {
+      setHandsFreeNotice(true);
+      try { localStorage.setItem('handsfree_notice', '1'); } catch {}
+      showToast('🎙️ "데이비"라고 부르면 반응해요. 켜진 동안 음성이 인식 서버로 전송됩니다', 5200);
+    } else {
+      showToast(next ? '🎙️ 핸즈프리 켜짐 — "데이비"라고 불러보세요' : '🎙️ 핸즈프리 껐어요');
+    }
+  };
+
+  // 시리 단축어/홈 화면에 등록할 주소. 배포 도메인이 그대로 들어간다.
+  const voiceLaunchUrl = typeof window !== 'undefined' ? `${window.location.origin}/?voice=1` : '/?voice=1';
 
   // ── Computed ─────────────────────────────────────────────────
   const ageInfo = appState.baby ? getAgeInfo(appState.baby.birthDate) : null;
@@ -3808,6 +3861,31 @@ ${pastDays}
                 <button type="button" onClick={handleLogout} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'8px',color:'#ef4444',fontSize:'13px',fontWeight:600,padding:'8px',cursor:'pointer'}}>로그아웃</button>
               </div>
             )}
+
+            {/* 음성 호출 안내 — 단축어는 사용자가 직접 등록해야 하므로 방법을 알려준다 */}
+            <div style={{background:'#f0f8ee',borderRadius:'12px',padding:'14px',display:'flex',flexDirection:'column',gap:'8px'}}>
+              <div style={{fontSize:'13px',fontWeight:600,color:'#333'}}>🎙️ 음성으로 앱 부르기</div>
+              <p style={{fontSize:'12px',color:'#555',margin:0,lineHeight:1.6}}>
+                앱이 <strong>열려 있을 때</strong>는 하단 <strong>👂 버튼</strong>을 켜면 “데이비”로 부를 수 있어요.<br/>
+                앱이 <strong>꺼져 있을 때</strong>는 아래 주소를 시리 단축어나 홈 화면에 등록하세요.
+              </p>
+              <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                <input readOnly value={voiceLaunchUrl}
+                  style={{flex:1,minWidth:0,fontSize:'11px',padding:'8px',borderRadius:'8px',border:'1px solid #d6e5d2',background:'#fff',color:'#555'}} />
+                <button type="button" onClick={()=>{
+                  navigator.clipboard?.writeText(voiceLaunchUrl)
+                    .then(()=>showToast('📋 주소를 복사했어요'))
+                    .catch(()=>showToast('복사에 실패했어요. 길게 눌러 복사해주세요'));
+                }} style={{flex:'none',background:'var(--green,#78C96E)',border:'none',borderRadius:'8px',color:'#fff',fontSize:'12px',fontWeight:600,padding:'8px 12px',cursor:'pointer'}}>복사</button>
+              </div>
+              <details style={{fontSize:'12px',color:'#555'}}>
+                <summary style={{cursor:'pointer',fontWeight:600}}>등록 방법 보기</summary>
+                <div style={{marginTop:'8px',lineHeight:1.7}}>
+                  <strong>아이폰</strong> — 단축어 앱 → + → “URL 열기”에 위 주소 → 이름을 “아기 기록”으로 저장 → <em>“시리야, 아기 기록”</em><br/>
+                  <strong>안드로이드</strong> — Chrome 메뉴 → “홈 화면에 추가” → <em>“오케이 구글, 아기기록 열어줘”</em>
+                </div>
+              </details>
+            </div>
 
             <p style={{fontSize:'13px',color:'#666',margin:0,lineHeight:1.5}}>
               키를 입력하지 않으면 <strong>기본 키</strong>로 작동합니다.<br/>개인 키를 입력하면 해당 키를 우선 사용합니다.
@@ -5388,6 +5466,29 @@ ${pastDays}
       )}
 
       {/* Voice Overlay */}
+      {/* 시리 단축어가 ?voice=1로 열었지만 iOS라 제스처가 필요한 경우 */}
+      {voiceAutoStart && !handsFree && (
+        <div className="voice-autostart" onClick={()=>{ setVoiceAutoStart(false); toggleHandsFree(); }}>
+          <div className="voice-autostart-inner">
+            <div className="voice-autostart-icon">🎤</div>
+            <div className="voice-autostart-title">눌러서 시작</div>
+            <div className="voice-autostart-sub">한 번만 누르면 이후엔 “데이비”로 부를 수 있어요</div>
+          </div>
+        </div>
+      )}
+
+      {/* 핸즈프리 대기 표시 — 오버레이 없이 상태만 알린다 */}
+      {handsFree && !voiceOverlay && voiceAgent.mode !== 'off' && (
+        <div className={`hf-pill hf-${voiceAgent.mode}`} aria-live="polite">
+          {voiceAgent.mode === 'wake'      && '👂 "데이비" 대기 중'}
+          {voiceAgent.mode === 'command'   && '🎙️ 말씀하세요'}
+          {voiceAgent.mode === 'followup'  && '🎙️ 이어서 말해도 돼요'}
+          {voiceAgent.mode === 'processing'&& '🧠 처리 중...'}
+          {voiceAgent.mode === 'speaking'  && '🔊 말하는 중'}
+          {voiceAgent.transcript && <span className="hf-pill-text">{voiceAgent.transcript}</span>}
+        </div>
+      )}
+
       {voiceOverlay && (
         <div className="voice-overlay" onClick={()=>{ recognitionRef.current?.stop(); setVoiceOverlay(false); setIsRecording(false); setVoiceProcessing(false); }}>
           <div className="voice-sheet" onClick={e=>e.stopPropagation()}>
@@ -5417,6 +5518,12 @@ ${pastDays}
 
         {/* Center FAB mic */}
         <div className="nav-center-area">
+          {/* 핸즈프리 토글 — FAB 탭 동작은 그대로 두고 별도 스위치로 분리 */}
+          <button className={`hf-toggle${handsFree?' on':''}`} onClick={toggleHandsFree}
+            aria-pressed={handsFree} aria-label={handsFree?'핸즈프리 끄기':'핸즈프리 켜기'}
+            title={handsFree?'핸즈프리 켜짐 — "데이비"라고 부르세요':'핸즈프리 켜기'}>
+            {handsFree ? '👂' : '💤'}
+          </button>
           <button className={`nav-fab-mic${isRecording?' listening':''}`} aria-label="음성 입력"
             onClick={()=>{
               const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;

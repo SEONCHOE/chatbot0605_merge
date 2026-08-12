@@ -1096,6 +1096,58 @@ body { display: flex; justify-content: center; overflow: hidden; }
   to   { transform: translateY(-18px) scale(1.1); }
 }
 
+/* ── Hands-free (호출어) ───────────────────────────────────── */
+.hf-toggle {
+  position: absolute; top: -10px; right: -6px; z-index: 2;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; line-height: 1;
+  background: #fff; border: 2px solid #E4DDD4;
+  box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  transition: transform .15s, border-color .2s, background .2s;
+}
+.hf-toggle:active { transform: scale(.92); }
+.hf-toggle.on {
+  background: linear-gradient(135deg, #78C96E 0%, #95D088 100%);
+  border-color: rgba(255,247,239,.9);
+}
+.nav-center-area { position: relative; }
+
+.hf-pill {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: 96px; z-index: 60;
+  max-width: min(90vw, 420px);
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 999px;
+  background: rgba(38,32,28,.88); color: #fff;
+  font-size: 13px; font-weight: 700; white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0,0,0,.22);
+  pointer-events: none;
+}
+.hf-pill-text {
+  font-weight: 400; opacity: .85;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.hf-pill.hf-command, .hf-pill.hf-followup { background: rgba(200,60,60,.92); }
+.hf-pill.hf-speaking { background: rgba(60,110,180,.92); }
+.hf-pill.hf-wake::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: #95D088; flex: none;
+  animation: hf-blink 1.6s ease-in-out infinite;
+}
+@keyframes hf-blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+.voice-autostart {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(38,32,28,.92);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; text-align: center;
+}
+.voice-autostart-inner { color: #fff; max-width: 300px; }
+.voice-autostart-icon { font-size: 68px; margin-bottom: 14px; }
+.voice-autostart-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+.voice-autostart-sub { font-size: 14px; opacity: .8; line-height: 1.5; }
+
 /* ── Voice Overlay ──────────────────────────────────────────── */
 .voice-overlay {
   position: fixed; inset: 0; z-index: 300;
