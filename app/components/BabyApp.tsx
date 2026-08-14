@@ -1707,6 +1707,26 @@ export default function BabyApp() {
     }
   }, []);
 
+  // /api/chat·/api/ocr-medicine는 프리미엄 전용이라 401/403을 돌려줄 수 있다.
+  // 안내 없이 조용히 실패하면 사용자는 "'데이비'가 반응만 하고 아무 일도 안 일어난다"고
+  // 느낀다. 한 번 막히면 잠시 재요청하지 않는다 — 음성 명령 1건이 /api/chat을
+  // 두 번(라우터 + 답변) 부르므로 안 막으면 같은 토스트가 겹친다.
+  // 핸즈프리 중이면 showToast가 이 문구를 읽어주고 대기 상태로 되돌린다.
+  const accessBlockedUntilRef = useRef(0);
+  const noteAccessError = useCallback((status: number): boolean => {
+    if (status !== 401 && status !== 403) return false;
+    if (Date.now() >= accessBlockedUntilRef.current) {
+      accessBlockedUntilRef.current = Date.now() + 60_000;
+      showToast(
+        status === 403
+          ? '⭐ 이 기능은 프리미엄 전용이에요. 설정에서 플랜을 확인해주세요'
+          : '🔒 로그인이 만료됐어요. 다시 로그인해주세요',
+        5000,
+      );
+    }
+    return true;
+  }, [showToast]);
+
   // ── Report download / share ───────────────────────────────────
   const handleDownload = useCallback(() => {
     const el = document.getElementById('rpt-print-area');
@@ -2407,6 +2427,7 @@ ${dc.pastDays}
         messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }],
       }),
     });
+    if (noteAccessError(res.status)) return null;
     const data = await res.json();
     const calls = data.choices?.[0]?.message?.tool_calls;
     if (!Array.isArray(calls) || !calls.length) return null;
@@ -2441,6 +2462,7 @@ ${JSON.stringify(results, null, 0)}`;
         messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }],
       }),
     });
+    if (noteAccessError(res.status)) return '';
     const data = await res.json();
     return data.choices?.[0]?.message?.content || '';
   };
@@ -2500,6 +2522,7 @@ ${JSON.stringify(results, null, 0)}`;
         headers: { 'Content-Type': 'application/json', ...(userOpenAIKeyRef.current ? { 'x-openai-key': userOpenAIKeyRef.current } : {}) },
         body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 800, temperature: 0.3, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }] }),
       });
+      if (noteAccessError(res.status)) { botReply(getBotResponse(text, months, name)); return; }
       const data = await res.json();
       const html = (data.choices?.[0]?.message?.content || getBotResponse(text, months, name)) + renderSources(chunks, figures);
       botReply(html);
@@ -2874,6 +2897,8 @@ ${pastDays}
           tool_choice: isCorrection ? { type: 'function', function: { name: 'record_activity' } } : 'required',
         }),
       });
+      // 프리미엄/로그인 문제는 챗봇 폴백으로 넘기지 않는다. 넘겨봐야 거기서도 막힌다.
+      if (noteAccessError(res.status)) { closeOverlay(); return; }
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = await res.json();
       const tcall = data.choices?.[0]?.message?.tool_calls?.[0];
@@ -3730,6 +3755,7 @@ ${pastDays}
                             },
                             body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
                           });
+                          if (noteAccessError(res.status)) return;
                           const data = await res.json();
                           if (data.error) { showToast('인식 실패: ' + data.error); return; }
                           if (data.name)  setHfMedname(data.name);
