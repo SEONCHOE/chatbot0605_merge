@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useVoiceAgent, mergeTranscript, htmlToSpeech, toastToSpeech, isIOSDevice } from './useVoiceAgent';
 
@@ -3095,7 +3095,13 @@ ${pastDays}
   };
 
   // 시리 단축어/홈 화면에 등록할 주소. 배포 도메인이 그대로 들어간다.
-  const voiceLaunchUrl = typeof window !== 'undefined' ? `${window.location.origin}/?voice=1` : '/?voice=1';
+  // 렌더 중에 window를 읽으면 서버('/?voice=1')와 클라이언트(절대 URL)가 달라져
+  // 하이드레이션이 깨진다. useSyncExternalStore로 서버 스냅샷을 따로 준다.
+  const voiceLaunchUrl = useSyncExternalStore(
+    () => () => {},                              // 구독 없음 — 값이 바뀌지 않는다
+    () => `${window.location.origin}/?voice=1`,  // 클라이언트
+    () => '/?voice=1',                           // 서버(및 하이드레이션 시점)
+  );
 
   // ── Computed ─────────────────────────────────────────────────
   const ageInfo = appState.baby ? getAgeInfo(appState.baby.birthDate) : null;
